@@ -1,0 +1,225 @@
+.admin {
+  padding: 20px;
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+
+    &__left {
+      flex: 2;
+
+      h1 {
+        font-size: 28px;
+        color: #0F74C7FF;
+        margin-bottom: 30px;
+      }
+
+      &__table {
+        background: #FFFFFF;
+        border-radius: 10px;
+        box-shadow: 0px 0px 1px #171a1f12, 0px 0px 2px #171a1f1F;
+        overflow: hidden;
+
+        &__header,
+        &__row {
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr 1.2fr 1.5fr;
+          padding: 16px;
+          align-items: center;
+          border-bottom: 1px solid #DEE1E6FF;
+
+          span {
+            font-size: 14px;
+          }
+        }
+
+        &__header {
+          background: #F2F4F8FF;
+          font-weight: 600;
+          color: #171A1FFF;
+        }
+
+        &__row {
+          &:hover {
+            background: #F8FAFD;
+          }
+
+          &--no-sessions {
+            opacity: 0.7;
+            font-style: italic;
+          }
+
+          &--add {
+            background: #f8fff8;
+            font-style: italic;
+          }
+        }
+
+        &__user-header {
+          background: #F2F4F8FF;
+          font-weight: 600;
+          border-bottom: 2px solid #0F74C7FF;
+          padding: 12px 16px;
+
+          .admin__top__left__table__user-name {
+            font-size: 16px;
+          }
+        }
+
+        &__status {
+          font-size: 13px;
+
+          &--active {
+            color: #28a745;
+          }
+
+          &--completed {
+            color: #565D6DFF;
+          }
+
+          &--manually_edited {
+            color: #856404;
+          }
+        }
+
+        &__actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        &__btn {
+          padding: 8px 12px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 13px;
+
+          &--start {
+            background: #28a745;
+            color: white;
+
+            &:hover {
+              background: #218838;
+            }
+          }
+
+          &--end {
+            background: #dc3545;
+            color: white;
+
+            &:hover {
+              background: #c82333;
+            }
+          }
+
+          &--edit {
+            background: #ffc107;
+            color: white;
+
+            &:hover {
+              background: #e0a800;
+            }
+          }
+        }
+      }
+    }
+
+    &__right {
+      flex: 1;
+
+      h2 {
+        font-size: 24px;
+        color: #0F74C7FF;
+        margin-bottom: 20px;
+      }
+
+      &__btn-add {
+        display: block;
+        margin-bottom: 20px;
+        padding: 10px 20px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      &__users-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      &__user-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+      }
+
+      &__btn-edit {
+        padding: 6px 10px;
+        background: #ffc107;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      &__user-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 400px;
+        margin-top: 30px;
+
+        input, select {
+          padding: 10px;
+          border: 1px solid #dee2e6;
+          border-radius: 6px;
+        }
+
+        &__form-actions {
+          display: flex;
+          gap: 16px;
+          margin-top: 20px;
+
+          button {
+            padding: 10px;
+            background: #0F74C7FF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+  }
+
+  &__bottom{
+    position: relative;
+    &__modal{
+      position: absolute;
+      &__true{
+        background: #28a745;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 80%;
+        height: 80%;
+        flex-wrap: wrap;
+      }
+    }
+  }
+
+  &__access-denied {
+    text-align: center;
+    padding: 50px;
+    font-size: 24px;
+    color: #dc3545;
+  }
+}

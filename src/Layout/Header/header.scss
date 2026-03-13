@@ -1,0 +1,151 @@
+.header {
+  &__top {
+    position: fixed;
+    margin-bottom: 100px;
+    width: 100%;
+    height: 64px;
+    padding: 0 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(243, 244, 246, 0.37); /* white */
+    border-radius: 0px 0px 0px 0px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+
+    &__logo {
+      width: 50px;
+      height: 50px;
+      margin-right: 10px;
+    }
+
+    &__right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+
+      &__logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 10px;
+        background: #FFFFFFFF;
+        border: 1px solid #DEE1E6FF;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #171A1FFF;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        img {
+          width: 14px;
+          height: 14px;
+        }
+
+        &:hover {
+          background: #F2F4F8FF;
+          border-color: #0F74C7FF;
+        }
+
+        &:active {
+          background: #E5E9F0FF;
+        }
+      }
+
+      &__user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        &__avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid #DEE1E6FF;
+        }
+
+        &__username {
+          font-size: 14px;
+          font-weight: 500;
+          color: #171A1FFF;
+        }
+      }
+
+    }
+  }
+
+  &__menu_nav_left {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    position: fixed;
+    top: 64px;
+    left: 0px;
+    width: 256px;
+    height: 100%;
+    background: #F3F4F64D;
+    border-radius: 0px 0px 0px 0px;
+
+    &__name {
+      margin: 20px 0;
+      font-size: 18px;
+      line-height: 16px;
+      font-weight: 600;
+      color: #565D6DFF; /* neutral-600 */
+    }
+
+    nav{
+      display: flex;
+      gap: 15px;
+      flex-direction: column;
+    }
+
+    /* Button */
+    &__botton {
+      display: flex;
+      align-items: center;
+      justify-content: start;
+      font-size: 14px;
+      width: 223px;
+      height: 40px;
+      padding: 0 12px;
+      line-height: 22px;
+      font-weight: 500;
+      color: #171A1FFF; /* neutral-900 */
+      background: rgba(0, 0, 0, 0.06); /* transparent */
+      opacity: 1;
+      border: none;
+      border-radius: 6px;
+      gap: 12px;
+    }
+
+    /* Hover */
+    &__botton:hover {
+      color: #bdff7b; /* neutral-900 */
+      background: rgba(0, 0, 0, 0.32); /* black */
+    }
+
+    &__active{
+      width: 223px;
+      height: 40px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 22px;
+      font-weight: 500;
+      color: #1E2128FF; /* neutral-800 */
+      background: #a2ff6b; /* neutral-200 */
+      opacity: 1;
+      border-radius: 6px;
+      border-width: 0px;
+      border-color: #000000FF; /* black */
+      border-style: solid;
+      gap: 12px;
+    }
+
+  }
+}

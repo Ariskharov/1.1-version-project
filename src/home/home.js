@@ -1,0 +1,1 @@
+import React, {Component, useContext} from 'react';import "./home.scss";import {CustomContext} from "../Context";class Home extends Component {    static contextType = CustomContext;    render() {        const {} = this.context;        return (            <main className="home">                <h1>Main</h1>            </main>        );    }}export default Home;
