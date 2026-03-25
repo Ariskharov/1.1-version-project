@@ -11,28 +11,19 @@ import {animateScroll} from "react-scroll";
 const Header = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const {currentUser, logout} = useContext(CustomContext); // будем брать из контекста
+    const { currentUser, logout } = useContext(CustomContext);
+
     console.log('Header рендерится. currentUser:', currentUser);
 
-    // Если вдруг currentUser ещё не загрузился — не рендерим хедер
-    if (!currentUser) return null;
-
     const handleLogout = () => {
-        logout(); // функция из контекста, очистим состояние
-        navigate('/'); // на страницу логина
+        logout();
+        navigate('/'); // или '/signin', куда у тебя страница входа
     };
-
 
     const toTop = () => {
-        animateScroll.scrollToTop({
-            delay: 0,
-            duration: 0,
-            smooth: true
-        })
+        animateScroll.scrollToTop({ delay: 0, duration: 0, smooth: true });
     };
 
-
-    // Определяем активный путь (упростим логику)
     const isActive = (path) => location.pathname === path;
 
     return (
@@ -41,41 +32,57 @@ const Header = () => {
                 <Link to="/home">
                     <img src={logo} alt="TimeTrack Logo" className="header__top__logo"/>
                 </Link>
-                <div className="header__top__right">
-                    <button onClick={handleLogout} className="header__top__right__logout-btn">
-                        <img src={exitImg} alt=""/>
-                        Выйти
-                    </button>
 
-                    <div className="header__top__right__user">
-                        <img
-                            src={currentUser.avatar || defaultAvatar}
-                            alt="Avatar"
-                            className="header__top__right__user__avatar"
-                        />
-                        <span className="header__top__right__user__username">{currentUser.fullName}</span>
+                {currentUser ? (
+                    <div className="header__top__right">
+                        <div className="header__top__right__user">
+                            {currentUser.avatar ? (
+                                <img src={currentUser.avatar} alt="avatar" className="header__avatar" />
+                            ) : (
+                                <img
+                                    src={currentUser.avatar || defaultAvatar}
+                                    alt="Avatar"
+                                    className="header__top__right__user__avatar"
+                                />
+                            )}
+                            <span className="header__top__right__user__username">{currentUser.fullName}</span>
+                        </div>
+
+                        <button onClick={handleLogout} className="header__top__right__logout-btn">
+                            <img src={exitImg} alt="exit" />
+                            Выйти
+                        </button>
                     </div>
-                </div>
+                ) : (
+                    <Link to="/signin" className="header__top__right__logout-btn">
+                        Войти
+                    </Link>
+                )}
+
             </div>
             <div className="header__menu_nav_left">
                 <p className="header__menu_nav_left__name">Management</p>
                 <nav className="">
-                    {currentUser.role === 'admin' && (
+                    {currentUser?.role === 'admin' && (
                         <>
-                            <Link to="/admin" onClick={()=>toTop()}>
-                                <p className={isActive('/admin') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}>
-                                    Панель администратора
-                                </p>
+                            <Link
+                                to="/admin"
+                                onClick={toTop}
+                                className={`header__link ${isActive('/admin') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                            >
+                                Панель администратора
                             </Link>
-                            <Link to="/edit_mebel" onClick={()=>toTop()}>
-                                <p className={isActive('/edit_mebel') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}>
-                                    Редактор мебели
-                                </p>
+                            <Link
+                                to="/edit_mebel"
+                                onClick={toTop}
+                                className={`header__link ${isActive('/edit_mebel') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                            >
+                                Редактор мебели
                             </Link>
                         </>
                     )}
-                    <Link to="/catalog" onClick={()=>toTop()}>
-                        <p className={isActive('/catalog') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}>
+                    <Link to="/" onClick={() => toTop()}>
+                        <p className={isActive('/') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}>
                             Каталог мебели
                         </p>
                     </Link>
