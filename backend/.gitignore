@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Dynamic Data Storage (Ignore tracking for better future-proofing)
+db.json
+uploads/

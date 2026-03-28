@@ -30,7 +30,7 @@ const SingIn = () => {
             if (success.role === 'admin') {
                 navigate('/admin');
             } else {
-                navigate('/sotrudnik');
+                navigate('/');
             }
         } else {
             setError('Неверный логин или пароль');

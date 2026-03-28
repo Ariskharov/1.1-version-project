@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import bcrypt from 'bcryptjs';
 
 export const CustomContext = createContext();
 
@@ -9,24 +10,31 @@ export const Context = ({ children }) => {
     const [currentUser, setCurrentUser] = useState(null);
     const [users, setUsers] = useState([]);
     const [workSessions, setWorkSessions] = useState([]);
+    const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Загрузка данных при старте
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [usersRes, sessionsRes] = await Promise.all([
+                const [usersRes, sessionsRes, productsRes] = await Promise.all([
                     axios.get(`${API_BASE}/users`),
-                    axios.get(`${API_BASE}/workSessions`)
+                    axios.get(`${API_BASE}/workSessions`),
+                    axios.get(`${API_BASE}/product`)
                 ]);
                 setUsers(usersRes.data);
                 setWorkSessions(sessionsRes.data);
+                setProducts(productsRes.data);
 
                 // Проверяем, залогинен ли пользователь (по localStorage)
                 const saved = localStorage.getItem('currentUser');
                 if (saved) {
-                    const user = JSON.parse(saved);
-                    setCurrentUser(user);
+                    try {
+                        const user = JSON.parse(saved);
+                        setCurrentUser(user);
+                    } catch (e) {
+                        localStorage.removeItem('currentUser');
+                    }
                 }
             } catch (err) {
                 console.error('Ошибка загрузки данных:', err);
@@ -38,29 +46,46 @@ export const Context = ({ children }) => {
         loadData();
     }, []);
 
-    // Логин — используем json-server-auth маршрут
+    // Логин — улучшенный поиск (поддержка дубликатов логинов и поиска по ФИО)
     const login = async (identifier, password) => {
-        console.log('Попытка входа:', identifier, password); // ← увидим в консоли
+        console.log('Попытка входа:', identifier, password);
 
         try {
-            // Сначала найдём пользователя по login или email в уже загруженных users
-            const foundUser = users.find(u =>
+            // Ищем всех кандидатов (по логину, email или ФИО)
+            const candidates = users.filter(u =>
                 u.login === identifier ||
                 u.email === identifier ||
-                u.login.toLowerCase() === identifier.toLowerCase()
+                (u.login && u.login.toLowerCase() === identifier.toLowerCase()) ||
+                u.fullName === identifier
             );
 
-            if (!foundUser) {
+            if (candidates.length === 0) {
                 console.log('Пользователь не найден');
                 return false;
             }
 
-            if (foundUser.password !== password) {
-                console.log('Неверный пароль');
+            // Перебираем всех найденных, пока не встретим верный пароль
+            let foundUser = null;
+            for (const u of candidates) {
+                let match = false;
+                if (u.password?.startsWith('$2a$')) {
+                    match = bcrypt.compareSync(password, u.password);
+                } else {
+                    match = (u.password === password);
+                }
+
+                if (match) {
+                    foundUser = u;
+                    break;
+                }
+            }
+
+            if (!foundUser) {
+                console.log('Неверный пароль для всех совпадений');
                 return false;
             }
 
-            // Если пароль верный — вручную создаём safeUser и сохраняем
+            // Если пароль верный — создаём safeUser и сохраняем
             const safeUser = {
                 id: foundUser.id,
                 login: foundUser.login,
@@ -75,7 +100,7 @@ export const Context = ({ children }) => {
             setCurrentUser(safeUser);
             localStorage.setItem('currentUser', JSON.stringify(safeUser));
 
-            // Опционально: обновим сессии
+            // Обновим сессии
             try {
                 const sessionsRes = await axios.get(`${API_BASE}/workSessions`);
                 setWorkSessions(sessionsRes.data);
@@ -206,32 +231,7 @@ export const Context = ({ children }) => {
         }
     };
 
-    // Загрузка продуктов (мебели)
-    const [products, setProducts] = useState([]);
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                const [usersRes, sessionsRes, productsRes] = await Promise.all([
-                    axios.get(`${API_BASE}/users`),
-                    axios.get(`${API_BASE}/workSessions`),
-                    axios.get(`${API_BASE}/product`)
-                ]);
-                setUsers(usersRes.data);
-                setWorkSessions(sessionsRes.data);
-                setProducts(productsRes.data);
-
-                const saved = localStorage.getItem('currentUser');
-                if (saved) setCurrentUser(JSON.parse(saved));
-            } catch (err) {
-                console.error('Ошибка загрузки данных:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadData();
-    }, []);
 
 // Добавление новой мебели
     const addProduct = async (newProduct) => {
