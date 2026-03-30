@@ -17,10 +17,12 @@ app.use(express.json());
 // Static file serving for images (Do this BEFORE catch-all collection routes)
 app.use('/utilse', express.static(uploadDir));
 
-// Link all routes identically to the old server.js flat structure
+// Upload route MUST come before collection routes (otherwise /:collection intercepts /upload)
+app.use('/upload', uploadRoutes);
+
+// Auth and collection routes
 app.use('/', authRoutes);
 app.use('/', collectionRoutes);
-app.use('/upload', uploadRoutes);
 
 app.listen(port, () => {
     console.log(`Backend server started on http://localhost:${port}`);

@@ -6,19 +6,21 @@ const { upload, uploadDir } = require('../utils/upload');
 const uploadImage = (req, res) => {
     upload.single('file')(req, res, (err) => {
         if (err instanceof multer.MulterError) {
-            console.error('Ошибка Multer:', err);
+            console.error('[UPLOAD] Multer error:', err);
             return res.status(500).json({ error: 'Ошибка Multer при загрузке' });
         } else if (err) {
-            console.error('Неизвестная ошибка загрузки:', err);
+            console.error('[UPLOAD] Unknown error:', err);
             return res.status(500).json({ error: 'Системная ошибка при загрузке' });
         }
 
         if (!req.file) {
+            console.error('[UPLOAD] No file received in request');
             return res.status(400).json({ error: 'Файл не получен' });
         }
 
         const filePath = `/utilse/${req.file.filename}`;
-        console.log(`Файл загружен успешно: ${filePath}`);
+        console.log(`[UPLOAD] File saved successfully: ${filePath}`);
+        console.log(`[UPLOAD] Full disk path: ${req.file.path}`);
         res.json({ path: filePath });
     });
 };

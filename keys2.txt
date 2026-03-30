@@ -1,0 +1,4 @@
+users: id, email, password, login, fullName, avatar, role, badgeId
+workSessions: id, userId, date, startTime, endTime, durationMinutes, status, editedBy
+product: id, img, title, variables, conditions, details, details_statik, price
+order: id, name_client, name_compony, address, order_note, description_for_order, order_color, product_order, subtotal, discountAmount, taxAmount, total, status, createdAt

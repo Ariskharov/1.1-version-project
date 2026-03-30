@@ -1,32 +1,49 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../database/db');
+const pool = require('../database/pg');
 
-const register = (req, res) => {
-    const { email, password } = req.body;
-    const hashedPassword = bcrypt.hashSync(password, 10);
+const register = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const hashedPassword = bcrypt.hashSync(password, 10);
+        
+        const insertRes = await pool.query(
+            `INSERT INTO "users" (email, password) VALUES ($1, $2) RETURNING *`,
+            [email, hashedPassword]
+        );
+        const newUser = insertRes.rows[0];
 
-    db.read();
-    db.data.users = db.data.users || [];
-    const newUser = { id: (db.data.users.length || 0) + 1, email, password: hashedPassword };
-
-    db.data.users.push(newUser);
-    db.write();
-
-    res.json(newUser);
+        res.json(newUser);
+    } catch (err) {
+        console.error('register error', err);
+        res.status(500).json({ error: 'Server error' });
+    }
 };
 
-const login = (req, res) => {
-    const { email, password } = req.body;
+const login = async (req, res) => {
+    try {
+        const { email, password } = req.body; // 'email' here is actually the login/identity field from frontend
 
-    db.read();
-    const user = db.data.users?.find(u => u.email === email);
+        // Search for user by email, login, or fullName
+        const result = await pool.query(
+            `SELECT * FROM "users" WHERE "email" = $1 OR "login" = $1 OR "fullName" = $1`, 
+            [email]
+        );
+        const userRow = result.rows[0];
 
-    if (user && bcrypt.compareSync(password, user.password)) {
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '1h' });
-        res.json({ token });
-    } else {
-        res.status(401).json({ error: 'Invalid credentials' });
+        if (userRow && bcrypt.compareSync(password, userRow.password)) {
+            const token = jwt.sign(
+                { id: userRow.id }, 
+                process.env.JWT_SECRET || 'your-secret-key', 
+                { expiresIn: '1h' }
+            );
+            res.json({ token });
+        } else {
+            res.status(401).json({ error: 'Invalid credentials' });
+        }
+    } catch (err) {
+        console.error('login error', err);
+        res.status(500).json({ error: 'Server error' });
     }
 };
 
