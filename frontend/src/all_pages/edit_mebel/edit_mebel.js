@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
-const API_URL = 'http://localhost:8080/product';
-const UPLOAD_URL = 'http://localhost:8080/upload';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_URL = `${API_BASE}/product`;
+const UPLOAD_URL = `${API_BASE}/upload`;
 
 function FurnitureEditor() {
     const [products, setProducts] = useState([]);
@@ -344,7 +345,7 @@ function FurnitureEditor() {
                             {selected.img ? (
                                 <>
                                     <img
-                                        src={selected.img.startsWith('http') ? selected.img : `http://localhost:8080/${selected.img.replace(/^\//, '')}`}
+                                        src={selected.img.startsWith('http') ? selected.img : `${API_BASE}/${selected.img.replace(/^\//, '')}`}
                                         alt="Фото мебели"
                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                     />

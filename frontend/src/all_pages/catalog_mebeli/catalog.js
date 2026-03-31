@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { evaluate } from 'mathjs';
 import './catalog.scss';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 const Catalog = () => {
     const [products, setProducts] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -9,7 +11,7 @@ const Catalog = () => {
     const [result, setResult] = useState({});
 
     useEffect(() => {
-        fetch('http://localhost:8080/product')
+        fetch(`${API_BASE}/product`)
             .then(res => res.json())
             .then(data => {
                 setProducts(Array.isArray(data) ? data : [data]);
@@ -109,7 +111,7 @@ const Catalog = () => {
                         }}
                     >
                         <img
-                            src={product.img.startsWith('http') ? product.img : `http://localhost:8080${product.img.startsWith('/') ? '' : '/'}${product.img}`}
+                            src={product.img.startsWith('http') ? product.img : `${API_BASE}${product.img.startsWith('/') ? '' : '/'}${product.img}`}
                             alt={product.title}
                         />
                         <p>{product.id}. {product.title}</p>
