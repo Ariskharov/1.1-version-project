@@ -37,7 +37,9 @@ const login = async (req, res) => {
                 process.env.JWT_SECRET || 'your-secret-key', 
                 { expiresIn: '1h' }
             );
-            res.json({ token });
+            // Возвращаем данные пользователя (без пароля) + токен
+            const { password: _, ...userWithoutPassword } = userRow;
+            res.json({ ...userWithoutPassword, token });
         } else {
             res.status(401).json({ error: 'Invalid credentials' });
         }

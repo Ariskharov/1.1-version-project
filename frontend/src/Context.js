@@ -1,10 +1,9 @@
 import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import bcrypt from 'bcryptjs';
 
 export const CustomContext = createContext();
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 export const Context = ({ children }) => {
     const [currentUser, setCurrentUser] = useState(null);
@@ -46,57 +45,34 @@ export const Context = ({ children }) => {
         loadData();
     }, []);
 
-    // Логин — улучшенный поиск (поддержка дубликатов логинов и поиска по ФИО)
+    // Логин — обращаемся к бэкенду POST /login, который проверяет пароль через БД
     const login = async (identifier, password) => {
-        console.log('Попытка входа:', identifier, password);
+        console.log('Попытка входа:', identifier);
 
         try {
-            // Ищем всех кандидатов (по логину, email или ФИО)
-            const candidates = users.filter(u =>
-                u.login === identifier ||
-                u.email === identifier ||
-                (u.login && u.login.toLowerCase() === identifier.toLowerCase()) ||
-                u.fullName === identifier
-            );
+            // Бэкенд проверяет пароль и возвращает данные пользователя
+            const res = await axios.post(`${API_BASE}/login`, {
+                email: identifier,
+                password,
+            });
 
-            if (candidates.length === 0) {
-                console.log('Пользователь не найден');
+            const userData = res.data;
+
+            if (!userData || !userData.id) {
+                console.log('Сервер не вернул пользователя');
                 return false;
             }
 
-            // Перебираем всех найденных, пока не встретим верный пароль
-            let foundUser = null;
-            for (const u of candidates) {
-                let match = false;
-                if (u.password?.startsWith('$2a$')) {
-                    match = bcrypt.compareSync(password, u.password);
-                } else {
-                    match = (u.password === password);
-                }
-
-                if (match) {
-                    foundUser = u;
-                    break;
-                }
-            }
-
-            if (!foundUser) {
-                console.log('Неверный пароль для всех совпадений');
-                return false;
-            }
-
-            // Если пароль верный — создаём safeUser и сохраняем
             const safeUser = {
-                id: foundUser.id,
-                login: foundUser.login,
-                email: foundUser.email,
-                fullName: foundUser.fullName,
-                role: foundUser.role,
-                avatar: foundUser.avatar || ""
+                id: userData.id,
+                login: userData.login,
+                email: userData.email,
+                fullName: userData.fullName,
+                role: userData.role,
+                avatar: userData.avatar || ''
             };
 
             console.log('Успешный вход:', safeUser);
-
             setCurrentUser(safeUser);
             localStorage.setItem('currentUser', JSON.stringify(safeUser));
 
@@ -109,7 +85,7 @@ export const Context = ({ children }) => {
             return safeUser;
 
         } catch (err) {
-            console.error('Ошибка в login:', err);
+            console.error('Ошибка в login:', err.response?.data || err.message);
             return false;
         }
     };
