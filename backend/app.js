@@ -11,7 +11,31 @@ const uploadRoutes = require('./src/routes/uploadRoutes');
 const app = express();
 const port = process.env.PORT || 8080;
 
-app.use(cors());
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    // Задеплоенный фронтенд (добавь свои домены через запятую)
+    process.env.FRONTEND_URL,
+].filter(Boolean); // убираем undefined если переменная не задана
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Разрешаем запросы без origin (postman, curl) и из разрешённых доменов
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS] Blocked origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+}));
+
+// Handle preflight OPTIONS requests
+app.options('*', cors());
+
 app.use(express.json());
 
 // Static file serving for images (Do this BEFORE catch-all collection routes)
