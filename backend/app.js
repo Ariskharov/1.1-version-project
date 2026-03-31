@@ -33,8 +33,8 @@ app.use(cors({
     credentials: true,
 }));
 
-// Handle preflight OPTIONS requests
-app.options('*', cors());
+// Handle preflight OPTIONS requests (Express 5 syntax)
+app.options('/{*path}', cors());
 
 app.use(express.json());
 
