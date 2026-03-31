@@ -234,6 +234,7 @@ export const Context = ({ children }) => {
 
 
 // Добавление новой мебели
+    // eslint-disable-next-line no-unused-vars
     const addProduct = async (newProduct) => {
         try {
             const res = await axios.post(`${API_BASE}/product`, newProduct);
@@ -244,6 +245,7 @@ export const Context = ({ children }) => {
     };
 
 // Обновление мебели
+    // eslint-disable-next-line no-unused-vars
     const updateProduct = async (productId, updates) => {
         try {
             const res = await axios.patch(`${API_BASE}/product/${productId}`, updates);
@@ -254,6 +256,7 @@ export const Context = ({ children }) => {
     };
 
 // Удаление мебели
+    // eslint-disable-next-line no-unused-vars
     const deleteProduct = async (productId) => {
         try {
             await axios.delete(`${API_BASE}/product/${productId}`);
