@@ -24,7 +24,11 @@ app.use('/upload', uploadRoutes);
 app.use('/', authRoutes);
 app.use('/', collectionRoutes);
 
-app.listen(port, () => {
-    console.log(`Backend server started on http://localhost:${port}`);
-    console.log(`Serving static files from: ${uploadDir}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Backend server started on http://localhost:${port}`);
+        console.log(`Serving static files from: ${uploadDir}`);
+    });
+}
+
+module.exports = app;
