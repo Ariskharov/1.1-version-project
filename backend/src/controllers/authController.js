@@ -31,14 +31,14 @@ const login = async (req, res) => {
         );
         const userRow = result.rows[0];
 
-        // Проверка пароля (поддержка и старых обычных паролей, и новых зашифрованных)
+        // Универсальная проверка пароля (любые версии bcrypt + резерв для обычного текста)
         let isMatch = false;
-        if (userRow) {
-            if (userRow.password && userRow.password.startsWith('$2a$')) {
-                // Это зашифрованный пароль (bcrypt)
-                isMatch = bcrypt.compareSync(password, userRow.password);
-            } else {
-                // Старый пароль в открытом виде (как "1234")
+        if (userRow && userRow.password) {
+            // 1. Проверяем через bcrypt. Если пароль в БД не зашифрован, он просто безопасно вернет false.
+            isMatch = bcrypt.compareSync(password, userRow.password);
+            
+            // 2. Если bcrypt не дал совпадения (возможно пароль ещё старый, в открытом виде)
+            if (!isMatch) {
                 isMatch = (password === userRow.password);
             }
         }
