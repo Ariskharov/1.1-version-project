@@ -31,7 +31,19 @@ const login = async (req, res) => {
         );
         const userRow = result.rows[0];
 
-        if (userRow && bcrypt.compareSync(password, userRow.password)) {
+        // Проверка пароля (поддержка и старых обычных паролей, и новых зашифрованных)
+        let isMatch = false;
+        if (userRow) {
+            if (userRow.password && userRow.password.startsWith('$2a$')) {
+                // Это зашифрованный пароль (bcrypt)
+                isMatch = bcrypt.compareSync(password, userRow.password);
+            } else {
+                // Старый пароль в открытом виде (как "1234")
+                isMatch = (password === userRow.password);
+            }
+        }
+
+        if (isMatch) {
             const token = jwt.sign(
                 { id: userRow.id }, 
                 process.env.JWT_SECRET || 'your-secret-key', 
