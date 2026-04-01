@@ -255,7 +255,8 @@ export const Context = ({ children }) => {
         updateUser,
         addProduct,
         updateProduct,
-        deleteProduct
+        deleteProduct,
+        products
         // Дальше добавим: createSession, editSession и т.д.
     };
 
