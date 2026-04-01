@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import bcrypt from 'bcryptjs';
 
 export const CustomContext = createContext();
 
@@ -45,47 +46,48 @@ export const Context = ({ children }) => {
         loadData();
     }, []);
 
-    // Логин — обращаемся к бэкенду POST /login, который проверяет пароль через БД
+    // Логин — через бэкенд Эндпоинт
     const login = async (identifier, password) => {
         console.log('Попытка входа:', identifier);
 
         try {
-            // Бэкенд проверяет пароль и возвращает данные пользователя
+            // Отправляем POST запрос на бэкенд
             const res = await axios.post(`${API_BASE}/login`, {
                 email: identifier,
-                password,
+                password: password
             });
 
-            const userData = res.data;
+            if (res.data && res.data.token) {
+                // Если бэкенд вернул пользователя и токен
+                const safeUser = {
+                    id: res.data.id,
+                    login: res.data.login,
+                    email: res.data.email,
+                    fullName: res.data.fullName,
+                    role: res.data.role,
+                    avatar: res.data.avatar || ""
+                };
 
-            if (!userData || !userData.id) {
-                console.log('Сервер не вернул пользователя');
+                setCurrentUser(safeUser);
+                localStorage.setItem('currentUser', JSON.stringify(safeUser));
+                localStorage.setItem('token', res.data.token);
+
+                console.log('Успешный вход:', safeUser);
+                
+                // Обновим сессии
+                try {
+                    const sessionsRes = await axios.get(`${API_BASE}/workSessions`);
+                    setWorkSessions(sessionsRes.data);
+                } catch (e) {}
+
+                return safeUser;
+            } else {
+                console.log('Неверный ответ сервера');
                 return false;
             }
 
-            const safeUser = {
-                id: userData.id,
-                login: userData.login,
-                email: userData.email,
-                fullName: userData.fullName,
-                role: userData.role,
-                avatar: userData.avatar || ''
-            };
-
-            console.log('Успешный вход:', safeUser);
-            setCurrentUser(safeUser);
-            localStorage.setItem('currentUser', JSON.stringify(safeUser));
-
-            // Обновим сессии
-            try {
-                const sessionsRes = await axios.get(`${API_BASE}/workSessions`);
-                setWorkSessions(sessionsRes.data);
-            } catch (e) {}
-
-            return safeUser;
-
         } catch (err) {
-            console.error('Ошибка в login:', err.response?.data || err.message);
+            console.error('Ошибка в login (бэкенд):', err.response?.data || err.message);
             return false;
         }
     };
@@ -210,7 +212,6 @@ export const Context = ({ children }) => {
 
 
 // Добавление новой мебели
-    // eslint-disable-next-line no-unused-vars
     const addProduct = async (newProduct) => {
         try {
             const res = await axios.post(`${API_BASE}/product`, newProduct);
@@ -221,7 +222,6 @@ export const Context = ({ children }) => {
     };
 
 // Обновление мебели
-    // eslint-disable-next-line no-unused-vars
     const updateProduct = async (productId, updates) => {
         try {
             const res = await axios.patch(`${API_BASE}/product/${productId}`, updates);
@@ -232,7 +232,6 @@ export const Context = ({ children }) => {
     };
 
 // Удаление мебели
-    // eslint-disable-next-line no-unused-vars
     const deleteProduct = async (productId) => {
         try {
             await axios.delete(`${API_BASE}/product/${productId}`);

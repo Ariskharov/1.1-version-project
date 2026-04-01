@@ -1,0 +1,33 @@
+@media (max-width: 1035px) {
+  .admin__top{
+    display: block;
+  }
+}
+@media (max-width: 955px) {
+
+}
+@media (max-width: 900px) {
+  .main{
+    padding-left: 200px;
+  }
+  .header{
+    &__menu_nav_left{
+      width: 200px;
+      &__botton,
+      &__active{
+        width: 180px;
+      }
+    }
+  }
+}
+@media (max-width: 650px) {
+  .header_PC{
+    display: none;
+  }
+  .main{
+    padding: 64px 0 0 0;
+  }
+  .header_Phon{
+    display: block;
+  }
+}

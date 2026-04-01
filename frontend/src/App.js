@@ -21,11 +21,8 @@ function App() {
 
     return (
         <Routes>
-            {/* Публичный маршрут */}
-            <Route path="/signin" element={!currentUser ? <SingIn /> : <Navigate to="/" />} />
-
-            {/* Защищённые маршруты */}
-            <Route path="/" element={currentUser ? <Layout /> : <Navigate to="/signin" />}>
+            <Route path="/signin" element={<SingIn />} />
+            <Route path="/" element={<Layout />}>
                 <Route index element={<Catalog />} />
                 <Route path="edit_mebel" element={<EditMebel />} />
                 <Route path="admin" element={<Admin />} />

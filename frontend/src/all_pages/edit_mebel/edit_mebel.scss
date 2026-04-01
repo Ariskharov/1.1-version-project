@@ -1,0 +1,303 @@
+.furniture-editor {
+  padding: 24px 16px;
+  font-family: system-ui, -apple-system, sans-serif;
+  max-width: 1250px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+.editor-title {
+  font-size: 34px;
+  font-weight: 700;
+  color: #1E2128;
+  margin-bottom: 28px;
+}
+
+/* ==================== Кнопки ==================== */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &-add {
+    background: #6366f1;
+    color: white;
+    margin-bottom: 32px;
+    font-size: 17px;
+  }
+
+  &-upload { background: #22c55e; color: white; }
+  &-secondary { background: #14b8a6; color: white; }
+  &-primary { background: #3b82f6; color: white; }
+  &-success {
+    background: #22c55e;
+    color: white;
+    font-size: 18px;
+    padding: 18px 52px;
+  }
+  &-danger { background: #ef4444; color: white; }
+  &-remove {
+    background: #ef4444;
+    color: white;
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+  &-delete-small {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &.large { padding: 18px 52px; }
+}
+
+/* ==================== Список мебели ==================== */
+.products-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.product-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #f8fafc;
+  padding: 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 2px solid transparent;
+  width: 100%;
+  max-width: 420px;
+
+  &:hover {
+    background: #f1f5f9;
+    transform: translateY(-3px);
+  }
+  &.active {
+    background: #e0f2fe;
+    border-color: #3b82f6;
+  }
+}
+
+.product-image {
+  width: 78px;
+  height: 78px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .no-image {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    color: #94a3b8;
+  }
+}
+
+.product-info {
+  flex: 1;
+  min-width: 0;
+
+  .product-title {
+    font-weight: 600;
+    font-size: 16.5px;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .product-id {
+    font-size: 13.5px;
+    color: #64748b;
+  }
+}
+
+/* ==================== Панель редактирования ==================== */
+.editor-panel {
+  background: #fff;
+  padding: 36px;
+  border-radius: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.09);
+}
+
+.editor-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+}
+
+.title-input {
+  font-size: 29px;
+  flex: 1;
+  border: none;
+  outline: none;
+  font-weight: 700;
+  padding: 8px 0;
+  min-width: 300px;
+}
+
+.photo-upload {
+  width: 230px;
+  height: 230px;
+  border: 3px dashed #cbd5e1;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.uploaded-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.delete-photo-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+/* Формы */
+.form-group {
+  margin-bottom: 34px;
+}
+
+.input-full {
+  width: 100%;
+  padding: 16px 18px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 16.5px;
+  transition: all 0.2s;
+
+  &:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+  }
+}
+
+.hint {
+  font-size: 13.5px;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+/* Секции */
+.section {
+  margin-bottom: 52px;
+}
+
+.section-title {
+  font-size: 23px;
+  font-weight: 700;
+  color: #1e2937;
+  margin-bottom: 22px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+/* Ряды */
+.variable-row,
+.condition-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.input-small { width: 160px; }
+.input-medium { flex: 1; min-width: 220px; }
+
+.detail-card {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 14px;
+  margin-bottom: 24px;
+  border: 1px solid #f1f5f9;
+}
+
+.detail-header {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.detail-formulas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Кнопки действий */
+.editor-actions {
+  margin-top: 52px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* Адаптив */
+@media (max-width: 768px) {
+  .furniture-editor { padding: 16px 12px; }
+  .editor-panel { padding: 24px 20px; }
+  .editor-header { flex-direction: column; }
+  .photo-upload { width: 100%; max-width: 300px; height: 240px; }
+  .product-item { max-width: 100%; }
+}

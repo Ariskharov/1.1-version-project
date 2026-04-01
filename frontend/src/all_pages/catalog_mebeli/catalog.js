@@ -110,6 +110,10 @@ const Catalog = () => {
                             setInputs(newInputs);
                         }}
                     >
+                        {/*<img*/}
+                        {/*    src={product.img.startsWith('http') ? product.img : `http://localhost:8080${product.img.startsWith('/') ? '' : '/'}${'../../../' + product.img}`}*/}
+                        {/*    alt={product.title}*/}
+                        {/*/>*/}
                         <img
                             src={product.img.startsWith('http') ? product.img : `${API_BASE}${product.img.startsWith('/') ? '' : '/'}${product.img}`}
                             alt={product.title}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import './edit_mebel.scss'
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-const API_URL = `${API_BASE}/product`;
-const UPLOAD_URL = `${API_BASE}/upload`;
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_URL = `${BASE_URL}/product`;
+const UPLOAD_URL = `${BASE_URL}/upload`;
 
 function FurnitureEditor() {
     const [products, setProducts] = useState([]);
@@ -35,7 +36,7 @@ function FurnitureEditor() {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            await response.json();
+            const updatedProduct = await response.json();
             alert('Изменения сохранены!');
             setSelected(null); // Закрываем только здесь
             fetchProducts();
@@ -58,8 +59,8 @@ function FurnitureEditor() {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const savedProduct = await response.json();
-            setSelected(savedProduct);
+            const updatedProduct = await response.json();
+            setSelected(updatedProduct);
             fetchProducts();
             // НЕ закрываем редактор
         } catch (err) {
@@ -260,58 +261,36 @@ function FurnitureEditor() {
     if (loading) return <div style={{ padding: 40, fontSize: 20 }}>Загрузка мебели...</div>;
 
     return (
-        <div style={{ padding: 24, fontFamily: 'system-ui', maxWidth: 1200, margin: '0 auto' }}>
-            <h1 style={{ marginBottom: 32 }}>Редактор мебели</h1>
+        <div className="furniture-editor">
+            <h1 className="editor-title">Редактор мебели</h1>
 
             {/* Кнопка добавления новой мебели */}
-            <button
-                onClick={addNewProduct}
-                style={{
-                    background: '#ff6b6b',
-                    color: 'white',
-                    border: 'none',
-                    padding: '12px 24px',
-                    borderRadius: 8,
-                    fontSize: 18,
-                    marginBottom: 24,
-                    cursor: 'pointer'
-                }}
-            >
+            <button onClick={addNewProduct} className="btn btn-add">
                 + Добавить новую мебель
             </button>
 
-            {/* Список мебели */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 40 }}>
+            {/* Список мебели с миниатюрами */}
+            <div className="products-list">
                 {products.map(p => (
                     <div
                         key={p.id}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            background: selected?.id === p.id ? '#0066ff' : '#f0f0f0',
-                            color: selected?.id === p.id ? 'white' : '#333',
-                            padding: '12px 20px',
-                            borderRadius: 8,
-                            cursor: 'pointer'
-                        }}
+                        className={`product-item ${selected?.id === p.id ? 'active' : ''}`}
                         onClick={() => selectProduct(p)}
                     >
-                        <span>{p.title} (ID: {p.id})</span>
+                        <div className="product-image">
+                            {p.img ? (
+                                <img src={p.img} alt={p.title} />
+                            ) : (
+                                <div className="no-image">📷</div>
+                            )}
+                        </div>
+                        <div className="product-info">
+                            <span className="product-title">{p.title}</span>
+                            <span className="product-id">ID: {p.id}</span>
+                        </div>
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                deleteProduct(p.id);
-                            }}
-                            style={{
-                                background: '#dc3545',
-                                color: 'white',
-                                border: 'none',
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                                fontSize: 12,
-                                cursor: 'pointer'
-                            }}
+                            onClick={(e) => { e.stopPropagation(); deleteProduct(p.id); }}
+                            className="btn-delete-small"
                         >
                             ×
                         </button>
@@ -320,63 +299,32 @@ function FurnitureEditor() {
             </div>
 
             {selected && (
-                <div style={{ background: '#fff', padding: 32, borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                <div className="editor-panel">
                     {/* Название + Фото */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 32 }}>
+                    <div className="editor-header">
                         <input
                             value={selected.title}
                             onChange={e => update(['title'], e.target.value)}
+                            className="title-input"
                             placeholder="Название мебели"
-                            style={{ fontSize: 28, flex: 1, border: 'none', outline: 'none' }}
                         />
 
-                        {/* Блок фото */}
-                        <div style={{
-                            width: 200,
-                            height: 200,
-                            border: '2px dashed #ccc',
-                            borderRadius: 8,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            overflow: 'hidden',
-                            position: 'relative'
-                        }}>
+                        <div className="photo-upload">
                             {selected.img ? (
                                 <>
                                     <img
-                                        src={selected.img.startsWith('http') ? selected.img : `${API_BASE}/${selected.img.replace(/^\//, '')}`}
+                                        src={selected.img}
                                         alt="Фото мебели"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        className="uploaded-image"
                                     />
-                                    <button
-                                        onClick={deletePhoto}
-                                        style={{
-                                            position: 'absolute',
-                                            top: 8,
-                                            right: 8,
-                                            background: 'rgba(220, 53, 69, 0.8)',
-                                            color: 'white',
-                                            border: 'none',
-                                            padding: '4px 8px',
-                                            borderRadius: 4,
-                                            cursor: 'pointer'
-                                        }}
-                                    >
+                                    <button onClick={deletePhoto} className="delete-photo-btn">
                                         ×
                                     </button>
                                 </>
                             ) : (
                                 <button
                                     onClick={() => document.getElementById('fileInput').click()}
-                                    style={{
-                                        background: '#28a745',
-                                        color: 'white',
-                                        border: 'none',
-                                        padding: '8px 16px',
-                                        borderRadius: 6,
-                                        cursor: 'pointer'
-                                    }}
+                                    className="btn btn-upload"
                                 >
                                     Добавить фото
                                 </button>
@@ -391,205 +339,160 @@ function FurnitureEditor() {
                         </div>
                     </div>
 
-                    {/* Альтернатива — ссылка */}
-                    <div style={{ marginBottom: 32 }}>
+                    {/* Прямая ссылка на фото */}
+                    <div className="form-group">
                         <input
                             value={selected.img}
                             onChange={e => update(['img'], e.target.value)}
-                            placeholder="Или вставьте прямую ссылку на фото (альтернатива)"
-                            style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }}
+                            placeholder="Или вставьте прямую ссылку на фото"
+                            className="input-full"
                         />
-                        <p style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                            Ссылка будет работать, пока фото доступно в интернете
-                        </p>
+                        <p className="hint">Ссылка будет работать, пока фото доступно в интернете</p>
                     </div>
-                    {/* установка цен на мебель */}
-                    <div style={{ marginBottom: 32 }}>
+
+                    {/* Цена */}
+                    <div className="form-group">
                         <input
-                            value={selected.price}
-                            placeholder="цена"
-                            onChange={e => update(['price'], e.target.value)}
-                            style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }}
                             type="number"
+                            value={selected.price || ''}
+                            onChange={e => update(['price'], e.target.value)}
+                            placeholder="Цена"
+                            className="input-full"
                         />
-                        <p style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                            установите цену
-                        </p>
+                        <p className="hint">Установите цену</p>
                     </div>
 
                     {/* Переменные */}
-                    <h3 style={{ marginBottom: 16 }}>Переменные (размеры и параметры)</h3>
-                    {selected.variables?.map((v, idx) => (
-                        <div key={idx} style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center' }}>
-                            <input
-                                value={v.name}
-                                onChange={e => update(['variables', idx, 'name'], e.target.value)}
-                                placeholder="Имя (shirina)"
-                                style={{ width: 180 }}
-                            />
-                            <input
-                                value={v.label}
-                                onChange={e => update(['variables', idx, 'label'], e.target.value)}
-                                placeholder="Подпись (Ширина)"
-                                style={{ flex: 1 }}
-                            />
-                            <input
-                                type="number"
-                                value={v.default}
-                                onChange={e => update(['variables', idx, 'default'], +e.target.value)}
-                                placeholder="По умолчанию"
-                                style={{ width: 120 }}
-                            />
-                            <button
-                                onClick={() => removeVariable(idx)}
-                                style={{ background: '#dc3545', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6 }}
-                            >
-                                Удалить
-                            </button>
-                        </div>
-                    ))}
-                    <button
-                        onClick={addVariable}
-                        style={{ background: '#28a745', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6, marginBottom: 24 }}
-                    >
-                        + Добавить переменную
-                    </button>
-
-                    {/* Условия */}
-                    <h3 style={{ marginBottom: 16 }}>Условия (флаги и проверки)</h3>
-                    {selected.conditions?.map((c, idx) => (
-                        <div key={idx} style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center' }}>
-                            <input
-                                value={c.name}
-                                onChange={e => update(['conditions', idx, 'name'], e.target.value)}
-                                placeholder="Имя (stoleshka)"
-                                style={{ width: 180 }}
-                            />
-                            <input
-                                value={c.label}
-                                onChange={e => update(['conditions', idx, 'label'], e.target.value)}
-                                placeholder="Подпись (Столешница)"
-                                style={{ flex: 1 }}
-                            />
-                            <select
-                                value={c.type}
-                                onChange={e => update(['conditions', idx, 'type'], e.target.value)}
-                                style={{ width: 160 }}
-                            >
-                                <option value="flag">Флаг (чекбокс)</option>
-                                <option value="range">Диапазон (условие)</option>
-                            </select>
-                            <button
-                                onClick={() => removeCondition(idx)}
-                                style={{ background: '#dc3545', color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6 }}
-                            >
-                                Удалить
-                            </button>
-                        </div>
-                    ))}
-                    <button
-                        onClick={addCondition}
-                        style={{ background: '#17a2b8', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6, marginBottom: 32 }}
-                    >
-                        + Добавить условие
-                    </button>
-
-                    {/* Детали */}
-                    <h3 style={{ marginBottom: 16 }}>Детали (формулы)</h3>
-                    {selected.details?.map((d, idx) => (
-                        <div key={idx} style={{ marginBottom: 24, padding: 16, background: '#f8f9fa', borderRadius: 8 }}>
-                            <div style={{ display: 'flex', gap: 16, marginBottom: 12, alignItems: 'center' }}>
+                    <div className="section">
+                        <h3 className="section-title">Переменные (размеры и параметры)</h3>
+                        {selected.variables?.map((v, idx) => (
+                            <div key={idx} className="variable-row">
                                 <input
-                                    value={d.key}
-                                    onChange={e => update(['details', idx, 'key'], e.target.value)}
-                                    placeholder="Ключ (bok)"
-                                    style={{ width: 140 }}
+                                    value={v.name}
+                                    onChange={e => update(['variables', idx, 'name'], e.target.value)}
+                                    placeholder="Имя (shirina)"
+                                    className="input-small"
                                 />
                                 <input
-                                    value={d.label}
-                                    onChange={e => update(['details', idx, 'label'], e.target.value)}
-                                    placeholder="Название (бок)"
-                                    style={{ flex: 1 }}
+                                    value={v.label}
+                                    onChange={e => update(['variables', idx, 'label'], e.target.value)}
+                                    placeholder="Подпись"
+                                    className="input-medium"
                                 />
-                                <button
-                                    onClick={() => removeDetail(idx)}
-                                    style={{ background: '#dc3545', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}
-                                >
-                                    Удалить деталь
+                                <input
+                                    type="number"
+                                    value={v.default}
+                                    onChange={e => update(['variables', idx, 'default'], +e.target.value)}
+                                    placeholder="По умолчанию"
+                                    className="input-small"
+                                />
+                                <button onClick={() => removeVariable(idx)} className="btn btn-remove">
+                                    Удалить
                                 </button>
                             </div>
+                        ))}
+                        <button onClick={addVariable} className="btn btn-secondary">
+                            + Добавить переменную
+                        </button>
+                    </div>
 
-                            <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+                    {/* Условия */}
+                    <div className="section">
+                        <h3 className="section-title">Условия (флаги и проверки)</h3>
+                        {selected.conditions?.map((c, idx) => (
+                            <div key={idx} className="condition-row">
                                 <input
-                                    value={d.formula_width}
-                                    onChange={e => update(['details', idx, 'formula_width'], e.target.value)}
-                                    placeholder="Ширина: shirina - 32"
-                                    style={{ flex: 1 }}
+                                    value={c.name}
+                                    onChange={e => update(['conditions', idx, 'name'], e.target.value)}
+                                    placeholder="Имя"
+                                    className="input-small"
                                 />
                                 <input
-                                    value={d.formula_height}
-                                    onChange={e => update(['details', idx, 'formula_height'], e.target.value)}
-                                    placeholder="Высота: visota - 16"
-                                    style={{ flex: 1 }}
-                                />
-                            </div>
-
-                            <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-                                <input
-                                    value={d.count_formula}
-                                    onChange={e => update(['details', idx, 'count_formula'], e.target.value)}
-                                    placeholder="Количество: coll * 2"
-                                    style={{ flex: 1 }}
+                                    value={c.label}
+                                    onChange={e => update(['conditions', idx, 'label'], e.target.value)}
+                                    placeholder="Подпись"
+                                    className="input-medium"
                                 />
                                 <select
-                                    value={d.if_condition || ''}
-                                    onChange={e => update(['details', idx, 'if_condition'], e.target.value)}
-                                    style={{ width: 200 }}
+                                    value={c.type}
+                                    onChange={e => update(['conditions', idx, 'type'], e.target.value)}
+                                    className="input-small"
                                 >
-                                    <option value="">Без условия</option>
-                                    {selected.conditions?.map(c => (
-                                        <option key={c.name} value={c.name}>{c.label}</option>
-                                    ))}
+                                    <option value="flag">Флаг</option>
+                                    <option value="range">Диапазон</option>
                                 </select>
+                                <button onClick={() => removeCondition(idx)} className="btn btn-remove">
+                                    Удалить
+                                </button>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                        <button onClick={addCondition} className="btn btn-secondary">
+                            + Добавить условие
+                        </button>
+                    </div>
 
+                    {/* Детали */}
+                    <div className="section">
+                        <h3 className="section-title">Детали (формулы)</h3>
+                        {selected.details?.map((d, idx) => (
+                            <div key={idx} className="detail-card">
+                                <div className="detail-header">
+                                    <input
+                                        value={d.key}
+                                        onChange={e => update(['details', idx, 'key'], e.target.value)}
+                                        placeholder="Ключ"
+                                        className="input-small"
+                                    />
+                                    <input
+                                        value={d.label}
+                                        onChange={e => update(['details', idx, 'label'], e.target.value)}
+                                        placeholder="Название"
+                                        className="input-medium"
+                                    />
+                                    <button onClick={() => removeDetail(idx)} className="btn btn-remove">
+                                        Удалить
+                                    </button>
+                                </div>
 
-                    <button
-                        onClick={addDetail}
-                        style={{ background: '#0066cc', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 6, marginTop: 16 }}
-                    >
-                        + Добавить деталь
-                    </button>
+                                <div className="detail-formulas">
+                                    <input
+                                        value={d.formula_width}
+                                        onChange={e => update(['details', idx, 'formula_width'], e.target.value)}
+                                        placeholder="Формула ширины"
+                                    />
+                                    <input
+                                        value={d.formula_height}
+                                        onChange={e => update(['details', idx, 'formula_height'], e.target.value)}
+                                        placeholder="Формула высоты"
+                                    />
+                                    <input
+                                        value={d.count_formula}
+                                        onChange={e => update(['details', idx, 'count_formula'], e.target.value)}
+                                        placeholder="Формула количества"
+                                    />
+                                    <select
+                                        value={d.if_condition || ''}
+                                        onChange={e => update(['details', idx, 'if_condition'], e.target.value)}
+                                    >
+                                        <option value="">Без условия</option>
+                                        {selected.conditions?.map(c => (
+                                            <option key={c.name} value={c.name}>{c.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        ))}
+                        <button onClick={addDetail} className="btn btn-primary">
+                            + Добавить деталь
+                        </button>
+                    </div>
 
-                    {/* Кнопки сохранения */}
-                    <div style={{ marginTop: 48, textAlign: 'center' }}>
-                        <button
-                            onClick={save}
-                            style={{
-                                padding: '16px 48px',
-                                fontSize: 20,
-                                background: '#28a745',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 8,
-                                cursor: 'pointer'
-                            }}
-                        >
+                    {/* Кнопки действий */}
+                    <div className="editor-actions">
+                        <button onClick={save} className="btn btn-success large">
                             СОХРАНИТЬ ИЗМЕНЕНИЯ
                         </button>
-                        <button
-                            onClick={() => setSelected(null)}
-                            style={{
-                                marginLeft: 24,
-                                padding: '16px 40px',
-                                background: '#dc3545',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 8
-                            }}
-                        >
+                        <button onClick={() => setSelected(null)} className="btn btn-danger large">
                             Отмена
                         </button>
                     </div>

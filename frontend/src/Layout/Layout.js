@@ -8,7 +8,7 @@ class Layout extends Component {
         return (
             <>
                 <Header/>
-                <main style={{paddingTop:'64px',paddingLeft:'256px'}}>
+                <main className='main'>
                     <Outlet/>
                 </main>
                 <Footer/>
