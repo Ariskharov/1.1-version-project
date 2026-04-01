@@ -21,7 +21,6 @@ const Admin = () => {
     const { register, handleSubmit, reset } = useForm();
     const [modalUser, setModalUser] = useState(false);
     const [openUse,setOpenUse] = useState({});
-    const [seenIds,setSeenIds] = useState([]);
 
     const today = new Date().toISOString().split('T')[0];
 

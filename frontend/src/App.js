@@ -9,7 +9,7 @@ import EditMebel from "./all_pages/edit_mebel/edit_mebel";
 import { CustomContext } from './Context';
 
 function App() {
-    const { currentUser, loading } = useContext(CustomContext);
+    const { loading } = useContext(CustomContext);
 
     if (loading) {
         return (

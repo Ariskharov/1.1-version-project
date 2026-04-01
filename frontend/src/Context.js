@@ -1,6 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import bcrypt from 'bcryptjs';
 
 export const CustomContext = createContext();
 
@@ -254,10 +253,9 @@ export const Context = ({ children }) => {
         editSession,
         addUser,
         updateUser,
-        products
-        // addProduct,
-        // updateProduct,
-        // deleteProduct
+        addProduct,
+        updateProduct,
+        deleteProduct
         // Дальше добавим: createSession, editSession и т.д.
     };
 

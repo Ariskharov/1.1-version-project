@@ -36,7 +36,7 @@ function FurnitureEditor() {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const updatedProduct = await response.json();
+            await response.json();
             alert('Изменения сохранены!');
             setSelected(null); // Закрываем только здесь
             fetchProducts();
