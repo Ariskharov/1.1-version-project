@@ -10,6 +10,12 @@ function FurnitureEditor() {
     const [selected, setSelected] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const getImageUrl = (img) => {
+        if (!img) return '';
+        if (img.startsWith('http') || img.includes('/img/')) return img;
+        return `${BASE_URL}${img.startsWith('/') ? '' : '/'}${img}`;
+    };
+
     useEffect(() => {
         fetch(API_URL)
             .then(r => r.json())
@@ -279,7 +285,7 @@ function FurnitureEditor() {
                     >
                         <div className="product-image">
                             {p.img ? (
-                                <img src={p.img} alt={p.title} />
+                                <img src={getImageUrl(p.img)} alt={p.title} />
                             ) : (
                                 <div className="no-image">📷</div>
                             )}
@@ -313,7 +319,7 @@ function FurnitureEditor() {
                             {selected.img ? (
                                 <>
                                     <img
-                                        src={selected.img}
+                                        src={getImageUrl(selected.img)}
                                         alt="Фото мебели"
                                         className="uploaded-image"
                                     />
