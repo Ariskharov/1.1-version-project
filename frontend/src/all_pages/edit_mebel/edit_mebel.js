@@ -12,7 +12,7 @@ function FurnitureEditor() {
 
     const getImageUrl = (img) => {
         if (!img) return '';
-        if (img.startsWith('http') || img.includes('/img/')) return img;
+        if (img.startsWith('http') || img.includes('img/')) return img;
         return `${BASE_URL}${img.startsWith('/') ? '' : '/'}${img}`;
     };
 
