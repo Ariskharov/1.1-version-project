@@ -28,7 +28,6 @@ app.use('/', collectionRoutes);
 if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => {
         console.log(`Backend server started on http://localhost:${port}`);
-        console.log(`Serving static files from: ${uploadDir}`);
     });
 }
 
