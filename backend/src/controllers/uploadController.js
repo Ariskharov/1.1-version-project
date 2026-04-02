@@ -1,41 +1,81 @@
-const path = require('path');
-const fs = require('fs');
 const multer = require('multer');
-const { upload, uploadDir } = require('../utils/upload');
+const { upload } = require('../utils/upload');
+const supabase = require('../utils/supabaseClient');
+
+const BUCKET_NAME = 'furniture';
 
 const uploadImage = (req, res) => {
-    upload.single('file')(req, res, (err) => {
-        if (err instanceof multer.MulterError) {
-            console.error('[UPLOAD] Multer error:', err);
-            return res.status(500).json({ error: 'Ошибка Multer при загрузке' });
-        } else if (err) {
-            console.error('[UPLOAD] Unknown error:', err);
-            return res.status(500).json({ error: 'Системная ошибка при загрузке' });
+    upload.single('file')(req, res, async (err) => {
+        if (err || !req.file) {
+            console.error('[UPLOAD] Error or no file received:', err);
+            return res.status(400).json({ error: 'Ошибка загрузки файла' });
         }
 
-        if (!req.file) {
-            console.error('[UPLOAD] No file received in request');
-            return res.status(400).json({ error: 'Файл не получен' });
-        }
+        // Generate a unique filename
+        const originalName = req.file.originalname;
+        const fileExt = originalName.split('.').pop();
+        const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExt}`;
 
-        const filePath = `/utilse/${req.file.filename}`;
-        console.log(`[UPLOAD] File saved successfully: ${filePath}`);
-        console.log(`[UPLOAD] Full disk path: ${req.file.path}`);
-        res.json({ path: filePath });
+        try {
+            // Upload to Supabase Storage
+            const { data, error } = await supabase
+                .storage
+                .from(BUCKET_NAME)
+                .upload(fileName, req.file.buffer, {
+                    contentType: req.file.mimetype,
+                    upsert: false
+                });
+
+            if (error) {
+                console.error('[UPLOAD] Supabase Error:', error);
+                return res.status(500).json({ error: 'Ошибка при сохранении файла в облако' });
+            }
+
+            // Get public URL
+            const { data: publicUrlData } = supabase
+                .storage
+                .from(BUCKET_NAME)
+                .getPublicUrl(fileName);
+
+            const publicUrl = publicUrlData.publicUrl;
+            console.log(`[UPLOAD] File saved to Supabase: ${publicUrl}`);
+
+            // Return the full HTTPS URL
+            res.json({ path: publicUrl });
+
+        } catch (uploadError) {
+            console.error('[UPLOAD] Catch block error:', uploadError);
+            res.status(500).json({ error: 'Системная ошибка облака' });
+        }
     });
 };
 
-const deleteImage = (req, res) => {
-    const fileName = req.body.fileName;
-    if (!fileName) return res.status(400).json({ error: 'Имя файла не указано' });
+const deleteImage = async (req, res) => {
+    const fileNameOrUrl = req.body.fileName;
+    if (!fileNameOrUrl) return res.status(400).json({ error: 'Имя файла не указано' });
 
-    const filePath = path.join(uploadDir, fileName.replace('/utilse/', ''));
+    try {
+        // Extract filename from URL if a full URL was passed
+        let fileName = fileNameOrUrl;
+        if (fileNameOrUrl.includes(BUCKET_NAME)) {
+            const parts = fileNameOrUrl.split('/');
+            fileName = parts[parts.length - 1];
+        }
 
-    if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+        const { error } = await supabase
+            .storage
+            .from(BUCKET_NAME)
+            .remove([fileName]);
+
+        if (error) {
+            console.error('[DELETE] Supabase Error:', error);
+            return res.status(500).json({ error: 'Ошибка при удалении файла из облака' });
+        }
+
         res.json({ success: true });
-    } else {
-        res.status(404).json({ error: 'Фото не найдено' });
+    } catch (err) {
+        console.error('[DELETE] Catch block error:', err);
+        res.status(500).json({ error: 'Системная ошибка при удалении' });
     }
 };
 

@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { uploadDir } = require('./src/utils/upload');
+// static upload removed
 
 // Import routes
 const authRoutes = require('./src/routes/authRoutes');
@@ -16,8 +16,7 @@ app.use(cors());
 
 app.use(express.json());
 
-// Static file serving for images (Do this BEFORE catch-all collection routes)
-app.use('/utilse', express.static(uploadDir));
+// Static file serving for images (no longer needed, using Supabase)
 
 // Upload route MUST come before collection routes (otherwise /:collection intercepts /upload)
 app.use('/upload', uploadRoutes);

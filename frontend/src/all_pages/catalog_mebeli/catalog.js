@@ -115,7 +115,7 @@ const Catalog = () => {
                         {/*    alt={product.title}*/}
                         {/*/>*/}
                         <img
-                            src={product.img.startsWith('http') || product.img.includes('img/') ? product.img : `${API_BASE}${product.img.startsWith('/') ? '' : '/'}${product.img}`}
+                            src={product.img}
                             alt={product.title}
                         />
                         <p>{product.id}. {product.title}</p>
