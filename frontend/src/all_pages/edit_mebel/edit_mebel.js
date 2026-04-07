@@ -82,7 +82,7 @@ function FurnitureEditor() {
     };
 
     const addNewProduct = async () => {
-        const newId = products.length + 1;
+        const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
         const newProduct = {
             id: newId,
             title: 'Новая мебель',

@@ -17,6 +17,8 @@ const uploadImage = (req, res) => {
         const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExt}`;
 
         try {
+            console.log(`[UPLOAD] Attempting Supabase upload: bucket=${BUCKET_NAME}, file=${fileName}, size=${req.file.buffer.length}, type=${req.file.mimetype}`);
+            
             // Upload to Supabase Storage
             const { data, error } = await supabase
                 .storage
@@ -27,8 +29,8 @@ const uploadImage = (req, res) => {
                 });
 
             if (error) {
-                console.error('[UPLOAD] Supabase Error:', error);
-                return res.status(500).json({ error: 'Ошибка при сохранении файла в облако' });
+                console.error('[UPLOAD] Supabase Error:', JSON.stringify(error));
+                return res.status(500).json({ error: 'Ошибка при сохранении файла в облако: ' + error.message });
             }
 
             // Get public URL

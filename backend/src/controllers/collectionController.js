@@ -44,16 +44,22 @@ const createCollectionItem = async (req, res) => {
     try {
         const collection = req.params.collection;
         const availableColumns = await getTableColumns(collection);
+
+        // Если для мебели (product) ID не передан, вычисляем его как MAX(id) + 1
+        if (collection === 'product' && !req.body.id) {
+            const maxRes = await pool.query(`SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM "${collection}"`);
+            req.body.id = maxRes.rows[0].next_id;
+            console.log(`[DEBUG] Auto-calculated next ID for ${collection}: ${req.body.id}`);
+        }
         
         const filteredData = {};
         Object.keys(req.body).forEach(key => {
-            // Исключаем 'id' — PostgreSQL сам генерирует ID через SERIAL
-            // Также пропускаем поля, которых нет в таблице
-            if (key !== 'id' && availableColumns.includes(key)) {
+            // Теперь разрешаем 'id', если он есть в таблице
+            if (availableColumns.includes(key)) {
                 filteredData[key] = req.body[key];
             }
         });
-        console.log(`[DEBUG] Keys being inserted (id excluded):`, Object.keys(filteredData));
+        console.log(`[DEBUG] Keys being inserted:`, Object.keys(filteredData));
 
         const keys = Object.keys(filteredData);
         const values = keys.map(k => {
@@ -74,6 +80,16 @@ const createCollectionItem = async (req, res) => {
         
         try {
             const insertRes = await pool.query(sql, values);
+            
+            // Синхронизируем последовательность (sequence) PostgreSQL, 
+            // чтобы следующие автоматические ID не конфликтовали с нашими ручными
+            try {
+                await pool.query(`SELECT setval(pg_get_serial_sequence('"${collection}"', 'id'), (SELECT MAX(id) FROM "${collection}"))`);
+            } catch (seqErr) {
+                // Если таблицы нет или это не SERIAL, просто игнорируем
+                console.log(`[DEBUG] Sequence sync skipped for ${collection}: ${seqErr.message}`);
+            }
+
             res.json(insertRes.rows[0]);
         } catch (dbErr) {
             console.error(`[DB INSERT ERROR] Table: ${collection}, SQL: ${sql}, Values:`, values, dbErr.message);
