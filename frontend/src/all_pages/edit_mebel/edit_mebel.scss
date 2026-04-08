@@ -252,6 +252,9 @@
 /* Ряды */
 .variable-row,
 .condition-row {
+  border: 1px solid #616161;
+  border-radius: 10px;
+  padding: 15px;
   display: flex;
   gap: 14px;
   margin-bottom: 16px;

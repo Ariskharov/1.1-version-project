@@ -28,7 +28,7 @@ const SingIn = () => {
         setLoading(false);
         if (success) {
             if (success.role === 'admin') {
-                navigate('/admin');
+                navigate('/edit_mebel');
             } else {
                 navigate('/');
             }

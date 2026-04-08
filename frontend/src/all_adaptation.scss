@@ -1,33 +1,132 @@
 @media (max-width: 1035px) {
-  .admin__top{
+  .admin__top {
     display: block;
   }
 }
+
+@media (max-width: 1020px) {
+  .input-row{
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 955px) {
 
 }
+
 @media (max-width: 900px) {
-  .main{
+  .main {
     padding-left: 200px;
   }
-  .header{
-    &__menu_nav_left{
+  .header {
+    &__menu_nav_left {
       width: 200px;
+
       &__botton,
-      &__active{
+      &__active {
         width: 180px;
       }
     }
   }
 }
+
 @media (max-width: 650px) {
-  .header_PC{
+  .header_PC {
     display: none;
   }
-  .main{
+  .main {
     padding: 64px 0 0 0;
   }
-  .header_Phon{
+  .header_Phon {
     display: block;
   }
+  .input-row {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 544px) {
+  .input-row {
+    flex-wrap: wrap;
+    input {
+      width: 180px;
+    }
+  }
+  .detail-card{
+    input{
+      width: 100%;
+      min-width: 0;
+    }
+  }
+}
+
+@media (max-width: 529px) {
+  .input-row {
+    input {
+      width: 200px;
+    }
+  }
+}
+
+@media (max-width: 512px) {
+  .input-row {
+    input {
+      width: 150px;
+    }
+  }
+}
+
+@media (max-width: 495px) {
+  .input-row {
+    input {
+      width: 120px;
+    }
+  }
+}
+
+@media (max-width: 460px) {
+  .input-row {
+    display: flex;
+
+    input {
+      width: 100px;
+    }
+  }
+  .detail-formulas{
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .editor-header{
+    input{
+      width: 100%;
+      font-size: 25px;
+      min-width: 0;
+    }
+  }
+}
+
+@media (max-width: 360px) {
+  .editor-header{
+    input{
+      font-size: 18px;
+    }
+  }
+}
+
+@media (max-width: 345px) {
+  .product-image{
+    width: 70px;
+    height: 60px;
+  }
+  .product-info{
+    span{
+      font-size: 14px !important;
+    }
+  }
+}
+
+@media (max-width: 320px) {
+
 }
