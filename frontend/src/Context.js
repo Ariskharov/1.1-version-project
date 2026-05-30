@@ -405,7 +405,8 @@ export const Context = ({ children }) => {
         deleteUser,
         addProduct,
         updateProduct,
-        deleteProduct
+        deleteProduct,
+        formatDuration
     };
 
     return (
