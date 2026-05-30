@@ -1,193 +1,246 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { evaluate } from 'mathjs';
+import React, { useState } from 'react';
+import { useFurnitureCalculator } from './useFurnitureCalculator';
 import './catalog.scss';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-
 const Catalog = () => {
-    const [products, setProducts] = useState([]);
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [inputs, setInputs] = useState({});
-    const [result, setResult] = useState({});
+    const {
+        products,
+        selectedProduct,
+        inputs,
+        resultsArray,
+        isLoading,
+        error,
+        validationErrors,
+        selectProduct,
+        handleInputChange,
+        handleCheckboxChange,
+        calculate,
+    } = useFurnitureCalculator();
 
-    useEffect(() => {
-        fetch(`${API_BASE}/product`)
-            .then(res => res.json())
-            .then(data => {
-                setProducts(Array.isArray(data) ? data : [data]);
-                if (data.length > 0) {
-                    const first = data[0];
-                    setSelectedProduct(first);
-                    // Инициализируем inputs дефолтными значениями
-                    const initialInputs = {};
-                    (first.variables || []).forEach(v => {
-                        initialInputs[v.name] = v.default;
-                    });
-                    (first.conditions || []).forEach(c => {
-                        if (c.type === 'flag') initialInputs[c.name] = c.default || false;
-                    });
-                    setInputs(initialInputs);
-                }
-            })
-            .catch(err => console.error('Ошибка загрузки:', err));
-    }, []);
+    // Состояния для просмотра фото в модалке (лайтбокс)
+    const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
 
-    const handleInputChange = (key, value) => {
-        setInputs(prev => ({ ...prev, [key]: value }));
-        setResult({}); // Очищаем результат при изменении
-    };
+    // Поиск
+    const [searchTerm, setSearchTerm] = useState('');
 
-    const handleCheckboxChange = (key) => {
-        setInputs(prev => ({ ...prev, [key]: !prev[key] }));
-        setResult({});
-    };
+    // Показываем загрузку
+    if (isLoading) {
+        return (
+            <div className="catalog container">
+                <h2>Расчёт мебели</h2>
+                <div className="loading">Загрузка каталога...</div>
+            </div>
+        );
+    }
 
-    const calculate = () => {
-        if (!selectedProduct) return;
+    // Показываем ошибку
+    if (error) {
+        return (
+            <div className="catalog container">
+                <h2>Расчёт мебели</h2>
+                <div className="error-message">{error}</div>
+            </div>
+        );
+    }
 
-        // Собираем все значения
-        const nums = {};
-
-        // Переменные (числа)
-        (selectedProduct.variables || []).forEach(v => {
-            const userVal = Number(inputs[v.name]);
-            nums[v.name] = isNaN(userVal) || inputs[v.name] === '' ? v.default : userVal;
-        });
-
-        // Условия (флаги)
-        (selectedProduct.conditions || []).forEach(c => {
-            if (c.type === 'flag') {
-                nums[c.name] = inputs[c.name] ?? c.default ?? false;
-            }
-            // Если потом добавим range — здесь же evaluate(c.condition, nums)
-        });
-
-        const resultObj = {};
-
-        // Обрабатываем детали
-        (selectedProduct.details || []).forEach(detail => {
-            // Проверка условия (если есть)
-            if (detail.if_condition && !nums[detail.if_condition]) return;
-
-            try {
-                const width = evaluate(detail.formula_width || '0', nums);
-                const height = detail.formula_height ? evaluate(detail.formula_height, nums) : null;
-                const count = evaluate(detail.count_formula || '1', nums);
-
-                const sizeStr = height ? `${Math.round(width)} × ${Math.round(height)}` : Math.round(width);
-                resultObj[detail.key] = `${detail.label} — ${sizeStr} мм (${Math.round(count)} шт)`;
-            } catch (err) {
-                console.error('Ошибка формулы:', err);
-                resultObj[detail.key] = `${detail.label} — ошибка формулы`;
-            }
-        });
-
-        setResult(resultObj);
-    };
-
-    const resultsArray = useMemo(() => Object.entries(result), [result]);
+    if (products.length === 0) {
+        return (
+            <div className="catalog container">
+                <h2>Расчёт мебели</h2>
+                <p>Каталог пуст.</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="catalog container">
-            <h2>Расчёт мебели</h2>
-
-            <div className="products-grid">
-                {products.map(product => (
-                    <div
-                        key={product.id}
-                        className={`product-card ${selectedProduct?.id === product.id ? 'active' : ''}`}
-                        onClick={() => {
-                            setSelectedProduct(product);
-                            setResult({});
-                            // Обновляем inputs под новую мебель
-                            const newInputs = {};
-                            (product.variables || []).forEach(v => {
-                                newInputs[v.name] = v.default;
-                            });
-                            (product.conditions || []).forEach(c => {
-                                if (c.type === 'flag') newInputs[c.name] = c.default ?? false;
-                            });
-                            setInputs(newInputs);
-                        }}
-                    >
-                        {/*<img*/}
-                        {/*    src={product.img.startsWith('http') ? product.img : `http://localhost:8080${product.img.startsWith('/') ? '' : '/'}${'../../../' + product.img}`}*/}
-                        {/*    alt={product.title}*/}
-                        {/*/>*/}
-                        <img
-                            src={product.img}
-                            alt={product.title}
-                        />
-                        <p>{product.id}. {product.title}</p>
-                    </div>
-                ))}
+        <div className="catalog">
+            <div className="catalog-header">
+                <h1>Расчёт мебели</h1>
+                <p className="subtitle">Выберите изделие и рассчитайте необходимые материалы</p>
+                
+                {/* Поиск */}
+                <div className="search-wrapper">
+                    <input 
+                        type="text" 
+                        placeholder="Поиск по названию..." 
+                        className="search-input"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    {searchTerm && (
+                        <button 
+                            className="search-clear" 
+                            onClick={() => setSearchTerm('')}
+                            aria-label="Очистить поиск"
+                        >
+                            ×
+                        </button>
+                    )}
+                </div>
             </div>
 
+            {/* Сетка товаров */}
+            <div className="products-section">
+                <div className="products-grid">
+                    {products
+                        .filter(product => 
+                            product.title.toLowerCase().includes(searchTerm.toLowerCase())
+                        )
+                        .map(product => (
+                        <div 
+                            key={product.id} 
+                            className="product-card"
+                            onClick={() => selectProduct(product)}
+                        >
+                            <div className="product-image-wrapper">
+                                <img 
+                                    src={product.img} 
+                                    alt={product.title} 
+                                    className="product-image"
+                                />
+                            </div>
+                            <div className="product-info">
+                                <h3 className="product-title">{product.title}</h3>
+                                {product.price && (
+                                    <div className="product-price">{product.price} сом</div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Модальное окно с калькулятором */}
             {selectedProduct && (
-                <>
-                    <h3>{selectedProduct.title}{selectedProduct.price ? " -- " + selectedProduct.price + "сом" : ""}</h3>
+                <div className="modal-overlay" onClick={() => {
+                    selectProduct(null);
+                    setIsImageViewerOpen(false);
+                }}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <button 
+                            className="modal-close" 
+                            onClick={() => {
+                                selectProduct(null);
+                                setIsImageViewerOpen(false);
+                            }}
+                        >
+                            ×
+                        </button>
 
-                    <form onSubmit={e => { e.preventDefault(); calculate(); }} className="inputs-form">
-                        {/* Динамические инпуты из variables */}
-                        <div className="input-row">
-                            {(selectedProduct.variables || []).map(v => (
-                                <div>
-                                    <p>{v.label}</p>
-                                    <input
-                                        key={v.name}
-                                        type="number"
-                                        placeholder={v.label}
-                                        value={inputs[v.name] ?? ''}
-                                        onChange={e => handleInputChange(v.name, e.target.value)}
-                                        required={['shirina', 'glubina', 'visota'].includes(v.name)}
-                                    />
-                                </div>
-
-                            ))}
+                        <div className="modal-header">
+                            <h2>{selectedProduct.title}</h2>
+                            {selectedProduct.price && (
+                                <div className="modal-price">{selectedProduct.price} сом</div>
+                            )}
                         </div>
 
-                        {/* Условия (checkbox для flag) */}
-                        <div className="checkboxes">
-                            {(selectedProduct.conditions || []).map(c => (
-                                c.type === 'flag' && (
-                                    <label key={c.name}>
-                                        <input
-                                            type="checkbox"
-                                            checked={inputs[c.name] ?? false}
-                                            onChange={() => handleCheckboxChange(c.name)}
-                                        />
-                                        {c.label}
-                                    </label>
-                                )
-                            ))}
-                        </div>
+                        {/* Кликабельное фото для просмотра в большом размере */}
+                        {selectedProduct.img && (
+                            <div 
+                                className="modal-image-wrapper"
+                                onClick={() => setIsImageViewerOpen(true)}
+                            >
+                                <img 
+                                    src={selectedProduct.img} 
+                                    alt={selectedProduct.title} 
+                                    className="modal-product-image"
+                                />
+                                <div className="image-hint">Нажмите, чтобы увеличить</div>
+                            </div>
+                        )}
 
-                        <button type="submit" className="calculate-btn">Посчитать</button>
-                    </form>
-
-                    {resultsArray.length > 0 && (
-                        <div className="results">
-                            <h3>Результат:</h3>
-                            <table className="results-table">
-                                <thead>
-                                    <tr>
-                                        <th>Деталь</th>
-                                        <th>Размер и количество</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {resultsArray.map(([key, value]) => (
-                                        <tr key={key}>
-                                            <td>{value.split(' — ')[0]}</td>
-                                            <td>{value.split(' — ')[1]}</td>
-                                        </tr>
+                        <form onSubmit={e => { e.preventDefault(); calculate(); }}>
+                            
+                            {/* Параметры */}
+                            <div className="form-section">
+                                <h4 className="section-title">Параметры</h4>
+                                <div className="inputs-grid">
+                                    {(selectedProduct.variables || []).map(v => (
+                                        <div key={v.name} className="input-group">
+                                            <label>{v.label}</label>
+                                            <input
+                                                type="number"
+                                                placeholder={v.label}
+                                                value={inputs[v.name] ?? ''}
+                                                onChange={e => handleInputChange(v.name, e.target.value)}
+                                                className={validationErrors[v.name] ? 'input-error' : ''}
+                                            />
+                                            {validationErrors[v.name] && (
+                                                <span className="error-text">{validationErrors[v.name]}</span>
+                                            )}
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                </div>
+                            </div>
 
-                </>
+                            {/* Дополнительные опции */}
+                            {(selectedProduct.conditions || []).some(c => c.type === 'flag') && (
+                                <div className="form-section">
+                                    <h4 className="section-title">Дополнительные опции</h4>
+                                    <div className="checkbox-grid">
+                                        {(selectedProduct.conditions || []).map(c => (
+                                            c.type === 'flag' && (
+                                                <label key={c.name} className="checkbox-label">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={inputs[c.name] ?? false}
+                                                        onChange={() => handleCheckboxChange(c.name)}
+                                                    />
+                                                    <span>{c.label}</span>
+                                                </label>
+                                            )
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button type="submit" className="calculate-btn">
+                                Рассчитать
+                            </button>
+                        </form>
+
+                        {/* Результаты */}
+                        {resultsArray.length > 0 && (
+                            <div className="results-section">
+                                <h4 className="section-title">Результат расчёта</h4>
+                                <div className="results-grid">
+                                    {resultsArray.map(([key, value]) => {
+                                        const [label, details] = value.split(' — ');
+                                        return (
+                                            <div key={key} className="result-card">
+                                                <div className="result-label">{label}</div>
+                                                <div className="result-details">{details}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Лайтбокс для просмотра фото */}
+            {isImageViewerOpen && selectedProduct?.img && (
+                <div 
+                    className="image-viewer-overlay" 
+                    onClick={() => setIsImageViewerOpen(false)}
+                >
+                    <div className="image-viewer-content" onClick={e => e.stopPropagation()}>
+                        <button 
+                            className="image-viewer-close"
+                            onClick={() => setIsImageViewerOpen(false)}
+                        >
+                            ×
+                        </button>
+                        <img 
+                            src={selectedProduct.img} 
+                            alt={selectedProduct.title} 
+                            className="image-viewer-img"
+                        />
+                        <div className="image-viewer-hint">Кликните в любом месте, чтобы закрыть</div>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -78,6 +78,22 @@ const Header = () => {
                                 >
                                     Редактор мебели
                                 </Link>
+                                <Link
+                                    to="/placing_an_order"
+                                    onClick={toTop}
+                                    className={`header__link ${isActive('/placing_an_order') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                                >
+                                    Оформление заказа
+                                </Link>
+                                <Link
+                                    to="/view_orders"
+                                    onClick={toTop}
+                                    className={`header__link ${isActive('/view_orders') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                                >
+                                    Просмотр заказов
+                                </Link>
+
+
                             </>
                         )}
                         <Link to="/" onClick={() => toTop()}>
@@ -115,8 +131,22 @@ const Header = () => {
                     <div className="header__mobile-menu__content">
                         {/* Навигация */}
                         <nav className="header__mobile-nav">
+                            <Link
+                                to="/"
+                                onClick={() => { toTop(); setMenuOpen(false); }}
+                                className={`header__mobile-link ${isActive('/') ? 'active' : ''}`}
+                            >
+                                Каталог мебели
+                            </Link>
                             {currentUser?.role === 'admin' && (
                                 <>
+                                    <Link
+                                        to="/edit_mebel"
+                                        onClick={() => { toTop(); setMenuOpen(false); }}
+                                        className={`header__mobile-link ${isActive('/edit_mebel') ? 'active' : ''}`}
+                                    >
+                                        Редактор мебели
+                                    </Link>
                                     <Link
                                         to="/admin"
                                         onClick={() => { toTop(); setMenuOpen(false); }}
@@ -125,22 +155,22 @@ const Header = () => {
                                         Панель администратора
                                     </Link>
                                     <Link
-                                        to="/edit_mebel"
+                                        to="/edit_order"
                                         onClick={() => { toTop(); setMenuOpen(false); }}
-                                        className={`header__mobile-link ${isActive('/edit_mebel') ? 'active' : ''}`}
+                                        className={`header__mobile-link ${isActive('/edit_order') ? 'active' : ''}`}
                                     >
-                                        Редактор мебели
+                                        Редактор заказов
                                     </Link>
+                                    <Link
+                                        to="/placing_an_order"
+                                        onClick={() => { toTop(); setMenuOpen(false); }}
+                                        className={`header__mobile-link ${isActive('/placing_an_order') ? 'active' : ''}`}
+                                    >
+                                        Оформить заказ
+                                    </Link>
+
                                 </>
                             )}
-
-                            <Link
-                                to="/"
-                                onClick={() => { toTop(); setMenuOpen(false); }}
-                                className={`header__mobile-link ${isActive('/') ? 'active' : ''}`}
-                            >
-                                Каталог мебели
-                            </Link>
                         </nav>
 
                         {/* Информация об аккаунте + Выход */}

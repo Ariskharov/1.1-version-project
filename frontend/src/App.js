@@ -7,9 +7,13 @@ import Admin from "./all_pages/admin/admin";
 import Catalog from "./all_pages/catalog_mebeli/catalog";
 import EditMebel from "./all_pages/edit_mebel/edit_mebel";
 import { CustomContext } from './Context';
+import Order from "./all_pages/order/order";
+import Order_editor from "./all_pages/order_editor/order_editor";
+import PlacingAnOrder from "./all_pages/placing_an_order/placing_an_order";
+import View_orders from './all_pages/view_orders/view_orders'
 
 function App() {
-    const { loading } = useContext(CustomContext);
+    const { currentUser, loading } = useContext(CustomContext);
 
     if (loading) {
         return (
@@ -23,9 +27,17 @@ function App() {
         <Routes>
             <Route path="/signin" element={<SingIn />} />
             <Route path="/" element={<Layout />}>
-                <Route index element={<Catalog />} />
-                <Route path="edit_mebel" element={<EditMebel />} />
-                <Route path="admin" element={<Admin />} />
+                {currentUser?.role === 'admin' && (
+                    <>
+                        <Route path="edit_mebel" element={<EditMebel />}/>
+                        <Route path="admin" element={<Admin />} />
+                        <Route path="/placing_an_order" element={<PlacingAnOrder />} />
+                        <Route path="/view_orders" element={<View_orders />} />
+                        <Route path="/order_editor/:id" element={<Order_editor />} />
+                    </>
+                )}
+                <Route index element={<Catalog />}/>
+                <Route path="/order/:id" element={<Order />} />
             </Route>
 
             {/* Редирект для всех остальных путей */}
