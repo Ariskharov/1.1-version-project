@@ -4,6 +4,8 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import './order.scss';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 const Order = () => {
     const { id } = useParams();
     const [order, setOrder] = useState(null);
@@ -12,7 +14,7 @@ const Order = () => {
     const [expanded, setExpanded] = useState(null);
 
     useEffect(() => {
-        fetch(`http://localhost:8080/order/${id}`)
+        fetch(`${API_BASE}/order/${id}`)
             .then(res => res.json())
             .then(data => {
                 const loaded = data.order?.[0] || data;

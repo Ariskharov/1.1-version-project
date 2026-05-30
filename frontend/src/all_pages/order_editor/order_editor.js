@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { evaluate } from 'mathjs';
 import './order_editor.scss';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 const OrderEditor = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -29,7 +31,7 @@ const OrderEditor = () => {
     useEffect(() => {
         const fetchOrder = async () => {
             try {
-                const res = await fetch(`http://localhost:8080/order/${id}`);
+                const res = await fetch(`${API_BASE}/order/${id}`);
                 if (!res.ok) throw new Error('Заказ не найден');
                 const data = await res.json();
                 let loaded = data.order?.[0] || data;
@@ -57,7 +59,7 @@ const OrderEditor = () => {
 
         const fetchProducts = async () => {
             try {
-                const res = await fetch('http://localhost:8080/product');
+                const res = await fetch(`${API_BASE}/product`);
                 const data = await res.json();
                 setProducts(Array.isArray(data) ? data : [data]);
             } catch (err) {
@@ -155,7 +157,7 @@ const OrderEditor = () => {
     const deleteEntireOrder = async () => {
         if (!window.confirm('Удалить весь заказ? Действие необратимо!')) return;
         try {
-            await fetch(`http://localhost:8080/order/${id}`, { method: 'DELETE' });
+            await fetch(`${API_BASE}/order/${id}`, { method: 'DELETE' });
             alert('Заказ удалён');
             navigate('/view_orders');
         } catch (err) {
@@ -169,7 +171,7 @@ const OrderEditor = () => {
             s + Number(p.price || 0) * (Number(p.quantity || p.userInputs?.coll || 1) || 1), 0);
 
         try {
-            const res = await fetch(`http://localhost:8080/order/${id}`, {
+            const res = await fetch(`${API_BASE}/order/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

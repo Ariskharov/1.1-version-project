@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './edit_mebel.scss';
 
-const API_URL = 'http://localhost:8080/product';
-const UPLOAD_URL = 'http://localhost:8080/upload';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_URL = `${API_BASE}/product`;
+const UPLOAD_URL = `${API_BASE}/upload`;
 
 function FurnitureEditor() {
     const [products, setProducts] = useState([]);
