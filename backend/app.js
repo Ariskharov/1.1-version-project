@@ -16,6 +16,27 @@ app.use(cors());
 
 app.use(express.json());
 
+// Middleware для замера производительности (нефункциональное требование: время ответа API < 500 мс)
+app.use((req, res, next) => {
+    const start = process.hrtime();
+    
+    // Перехватываем окончание отправки ответа
+    res.on('finish', () => {
+        const diff = process.hrtime(start);
+        const timeInMs = (diff[0] * 1e3 + diff[1] * 1e-6).toFixed(2);
+        const statusColor = res.statusCode >= 400 ? '\x1b[31m' : '\x1b[32m'; // Красный при ошибках, зелёный при успехе
+        const timeColor = timeInMs > 500 ? '\x1b[33m' : '\x1b[36m'; // Жёлтый если >500мс, голубой если всё ок
+        const resetColor = '\x1b[0m';
+        
+        console.log(
+            `[PERFORMANCE] ${req.method} ${req.originalUrl} - Status: ${statusColor}${res.statusCode}${resetColor} - Time: ${timeColor}${timeInMs} ms${resetColor}`
+        );
+    });
+    
+    next();
+});
+
+
 // Static file serving for images (no longer needed, using Supabase)
 
 // Upload route MUST come before collection routes (otherwise /:collection intercepts /upload)
