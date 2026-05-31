@@ -1,5 +1,4 @@
 .order_editor {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   padding: 32px;
   background: #f0f2f5;
   min-height: calc(100vh - 80px);
@@ -792,7 +791,6 @@
   font-size: 15px;
   resize: vertical;
   transition: all 0.2s ease;
-  font-family: inherit;
 
   &:focus {
     border-color: #3b82f6;

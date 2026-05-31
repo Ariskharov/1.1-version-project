@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import './admin.scss';
 import { CustomContext } from '../../Context';
 import { parseISO, differenceInMinutes, addDays, format } from 'date-fns';
+import { QRCodeSVG } from 'qrcode.react';
 
 // ==================== PURE UTILITIES ====================
 
@@ -76,6 +77,8 @@ const Admin = () => {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isEditSessionModalOpen, setIsEditSessionModalOpen] = useState(false);
     const [editingSession, setEditingSession] = useState(null);
+    const [qrUser, setQrUser] = useState(null);
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
     const [dateFilter, setDateFilter] = useState('today');
     const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
@@ -116,6 +119,22 @@ const Admin = () => {
     const handleDeleteShift = (sessionId) => {
         if (isShiftActionPending(sessionId)) return;
         withLoading(setPendingShiftActions, sessionId, () => deleteSession(sessionId));
+    };
+
+    const handleShowQR = async (user) => {
+        let badgeId = user.badgeId;
+        if (!badgeId) {
+            badgeId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+            // Обновляем пользователя с новым badgeId
+            await updateUser(user.id, { ...user, badgeId });
+            setQrUser({ ...user, badgeId });
+        } else {
+            setQrUser(user);
+        }
+        setIsQrModalOpen(true);
     };
 
     // ==================== ФИЛЬТРАЦИЯ ====================
@@ -201,6 +220,18 @@ const Admin = () => {
     // Главная функция сохранения
     const onSubmitUser = async (data) => {
         if (isSavingUser) return;
+
+        // Предупреждение о дублировании роли scanner
+        if (data.role === 'scanner') {
+            const scannerUser = users.find(u => u.role === 'scanner' && u.id !== selectedUser?.id);
+            if (scannerUser) {
+                const confirmed = window.confirm(
+                    `Внимание: роль оператора сканера уже назначена ${scannerUser.fullName}. Назначить новому сотруднику?`
+                );
+                if (!confirmed) return;
+            }
+        }
+
         setIsSavingUser(true);
 
         try {
@@ -338,7 +369,27 @@ const Admin = () => {
         <div className="admin">
             <div className="admin__top">
                 <div className="admin__top__left">
-                    <h1>Панель администратора</h1>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', marginBottom: '20px' }}>
+                        <h1 style={{ margin: 0 }}>Панель администратора</h1>
+                        <button 
+                            onClick={() => window.open('/scan', '_blank')} 
+                            className="btn-open-scanner"
+                            style={{ 
+                                background: '#10b981', 
+                                color: 'white', 
+                                border: 'none', 
+                                padding: '10px 20px', 
+                                borderRadius: '8px', 
+                                fontWeight: 'bold', 
+                                cursor: 'pointer',
+                                transition: 'background 0.2s' 
+                            }}
+                            onMouseOver={(e) => e.target.style.background = '#059669'}
+                            onMouseOut={(e) => e.target.style.background = '#10b981'}
+                        >
+                            📱 Открыть сканер
+                        </button>
+                    </div>
 
                     <div className="admin__filter">
                         <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
@@ -394,6 +445,7 @@ const Admin = () => {
                                                 <span>{formatDuration(session)}</span>
                                                 <span className={`status status--${session.endTime ? 'completed' : 'active'}`}>
                                                     {session.endTime ? 'Завершена' : 'На работе'}
+                                                    {session.source === 'qr' && ' 📱'}
                                                 </span>
                                                 <span className="admin__table__actions">
                                                     {!session.endTime && (
@@ -471,6 +523,7 @@ const Admin = () => {
                                         {isUserStartPending(user.id) ? '⏳' : '▶ Начать смену'}
                                     </button>
                                     <button onClick={() => openViewModal(user)} className="btn-view">👁 Просмотреть</button>
+                                    <button onClick={() => handleShowQR(user)} className="btn-qr">📱 Показать QR</button>
                                     <button onClick={() => openUserForm(user)} className="btn-edit">✎ Редактировать</button>
                                     <button onClick={() => handleDeleteUser(user)} className="btn-delete">🗑 Удалить</button>
                                 </div>
@@ -496,6 +549,7 @@ const Admin = () => {
                                 <option value="user">Сотрудник</option>
                                 <option value="manager">Менеджер</option>
                                 <option value="admin">Администратор</option>
+                                <option value="scanner">Оператор сканера</option>
                             </select>
                             <textarea {...register('description')} placeholder="Описание" rows={3} />
 
@@ -632,6 +686,28 @@ const Admin = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Модальное окно QR-кода */}
+            {isQrModalOpen && qrUser && (
+                <div className="modal print-qr-modal-wrapper">
+                    <div className="modal__content print-qr-section">
+                        <h2>Карточка сотрудника</h2>
+                        <div className="qr-code-box" style={{ margin: '20px 0', display: 'flex', justifyContent: 'center' }}>
+                            <QRCodeSVG value={qrUser.badgeId} size={200} />
+                        </div>
+                        <p style={{ fontSize: '18px', fontWeight: 'bold', margin: '10px 0' }}>{qrUser.fullName}</p>
+                        <p style={{ color: '#666', fontStyle: 'italic', marginBottom: '20px' }}>ID: {qrUser.badgeId}</p>
+                        
+                        <div className="modal__actions qr-modal-buttons">
+                            <button onClick={() => window.print()} className="btn-print" style={{ background: '#10b981', color: 'white' }}>
+                                Распечатать
+                            </button>
+                            <button onClick={() => { setIsQrModalOpen(false); setQrUser(null); }}>
+                                Закрыть
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

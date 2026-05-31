@@ -11,6 +11,7 @@ import Order from "./all_pages/order/order";
 import OrderEditor from "./all_pages/order_editor/order_editor";
 import PlacingAnOrder from "./all_pages/placing_an_order/placing_an_order";
 import ViewOrders from './all_pages/view_orders/view_orders'
+import Scan from "./all_pages/scan/scan";
 
 function App() {
     const { currentUser, loading } = useContext(CustomContext);
@@ -26,6 +27,24 @@ function App() {
     return (
         <Routes>
             <Route path="/signin" element={<SingIn />} />
+            
+            {/* Если вошел сканер, редиректим его с корня на страницу сканирования */}
+            {currentUser?.role === 'scanner' && (
+                <Route path="/" element={<Navigate to="/scan" replace />} />
+            )}
+
+            {/* Страница сканирования доступна только scanner и admin */}
+            <Route 
+                path="/scan" 
+                element={
+                    (currentUser?.role === 'admin' || currentUser?.role === 'scanner') ? (
+                        <Scan />
+                    ) : (
+                        <Navigate to="/" replace />
+                    )
+                } 
+            />
+
             <Route path="/" element={<Layout />}>
                 {currentUser?.role === 'admin' && (
                     <>
@@ -41,7 +60,7 @@ function App() {
             </Route>
 
             {/* Редирект для всех остальных путей */}
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to={currentUser?.role === 'scanner' ? "/scan" : "/"} replace />} />
         </Routes>
     );
 }

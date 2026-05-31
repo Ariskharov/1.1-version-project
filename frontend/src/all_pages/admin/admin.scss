@@ -218,13 +218,14 @@
 
       .user-item {
         background: var(--surface);
-        padding: 12px 14px;
+        padding: 16px;
         border-radius: var(--radius);
         box-shadow: var(--shadow-sm);
         border: 1px solid var(--border);
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
         transition: box-shadow 0.2s ease;
 
         &:hover {
@@ -233,13 +234,15 @@
 
         small {
           color: var(--gray-500);
-          font-size: 12px;
+          font-size: 13px;
         }
       }
 
       .user-actions {
         display: flex;
-        gap: 4px;
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
       }
     }
   }
@@ -265,6 +268,17 @@
     font-size: 12px;
     cursor: pointer;
     &:hover { background: #bae6fd; }
+  }
+
+  .btn-qr {
+    background: #ede9fe;
+    color: #5b21b6;
+    padding: 6px 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    &:hover { background: #ddd6fe; }
   }
 
   .btn-edit {
@@ -475,5 +489,52 @@
     font-size: 22px;
     color: var(--danger);
     font-weight: 600;
+  }
+
+  // ==================== QR MODAL ====================
+  .print-qr-modal-wrapper {
+    .qr-code-box {
+      background: white;
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+    }
+    
+    .btn-print {
+      &:hover {
+        background: var(--success-dark) !important;
+      }
+    }
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  
+  .print-qr-section,
+  .print-qr-section * {
+    visibility: visible !important;
+  }
+  
+  .print-qr-section {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50px !important;
+    transform: translateX(-50%) !important;
+    width: 300px !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-align: center !important;
+  }
+  
+  .qr-modal-buttons,
+  .modal__close {
+    display: none !important;
   }
 }

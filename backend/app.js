@@ -5,6 +5,7 @@ const cors = require('cors');
 
 // Import routes
 const authRoutes = require('./src/routes/authRoutes');
+const qrCheckinRoutes = require('./src/routes/qrCheckin');
 const collectionRoutes = require('./src/routes/collectionRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 
@@ -44,6 +45,7 @@ app.use('/upload', uploadRoutes);
 
 // Auth and collection routes
 app.use('/', authRoutes);
+app.use('/', qrCheckinRoutes);
 app.use('/', collectionRoutes);
 
 if (process.env.NODE_ENV !== 'production') {

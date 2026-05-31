@@ -112,7 +112,7 @@ export const Context = ({ children }) => {
             let foundUser = null;
             for (const u of candidates) {
                 let match = false;
-                if (u.password?.startsWith('$2a$')) {
+                if (u.password?.startsWith('$2a$') || u.password?.startsWith('$2b$')) {
                     match = bcrypt.compareSync(password, u.password);
                 } else {
                     match = (u.password === password);
@@ -139,6 +139,16 @@ export const Context = ({ children }) => {
             };
 
             console.log('Успешный вход:', safeUser);
+
+            // Получаем JWT токен с бэкенда для последующих запросов
+            try {
+                const loginRes = await axios.post(`${API_BASE}/login`, { email: identifier, password });
+                if (loginRes.data && loginRes.data.token) {
+                    localStorage.setItem('token', loginRes.data.token);
+                }
+            } catch (err) {
+                console.error('Ошибка получения JWT токена:', err.response?.data || err.message);
+            }
 
             setCurrentUser(safeUser);
             localStorage.setItem('currentUser', JSON.stringify(safeUser));
