@@ -60,6 +60,22 @@ export const Context = ({ children }) => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Функция обновления данных (переиспользуемая)
+    const refreshData = async () => {
+        try {
+            const [usersRes, sessionsRes, productsRes] = await Promise.all([
+                axios.get(`${API_BASE}/users`),
+                axios.get(`${API_BASE}/workSessions`),
+                axios.get(`${API_BASE}/product`)
+            ]);
+            setUsers(usersRes.data);
+            setWorkSessions(sessionsRes.data);
+            setProducts(productsRes.data);
+        } catch (err) {
+            console.error('Ошибка обновления данных:', err);
+        }
+    };
+
     // Загрузка данных при старте
     useEffect(() => {
         const loadData = async () => {
@@ -90,6 +106,15 @@ export const Context = ({ children }) => {
         };
 
         loadData();
+    }, []);
+
+    // Автообновление данных каждые 10 секунд (для отображения QR-отметок в реальном времени)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            refreshData();
+        }, 10000);
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Логин
@@ -416,6 +441,7 @@ export const Context = ({ children }) => {
         addProduct,
         updateProduct,
         deleteProduct,
+        refreshData,
         formatDuration
     };
 
