@@ -78,6 +78,15 @@ const Scan = () => {
         if (processing.current) return;
         processing.current = true;
 
+        // Pause scanner to prevent double-scanning
+        if (scannerRef.current && scannerRef.current.isScanning) {
+            try {
+                scannerRef.current.pause(true);
+            } catch (pErr) {
+                console.warn("Failed to pause scanner:", pErr);
+            }
+        }
+
         setStatus({ type: 'loading', message: 'Идентификация сотрудника...' });
 
         try {
@@ -90,6 +99,10 @@ const Scan = () => {
 
             if (res.data.success) {
                 const data = res.data;
+                
+                // Trigger instant update across other tabs (like Admin panel)
+                localStorage.setItem('qr-update', Date.now().toString());
+
                 if (data.action === 'start') {
                     setStatus({
                         type: 'success',
@@ -115,6 +128,15 @@ const Scan = () => {
                 type: 'error',
                 message: errMsg
             });
+
+            // If token is invalid/expired (401), log out and redirect to signin
+            if (err.response?.status === 401 || errMsg === 'Invalid token') {
+                setTimeout(() => {
+                    logout();
+                    navigate('/signin');
+                }, 3000);
+                return;
+            }
         }
 
         // Reset display after 4 seconds
@@ -122,6 +144,15 @@ const Scan = () => {
             setStatus(null);
             setBadgeInput('');
             processing.current = false;
+            
+            // Resume scanning
+            if (scannerRef.current && scannerRef.current.isScanning) {
+                try {
+                    scannerRef.current.resume();
+                } catch (rErr) {
+                    console.warn("Failed to resume scanner:", rErr);
+                }
+            }
         }, 4000);
     };
 
@@ -171,7 +202,7 @@ const Scan = () => {
 
                 {/* Main Action Block: QR scanning or Status result */}
                 <div className="kiosk-scan__main-panel">
-                    {status ? (
+                    {status && (
                         <div className={`kiosk-scan__result kiosk-scan__result--${status.type}`}>
                             {status.type === 'loading' && (
                                 <div className="kiosk-scan__loader">
@@ -192,36 +223,34 @@ const Scan = () => {
                                 </div>
                             )}
                         </div>
-                    ) : (
-                        <div className="kiosk-scan__scanner-box">
-                            <div className="kiosk-scan__scanner-frame">
-                                <div id="reader"></div>
-                                <div className="scanner-overlay">
-                                    <div className="scanner-laser"></div>
-                                </div>
-                            </div>
-                            <p className="kiosk-scan__instruction">Поместите QR-код бейджа в область камеры</p>
-                        </div>
                     )}
+                    
+                    <div className="kiosk-scan__scanner-box" style={{ display: status ? 'none' : 'block' }}>
+                        <div className="kiosk-scan__scanner-frame">
+                            <div id="reader"></div>
+                            <div className="scanner-overlay">
+                                <div className="scanner-laser"></div>
+                            </div>
+                        </div>
+                        <p className="kiosk-scan__instruction">Поместите QR-код бейджа в область камеры</p>
+                    </div>
                 </div>
 
                 {/* Backup manual entry */}
-                {!status && (
-                    <div className="kiosk-scan__manual">
-                        <form onSubmit={handleManualSubmit}>
-                            <input
-                                type="text"
-                                placeholder="Введите ID бейджа вручную"
-                                value={badgeInput}
-                                onChange={(e) => setBadgeInput(e.target.value)}
-                                disabled={processing.current}
-                            />
-                            <button type="submit" disabled={processing.current || !badgeInput.trim()}>
-                                Отметиться
-                            </button>
-                        </form>
-                    </div>
-                )}
+                <div className="kiosk-scan__manual" style={{ display: status ? 'none' : 'block' }}>
+                    <form onSubmit={handleManualSubmit}>
+                        <input
+                            type="text"
+                            placeholder="Введите ID бейджа вручную"
+                            value={badgeInput}
+                            onChange={(e) => setBadgeInput(e.target.value)}
+                            disabled={processing.current}
+                        />
+                        <button type="submit" disabled={processing.current || !badgeInput.trim()}>
+                            Отметиться
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     );

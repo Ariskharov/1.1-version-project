@@ -117,6 +117,19 @@ export const Context = ({ children }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Мгновенная синхронизация при действиях на соседних вкладках (например, сканнер)
+    useEffect(() => {
+        const handleStorageChange = (e) => {
+            if (e.key === 'qr-update') {
+                console.log('[Context] Обнаружена QR-отметка, обновление данных...');
+                refreshData();
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Логин
     const login = async (identifier, password) => {
         console.log('Попытка входа:', identifier, password);
