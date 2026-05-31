@@ -272,6 +272,18 @@ function FurnitureEditor() {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [selected]);
 
+  // Блокировка прокрутки фона при открытом drawer
+  React.useEffect(() => {
+    if (selected) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selected]);
+
   const filteredProducts = products.filter(p =>
     p.title.toLowerCase().includes(searchTerm.toLowerCase())
   );

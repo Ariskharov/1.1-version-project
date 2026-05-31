@@ -121,6 +121,17 @@ const PlacingAnOrder = () => {
         setCustomItem({ title: '', price: '', quantity: 1, description: '' });
     };
 
+    useEffect(() => {
+        if (modalOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [modalOpen]);
+
     // Добавление / Обновление позиции
     const savePosition = () => {
         if (modalType === 'catalog') {

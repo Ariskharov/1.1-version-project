@@ -252,7 +252,18 @@ const OrderEditor = () => {
         setCustomItem({ title: '', price: '', quantity: 1, description: '' });
     };
 
-    if (loading) return <div className="loading">Загрузка...</div>;
+    useEffect(() => {
+        if (modalOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [modalOpen]);
+
+    if (loading) return <div className="order_editor"><div className="loading">Загрузка заказа...</div></div>;
     if (error) return <div className="error">{error}</div>;
     if (!order) return <div>Заказ не найден</div>;
 

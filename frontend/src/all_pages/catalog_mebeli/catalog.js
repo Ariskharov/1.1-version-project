@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFurnitureCalculator } from './useFurnitureCalculator';
 import './catalog.scss';
 
@@ -22,6 +22,18 @@ const Catalog = () => {
 
     // Поиск
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Блокировка прокрутки фона при открытом модальном окне
+    useEffect(() => {
+        if (selectedProduct) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [selectedProduct]);
 
     // Показываем загрузку
     if (isLoading) {

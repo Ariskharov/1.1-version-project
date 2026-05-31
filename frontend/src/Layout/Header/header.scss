@@ -1,4 +1,19 @@
 .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000; /* Гарантирует нахождение поверх карточек каталога */
+  transition: transform 0.3s ease-in-out;
+
+  &--visible {
+    transform: translateY(0);
+  }
+
+  &--hidden {
+    transform: translateY(-100%);
+  }
+
   &__top {
     position: fixed;
     margin-bottom: 100px;
@@ -8,9 +23,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(243, 244, 246, 0.37); /* white */
+    background: rgba(243, 244, 246, 0.95); /* Чуть плотнее, чтобы текст не просвечивал снизу */
     border-radius: 0px 0px 0px 0px;
     backdrop-filter: blur(8px);
+    z-index: 1001; /* Поверх боковой панели при анимациях */
 
     &__logo {
       width: 50px;
@@ -86,6 +102,7 @@
     height: 100%;
     background: #F3F4F64D;
     border-radius: 0px 0px 0px 0px;
+    z-index: 999; /* Красивое наложение под шапку и поверх каталога */
 
     &__name {
       margin: 20px 0;

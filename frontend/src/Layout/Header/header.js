@@ -1,12 +1,11 @@
-import React, {useContext, useState} from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import './header.scss';
 import logo from '../img_layout/logo.svg'; // поправь путь, если нужно
-import './header.scss';
-import defaultAvatar from '../img_layout/avatar_img.jpg';
+import defaultAvatar from '../img_layout/avatar_default.jpg';
 import exitImg from '../img_layout/exit_img.svg';
-import {Link, useLocation, useNavigate} from 'react-router-dom';
-import {CustomContext} from '../../Context';
-import {animateScroll} from "react-scroll";
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { CustomContext } from '../../Context';
+import { animateScroll } from "react-scroll";
 
 const Header = () => {
     const location = useLocation();
@@ -14,6 +13,31 @@ const Header = () => {
     const { currentUser, logout } = useContext(CustomContext);
 
     const [menuOpen, setMenuOpen] = useState(false);
+    const [showHeader, setShowHeader] = useState(true);
+    const [lastScrollY, setLastScrollY] = useState(0);
+
+    // Логика динамического скрытия хедера при скролле вниз и показа при скролле вверх
+    useEffect(() => {
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+
+            // Если доскроллили до самого верха - показываем по умолчанию
+            if (currentScrollY <= 10) {
+                setShowHeader(true);
+            } else {
+                // Если скроллим вниз - скрываем, если вверх - показываем
+                if (currentScrollY > lastScrollY) {
+                    setShowHeader(false);
+                } else {
+                    setShowHeader(true);
+                }
+            }
+            setLastScrollY(currentScrollY);
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [lastScrollY]);
 
     const handleLogout = () => {
         logout();
@@ -26,29 +50,28 @@ const Header = () => {
 
     const toggleMobileMenu = () => setMenuOpen(prev => !prev);
 
+    // Определяем CSS класс для трансформации хедера
+    const headerClass = `header ${showHeader ? 'header--visible' : 'header--hidden'}`;
 
     return (
-        <header className="header">
+        <header className={headerClass}>
             <div className="header_PC">
                 <div className="header__top">
 
                     <Link to="/home">
-                        <img src={logo} alt="TimeTrack Logo" className="header__top__logo"/>
+                        <img src={logo} alt="TimeTrack Logo" className="header__top__logo" />
                     </Link>
 
                     {currentUser ? (
                         <div className="header__top__right">
                             <div className="header__top__right__user">
-                                {currentUser.avatar ? (
-                                    <img src={currentUser.avatar} alt="avatar" className="header__avatar"/>
-                                ) : (
-                                    <img src={defaultAvatar} alt="avatar" className="header__top__right__user__avatar"/>
-                                )}
+                                {/* Всегда используем красивый дефолтный аватар по требованию */}
+                                <img src={defaultAvatar} alt="avatar" className="header__top__right__user__avatar" />
                                 <span className="header__top__right__user__username">{currentUser.fullName}</span>
                             </div>
 
                             <button onClick={handleLogout} className="header__top__right__logout-btn">
-                                <img src={exitImg} alt="exit"/>
+                                <img src={exitImg} alt="exit" />
                                 Выйти
                             </button>
                         </div>
@@ -177,11 +200,7 @@ const Header = () => {
                         {currentUser && (
                             <div className="header__mobile-user">
                                 <div className="header__mobile-user__info">
-                                    {currentUser.avatar ? (
-                                        <img src={currentUser.avatar} alt="avatar" className="header__mobile-avatar" />
-                                    ) : (
-                                        <img src={defaultAvatar} alt="avatar" className="header__mobile-avatar" />
-                                    )}
+                                    <img src={defaultAvatar} alt="avatar" className="header__mobile-avatar" />
                                     <span className="header__mobile-username">{currentUser.fullName}</span>
                                 </div>
 
