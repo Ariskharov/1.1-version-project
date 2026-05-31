@@ -63,6 +63,7 @@ const Scan = () => {
                 html5QrCode.stop().catch(err => console.error("Ошибка остановки сканера:", err));
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const formatDuration = (minutes) => {
