@@ -39,7 +39,8 @@ const Scan = () => {
                     { facingMode: "environment" },
                     {
                         fps: 10,
-                        qrbox: { width: 260, height: 260 }
+                        qrbox: { width: 260, height: 260 },
+                        disableFlip: true
                     },
                     (decodedText) => {
                         // Scan Success
@@ -225,7 +226,7 @@ const Scan = () => {
                         </div>
                     )}
                     
-                    <div className="kiosk-scan__scanner-box" style={{ display: status ? 'none' : 'block' }}>
+                    <div className="kiosk-scan__scanner-box" style={{ display: status ? 'none' : 'flex' }}>
                         <div className="kiosk-scan__scanner-frame">
                             <div id="reader"></div>
                             <div className="scanner-overlay">

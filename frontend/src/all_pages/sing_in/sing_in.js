@@ -42,7 +42,7 @@ const SingIn = () => {
         <div className="sing_in">
             <div className="sing_in__main">
                 <div className="sing_in__main__center">
-                    <h1>TimeTrack</h1>
+                    <h1>Добро пожаловать</h1>
                     <p>Войдите, чтобы продолжить работу</p>
                 </div>
 
