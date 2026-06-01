@@ -96,14 +96,16 @@ const Header = () => {
                         ) : (
                             <>
                                 {currentUser?.role === 'admin' && (
+                                    <Link
+                                        to="/admin"
+                                        onClick={toTop}
+                                        className={`header__link ${isActive('/admin') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                                    >
+                                        Панель администратора
+                                    </Link>
+                                )}
+                                {(currentUser?.role === 'admin' || currentUser?.role === 'user') && (
                                     <>
-                                        <Link
-                                            to="/admin"
-                                            onClick={toTop}
-                                            className={`header__link ${isActive('/admin') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
-                                        >
-                                            Панель администратора
-                                        </Link>
                                         <Link
                                             to="/edit_mebel"
                                             onClick={toTop}
@@ -180,6 +182,15 @@ const Header = () => {
                                         Каталог мебели
                                     </Link>
                                     {currentUser?.role === 'admin' && (
+                                        <Link
+                                            to="/admin"
+                                            onClick={() => { toTop(); setMenuOpen(false); }}
+                                            className={`header__mobile-link ${isActive('/admin') ? 'active' : ''}`}
+                                        >
+                                            Панель администратора
+                                        </Link>
+                                    )}
+                                    {(currentUser?.role === 'admin' || currentUser?.role === 'user') && (
                                         <>
                                             <Link
                                                 to="/edit_mebel"
@@ -189,18 +200,11 @@ const Header = () => {
                                                 Редактор мебели
                                             </Link>
                                             <Link
-                                                to="/admin"
+                                                to="/view_orders"
                                                 onClick={() => { toTop(); setMenuOpen(false); }}
-                                                className={`header__mobile-link ${isActive('/admin') ? 'active' : ''}`}
+                                                className={`header__mobile-link ${isActive('/view_orders') ? 'active' : ''}`}
                                             >
-                                                Панель администратора
-                                            </Link>
-                                            <Link
-                                                to="/edit_order"
-                                                onClick={() => { toTop(); setMenuOpen(false); }}
-                                                className={`header__mobile-link ${isActive('/edit_order') ? 'active' : ''}`}
-                                            >
-                                                Редактор заказов
+                                                Просмотр заказов
                                             </Link>
                                             <Link
                                                 to="/placing_an_order"

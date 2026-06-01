@@ -46,14 +46,16 @@ function App() {
             />
 
             <Route path="/" element={<Layout />}>
-                {currentUser?.role === 'admin' && (
+                {(currentUser?.role === 'admin' || currentUser?.role === 'user') && (
                     <>
                         <Route path="edit_mebel" element={<EditMebel />}/>
-                        <Route path="admin" element={<Admin />} />
                         <Route path="/placing_an_order" element={<PlacingAnOrder />} />
                         <Route path="/view_orders" element={<ViewOrders />} />
                         <Route path="/order_editor/:id" element={<OrderEditor />} />
                     </>
+                )}
+                {currentUser?.role === 'admin' && (
+                    <Route path="admin" element={<Admin />} />
                 )}
                 <Route index element={<Catalog />}/>
                 <Route path="/order/:id" element={<Order />} />
