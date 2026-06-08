@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { evaluate } from 'mathjs';
 import './order_editor.scss';
-
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import { useModal } from '../../ModalContext';
 
 const OrderEditor = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { showConfirm, showAlert } = useModal();
 
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -24,14 +24,25 @@ const OrderEditor = () => {
     const [customDesc, setCustomDesc] = useState('');
     const [customItem, setCustomItem] = useState({ title: '', price: '', quantity: 1, description: '' });
 
+    // Цвета для добавления новой позиции (как в новом оформлении заказа)
+    const [addBodyColor, setAddBodyColor] = useState('');
+    const [addFacadeColor, setAddFacadeColor] = useState('');
+
+    // Поиск в каталоге модалки добавления (как в placing_an_order)
+    const [productSearch, setProductSearch] = useState('');
+
     // Toggle деталировки
     const [showDetails, setShowDetails] = useState(true);
+
+    // Состояния загрузки на кнопках — защита от дабл-кликов + анимация
+    const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Получение данных заказа
     useEffect(() => {
         const fetchOrder = async () => {
             try {
-                const res = await fetch(`${API_BASE}/order/${id}`);
+                const res = await fetch(`http://localhost:8080/order/${id}`);
                 if (!res.ok) throw new Error('Заказ не найден');
                 const data = await res.json();
                 let loaded = data.order?.[0] || data;
@@ -39,6 +50,8 @@ const OrderEditor = () => {
                 loaded.product_order = (loaded.product_order || []).map(item => ({
                     ...item,
                     userInputs: { ...item.userInputs },
+                    bodyColor: typeof item.bodyColor === 'string' ? item.bodyColor : '',
+                    facadeColor: typeof item.facadeColor === 'string' ? item.facadeColor : '',
                     calculatedDetails: item.calculatedDetails?.length
                         ? item.calculatedDetails
                         : calculateDetails(item)
@@ -59,7 +72,7 @@ const OrderEditor = () => {
 
         const fetchProducts = async () => {
             try {
-                const res = await fetch(`${API_BASE}/product`);
+                const res = await fetch('http://localhost:8080/product');
                 const data = await res.json();
                 setProducts(Array.isArray(data) ? data : [data]);
             } catch (err) {
@@ -72,6 +85,13 @@ const OrderEditor = () => {
     }, [id]);
 
     const selectedProduct = order?.product_order?.find(p => p.id === selectedProductId);
+
+    // Фильтрованные продукты для модалки добавления из каталога
+    const filteredProducts = useMemo(() => {
+        if (!productSearch.trim()) return products;
+        const q = productSearch.toLowerCase().trim();
+        return products.filter(p => p.title && p.title.toLowerCase().includes(q));
+    }, [products, productSearch]);
 
     const calculateDetails = (product) => {
         if (!product || product.isCustom || !product.details) return [];
@@ -142,8 +162,9 @@ const OrderEditor = () => {
         });
     };
 
-    const deletePosition = (productId) => {
-        if (!window.confirm('Удалить эту позицию?')) return;
+    const deletePosition = async (productId) => {
+        const ok = await showConfirm('Удалить эту позицию?');
+        if (!ok) return;
         setOrder(prev => {
             const updated = prev.product_order.filter(p => p.id !== productId);
             return { ...prev, product_order: updated };
@@ -155,23 +176,29 @@ const OrderEditor = () => {
     };
 
     const deleteEntireOrder = async () => {
-        if (!window.confirm('Удалить весь заказ? Действие необратимо!')) return;
+        if (isDeleting) return;
+        const ok = await showConfirm('Удалить весь заказ? Действие необратимо!');
+        if (!ok) return;
+        setIsDeleting(true);
         try {
-            await fetch(`${API_BASE}/order/${id}`, { method: 'DELETE' });
-            alert('Заказ удалён');
+            await fetch(`http://localhost:8080/order/${id}`, { method: 'DELETE' });
+            showAlert('Заказ удалён', 'success');
             navigate('/view_orders');
         } catch (err) {
-            alert('Ошибка: ' + err.message);
+            showAlert('Ошибка: ' + err.message, 'error');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
     const saveOrder = async () => {
-        if (!order) return;
+        if (isSaving || !order) return;
         const subtotal = order.product_order.reduce((s, p) =>
             s + Number(p.price || 0) * (Number(p.quantity || p.userInputs?.coll || 1) || 1), 0);
 
+        setIsSaving(true);
         try {
-            const res = await fetch(`${API_BASE}/order/${id}`, {
+            const res = await fetch(`http://localhost:8080/order/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -183,23 +210,26 @@ const OrderEditor = () => {
                 })
             });
             if (res.ok) {
-                alert('Заказ успешно сохранён');
+                showAlert('Заказ успешно сохранён', 'success');
                 navigate(`/order/${id}`);
             }
         } catch (err) {
-            alert('Ошибка сохранения: ' + err.message);
+            showAlert('Ошибка сохранения: ' + err.message, 'error');
+        } finally {
+            setIsSaving(false);
         }
     };
 
-    const openAddModal = () => {
-        setModalMode('catalog');
+    const openAddModal = (mode = 'catalog') => {
+        setModalMode(mode);
         setModalOpen(true);
+        if (mode === 'catalog') setProductSearch('');
     };
 
     const savePosition = () => {
         if (modalMode === 'catalog' && !selectedNewProduct) return;
         if (modalMode === 'custom' && !customItem.title) {
-            alert('Введите название позиции');
+            showAlert('Введите название позиции', 'error');
             return;
         }
 
@@ -221,17 +251,20 @@ const OrderEditor = () => {
                 calculatedDetails: details,
                 variables: selectedNewProduct.variables,
                 conditions: selectedNewProduct.conditions,
-                details: selectedNewProduct.details
+                details: selectedNewProduct.details,
+                bodyColor: (addBodyColor || '').trim(),
+                facadeColor: (addFacadeColor || '').trim()
             };
         } else {
+            // Произвольная позиция — без цветовых полей (описание достаточно)
             newItem = {
                 id: Date.now(),
                 isCustom: true,
-                title: customItem.title,
+                title: customItem.title.trim(),
                 description: customItem.description,
                 price: Number(customItem.price),
-                quantity: Number(customItem.quantity),
-                totalPrice: Number(customItem.price) * Number(customItem.quantity)
+                quantity: Number(customItem.quantity) || 1,
+                totalPrice: Number(customItem.price) * (Number(customItem.quantity) || 1)
             };
         }
 
@@ -250,20 +283,12 @@ const OrderEditor = () => {
         setNewInputs({});
         setCustomDesc('');
         setCustomItem({ title: '', price: '', quantity: 1, description: '' });
+        setAddBodyColor('');
+        setAddFacadeColor('');
+        setProductSearch('');
     };
 
-    useEffect(() => {
-        if (modalOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
-        }
-        return () => {
-            document.body.style.overflow = '';
-        };
-    }, [modalOpen]);
-
-    if (loading) return <div className="order_editor"><div className="loading">Загрузка заказа...</div></div>;
+    if (loading) return <div className="loading">Загрузка...</div>;
     if (error) return <div className="error">{error}</div>;
     if (!order) return <div>Заказ не найден</div>;
 
@@ -272,25 +297,41 @@ const OrderEditor = () => {
 
     return (
         <section className="order_editor">
-            <div className="order_editor__header">
-                <div className="order_editor__status-bar">
-                    {['Оформлен', 'Пилится', 'Собирается', 'Ожидание доставки', 'Установка', 'Завершено'].map((step, i) => (
-                        <div
-                            key={step}
-                            className={`order_editor__status-step ${step === status ? 'order_editor__status-step--active' : ''}`}
-                            onClick={() => setStatus(step)}
-                        >
-                            <span>{i + 1}</span>
-                            <p>{step}</p>
-                        </div>
-                    ))}
+            {/* Современный хедер */}
+            <div className="order_editor__top">
+                <div>
+                    <h1>Редактор заказа <span className="order-id">#{id}</span></h1>
+                    <div className="status-pills">
+                        {['Оформлен', 'Пилится', 'Собирается', 'Ожидание доставки', 'Установка', 'Завершено'].map(s => (
+                            <button
+                                key={s}
+                                className={`pill ${status === s ? 'active' : ''}`}
+                                onClick={() => setStatus(s)}
+                            >
+                                {s}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-                <button className="order_editor__delete-order-btn" onClick={deleteEntireOrder}>
-                    🗑 Удалить весь заказ
-                </button>
+                <div className="top-actions">
+                    <button 
+                        className={`btn btn-danger ${isDeleting ? 'is-loading' : ''}`} 
+                        disabled={isDeleting} 
+                        onClick={deleteEntireOrder}
+                    >
+                        {isDeleting ? 'Удаление...' : 'Удалить заказ'}
+                    </button>
+                    <button 
+                        className={`btn btn-primary ${isSaving ? 'is-loading' : ''}`} 
+                        disabled={isSaving} 
+                        onClick={saveOrder}
+                    >
+                        {isSaving ? 'Сохранение...' : 'Сохранить изменения'}
+                    </button>
+                </div>
             </div>
 
-            <div className="order_editor__layout">
+            <div className="order_editor__main">
                 {/* Левая панель */}
                 <aside className="order_editor__left">
                     <div className="order_editor__left-head">
@@ -305,24 +346,58 @@ const OrderEditor = () => {
                                 className={`order_editor__position-card ${selectedProductId === item.id ? 'order_editor__position-card--active' : ''}`}
                                 onClick={() => setSelectedProductId(item.id)}
                             >
-                                {item.img && <img src={item.img.startsWith('http') ? item.img : `/utilse/${item.img.split('/').pop()}`} alt={item.title} />}
-                                <div>
-                                    <h4>{item.title}</h4>
-                                    <p>{item.isCustom ? 'Произвольная позиция' : `${item.userInputs?.shirina || '?'} × ${item.userInputs?.visota || '?'} мм`}</p>
+                                <div className="pos-photo">
+                                    {item.img && typeof item.img === 'string' ? (
+                                        <img 
+                                            src={item.img.startsWith('http') ? item.img : `/utilse/${item.img.split('/').pop()}`} 
+                                            alt={item.title} 
+                                        />
+                                    ) : (
+                                        <div className="no-photo">🪑</div>
+                                    )}
                                 </div>
-                                <strong>{Number(item.price || 0).toLocaleString()} сом</strong>
 
-                                <button className="order_editor__delete-position-btn"
-                                        onClick={(e) => { e.stopPropagation(); deletePosition(item.id); }}>
+                                <div className="pos-info">
+                                    <h4>{item.title}</h4>
+                                    <p className="pos-meta">
+                                        {item.isCustom ? 'Произвольная' : (item.userInputs?.shirina ? `${item.userInputs.shirina} × ${item.userInputs.visota || '?'} мм` : '')}
+                                    </p>
+
+                                    {(item.bodyColor || item.facadeColor) && (
+                                        <div className="pos-colors">
+                                            {item.bodyColor && <span>Корпус: {item.bodyColor}</span>}
+                                            {item.facadeColor && <span>Фасады: {item.facadeColor}</span>}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="pos-price">
+                                    <strong>{Number(item.price || 0).toLocaleString()} сом</strong>
+                                    <span>× {item.quantity || item.userInputs?.coll || 1}</span>
+                                    <div style={{ fontSize: '11px', color: '#0F74C7', fontWeight: 600, marginTop: '2px' }}>
+                                        {(Number(item.price || 0) * (Number(item.quantity || item.userInputs?.coll || 1))).toLocaleString()} сом
+                                    </div>
+                                </div>
+
+                                <button 
+                                    className="order_editor__delete-position-btn"
+                                    onClick={(e) => { e.stopPropagation(); deletePosition(item.id); }}
+                                    title="Удалить позицию"
+                                >
                                     🗑
                                 </button>
                             </article>
                         ))}
                     </div>
 
-                    <button className="order_editor__add-position" onClick={openAddModal}>
-                        + Добавить позицию
-                    </button>
+                    <div className="order_editor__add-buttons">
+                        <button className="order_editor__add-btn catalog" onClick={() => openAddModal('catalog')}>
+                            ＋ Из каталога
+                        </button>
+                        <button className="order_editor__add-btn custom" onClick={() => openAddModal('custom')}>
+                            ＋ Произвольная
+                        </button>
+                    </div>
                 </aside>
 
                 {/* Центральная часть */}
@@ -334,16 +409,58 @@ const OrderEditor = () => {
                                     <h2>{selectedProduct.title}</h2>
                                     <p>ID: {selectedProduct.id} {selectedProduct.isCustom && '• Кастомная'}</p>
                                 </div>
-                                <button onClick={saveOrder}>Сохранить изменения</button>
+                                <button 
+                                    className={isSaving ? 'is-loading' : ''} 
+                                    disabled={isSaving} 
+                                    onClick={saveOrder}
+                                >
+                                    {isSaving ? 'Сохранение...' : 'Сохранить изменения'}
+                                </button>
                             </div>
 
                             <div className="order_editor__specs">
                                 <article>
                                     <h4>Параметры изделия</h4>
                                     <div className="order_editor__sizes-grid">
+                                        {/* Количество — всегда доступно и удобно */}
+                                        <div className="size-input">
+                                            <label>Количество</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={selectedProduct.quantity || selectedProduct.userInputs?.coll || 1}
+                                                onChange={e => {
+                                                    const q = Math.max(1, Number(e.target.value) || 1);
+                                                    updateProduct(p => ({
+                                                        ...p,
+                                                        quantity: q,
+                                                        // если есть coll в inputs — синхронизируем
+                                                        userInputs: p.userInputs ? { ...p.userInputs, coll: q } : { coll: q }
+                                                    }));
+                                                }}
+                                            />
+                                        </div>
+
                                         <div className="size-input">
                                             <label>Цена за единицу (сом)</label>
                                             <input type="number" value={selectedProduct.price || ''} onChange={e => handleItemPrice(e.target.value)} />
+                                        </div>
+
+                                        {/* Редактирование цветов (текстом) — в колонку, удобно и без переполнения */}
+                                        <div className="size-input" style={{ gridColumn: '1 / -1' }}>
+                                            <label style={{ display: 'block', marginBottom: '4px' }}>Цвета (текстом)</label>
+                                            <div className="colors-row" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <input 
+                                                    placeholder="Цвет корпуса" 
+                                                    value={selectedProduct.bodyColor || ''} 
+                                                    onChange={e => updateProduct(p => ({...p, bodyColor: e.target.value}))} 
+                                                />
+                                                <input 
+                                                    placeholder="Цвет фасадов" 
+                                                    value={selectedProduct.facadeColor || ''} 
+                                                    onChange={e => updateProduct(p => ({...p, facadeColor: e.target.value}))} 
+                                                />
+                                            </div>
                                         </div>
 
                                         {!selectedProduct.isCustom && selectedProduct.conditions?.map(c => c.type === 'flag' && (
@@ -428,7 +545,13 @@ const OrderEditor = () => {
                             <p>ИТОГО</p>
                             <strong>{(order.total || subtotal - (order.discountAmount || 0) + (order.taxAmount || 0)).toLocaleString()} сом</strong>
                         </div>
-                        <button onClick={saveOrder}>Сохранить / Подтвердить</button>
+                        <button 
+                            className={isSaving ? 'is-loading' : ''} 
+                            disabled={isSaving} 
+                            onClick={saveOrder}
+                        >
+                            {isSaving ? 'Сохранение...' : 'Сохранить / Подтвердить'}
+                        </button>
                     </section>
 
                     <section className="order_editor__client">
@@ -444,63 +567,224 @@ const OrderEditor = () => {
                 </aside>
             </div>
 
-            {/* Модальное окно */}
+            {/* Модальное окно — полностью новый удобный дизайн (как в placing_an_order) */}
             {modalOpen && (
                 <div className="modal-overlay" onClick={closeModal}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                    <div className="modal-content order-editor-modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>{modalMode === 'catalog' ? 'Добавить из каталога' : 'Добавить произвольную позицию'}</h3>
-                            <button className="modal-close" onClick={closeModal}>×</button>
+                            <h3>
+                                {modalMode === 'catalog' ? 'Добавить мебель из каталога' : 'Добавить произвольную позицию'}
+                            </h3>
+                            <button className="modal-close-btn" onClick={closeModal}>×</button>
                         </div>
 
                         {modalMode === 'catalog' ? (
-                            <div>
-                                <div className="modal-products">
-                                    {products.map(p => (
-                                        <div key={p.id} className={`modal-product ${selectedNewProduct?.id === p.id ? 'active' : ''}`}
-                                             onClick={() => {
-                                                 setSelectedNewProduct(p);
-                                                 const init = {};
-                                                 (p.variables || []).forEach(v => init[v.name] = v.default);
-                                                 setNewInputs(init);
-                                             }}>
-                                            <img src={p.img} alt={p.title} />
-                                            <p>{p.title}</p>
-                                        </div>
-                                    ))}
+                            /* ДВУХПАНЕЛЬНЫЙ КАТАЛОГ — квадратные карточки + полностью видимые фото + цвета в колонку */
+                            <div className="modal-body catalog-modal">
+                                {/* Поиск */}
+                                <div className="catalog-search">
+                                    <input
+                                        type="text"
+                                        placeholder="Поиск по названию мебели..."
+                                        value={productSearch}
+                                        onChange={(e) => setProductSearch(e.target.value)}
+                                    />
+                                    {productSearch && (
+                                        <button className="search-clear" onClick={() => setProductSearch('')} title="Очистить поиск">×</button>
+                                    )}
                                 </div>
 
-                                {selectedNewProduct && (
-                                    <div className="modal-form">
-                                        <h4>{selectedNewProduct.title}</h4>
-                                        <div className="modal-fields">
-                                            {selectedNewProduct.variables?.map(v => (
-                                                <label key={v.name}>
-                                                    <span>{v.label}</span>
-                                                    <input type="number" value={newInputs[v.name] ?? v.default ?? ''}
-                                                           onChange={e => setNewInputs(prev => ({...prev, [v.name]: e.target.value}))} />
-                                                </label>
-                                            ))}
-                                            {selectedNewProduct.conditions?.map(c => c.type === 'flag' && (
-                                                <label key={c.name} className="checkbox">
-                                                    <input type="checkbox" checked={!!newInputs[c.name]}
-                                                           onChange={() => setNewInputs(prev => ({...prev, [c.name]: !prev[c.name]}))} />
-                                                    {c.label}
-                                                </label>
-                                            ))}
-                                        </div>
-                                        <textarea placeholder="Описание позиции" value={customDesc} onChange={e => setCustomDesc(e.target.value)} />
-                                        <button className="modal-add-btn" onClick={savePosition}>Добавить в заказ</button>
+                                <div className="catalog-split">
+                                    {/* Левая: список мебели (квадратные карточки, фото contain, текст отдельно) */}
+                                    <div className="products-pane">
+                                        {filteredProducts.length === 0 ? (
+                                            <div className="products-empty">Ничего не найдено</div>
+                                        ) : (
+                                            <div className="products-list">
+                                                {filteredProducts.map(p => {
+                                                    const isActive = selectedNewProduct?.id === p.id;
+                                                    const price = p.price ? `${Number(p.price).toLocaleString()} сом` : '';
+                                                    return (
+                                                        <div
+                                                            key={p.id}
+                                                            className={`product-card ${isActive ? 'active' : ''}`}
+                                                            onClick={() => {
+                                                                setSelectedNewProduct(p);
+                                                                const init = {};
+                                                                (p.variables || []).forEach(v => init[v.name] = v.default);
+                                                                (p.conditions || []).forEach(c => {
+                                                                    if (c.type === 'flag') init[c.name] = !!c.default;
+                                                                });
+                                                                setNewInputs(init);
+                                                                setAddBodyColor('');
+                                                                setAddFacadeColor('');
+                                                            }}
+                                                        >
+                                                            <div className="product-card-img">
+                                                                {p.img ? (
+                                                                    <img src={p.img} alt={p.title} />
+                                                                ) : (
+                                                                    <div className="no-img">🪑</div>
+                                                                )}
+                                                            </div>
+                                                            <div className="product-card-info">
+                                                                <div className="product-title">{p.title}</div>
+                                                                {price && <div className="product-price">{price}</div>}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
+
+                                    {/* Правая: конфигурация выбранной */}
+                                    <div className="config-pane">
+                                        {selectedNewProduct ? (
+                                            <div className="config-content">
+                                                <div className="config-header">
+                                                    <h4>{selectedNewProduct.title}</h4>
+                                                    {selectedNewProduct.price && (
+                                                        <div className="config-price">{Number(selectedNewProduct.price).toLocaleString()} сом / шт</div>
+                                                    )}
+                                                </div>
+
+                                                {/* Параметры (variables) */}
+                                                {(selectedNewProduct.variables || []).length > 0 && (
+                                                    <div className="config-section">
+                                                        <div className="section-label">Параметры</div>
+                                                        <div className="modal-inputs">
+                                                            {(selectedNewProduct.variables || []).map(v => (
+                                                                <label key={v.name} className="modal-field">
+                                                                    <span>{v.label}</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={newInputs[v.name] ?? ''}
+                                                                        onChange={e => setNewInputs(prev => ({ ...prev, [v.name]: e.target.value }))}
+                                                                    />
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Опции / флаги */}
+                                                {(selectedNewProduct.conditions || []).some(c => c.type === 'flag') && (
+                                                    <div className="config-section">
+                                                        <div className="section-label">Опции</div>
+                                                        <div className="modal-checkboxes">
+                                                            {(selectedNewProduct.conditions || []).map(c => c.type === 'flag' && (
+                                                                <label key={c.name} className="modal-checkbox">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!!newInputs[c.name]}
+                                                                        onChange={() => setNewInputs(prev => ({ ...prev, [c.name]: !prev[c.name] }))}
+                                                                    />
+                                                                    {c.label}
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Цвета — в колонку, без переполнения */}
+                                                <div className="config-section">
+                                                    <div className="section-label">Цвета</div>
+                                                    <div className="colors-row">
+                                                        <label className="modal-field">
+                                                            <span>Цвет корпуса</span>
+                                                            <input
+                                                                value={addBodyColor}
+                                                                onChange={e => setAddBodyColor(e.target.value)}
+                                                                placeholder="Дуб Сонома, Венге..."
+                                                            />
+                                                        </label>
+                                                        <label className="modal-field">
+                                                            <span>Цвет фасадов</span>
+                                                            <input
+                                                                value={addFacadeColor}
+                                                                onChange={e => setAddFacadeColor(e.target.value)}
+                                                                placeholder="Белый глянец, ЛДСП..."
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                {/* Описание */}
+                                                <div className="config-section">
+                                                    <label className="modal-field">
+                                                        <span>Описание позиции / примечание</span>
+                                                        <textarea
+                                                            value={customDesc}
+                                                            onChange={e => setCustomDesc(e.target.value)}
+                                                            placeholder="Дополнительные пожелания..."
+                                                        />
+                                                    </label>
+                                                </div>
+
+                                                <div className="config-actions">
+                                                    <button className="modal-save-btn" onClick={savePosition}>
+                                                        Добавить в заказ
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="config-placeholder">
+                                                <div className="placeholder-icon">🛠️</div>
+                                                <p>Выберите позицию слева</p>
+                                                <small>Настройте размеры, цвета и описание выбранной мебели</small>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         ) : (
-                            <div className="modal-form">
-                                <label><span>Название позиции</span><input value={customItem.title} onChange={e => setCustomItem(p => ({...p, title: e.target.value}))} /></label>
-                                <label><span>Цена за единицу</span><input type="number" value={customItem.price} onChange={e => setCustomItem(p => ({...p, price: e.target.value}))} /></label>
-                                <label><span>Количество</span><input type="number" value={customItem.quantity} onChange={e => setCustomItem(p => ({...p, quantity: e.target.value}))} /></label>
-                                <label><span>Описание</span><textarea value={customItem.description} onChange={e => setCustomItem(p => ({...p, description: e.target.value}))} /></label>
-                                <button className="modal-add-btn" onClick={savePosition}>Добавить в заказ</button>
+                            /* ЧИСТАЯ ФОРМА ПРОИЗВОЛЬНОЙ ПОЗИЦИИ (без цветов — только описание) */
+                            <div className="modal-body">
+                                <div className="modal-form custom-form">
+                                    <div className="form-row">
+                                        <label className="modal-field">
+                                            <span>Название позиции *</span>
+                                            <input
+                                                value={customItem.title}
+                                                onChange={e => setCustomItem(p => ({...p, title: e.target.value}))}
+                                                placeholder="Например: Стол обеденный, Доставка, Сборка..."
+                                            />
+                                        </label>
+                                        <label className="modal-field">
+                                            <span>Цена за единицу (сом) *</span>
+                                            <input
+                                                type="number"
+                                                value={customItem.price}
+                                                onChange={e => setCustomItem(p => ({...p, price: e.target.value}))}
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <div className="form-row">
+                                        <label className="modal-field">
+                                            <span>Количество</span>
+                                            <input
+                                                type="number"
+                                                value={customItem.quantity}
+                                                onChange={e => setCustomItem(p => ({...p, quantity: e.target.value}))}
+                                            />
+                                        </label>
+                                    </div>
+
+                                    <label className="modal-field" style={{ gridColumn: '1/-1', marginTop: '8px' }}>
+                                        <span>Описание / примечание</span>
+                                        <textarea
+                                            value={customItem.description}
+                                            onChange={e => setCustomItem(p => ({...p, description: e.target.value}))}
+                                            placeholder="Любая дополнительная информация о позиции..."
+                                        />
+                                    </label>
+
+                                    <button className="modal-save-btn" onClick={savePosition} style={{ marginTop: '20px' }}>
+                                        Добавить в заказ
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

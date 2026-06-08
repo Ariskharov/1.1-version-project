@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './edit_mebel.scss';
+import { useModal } from '../../ModalContext';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 const API_URL = `${API_BASE}/product`;
@@ -10,7 +11,8 @@ function FurnitureEditor() {
     const [selected, setSelected] = useState(null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [pendingActions, setPendingActions] = useState({}); // защита от повторных кликов
+    const [pendingActions, setPendingActions] = useState({});
+    const { showAlert, showConfirm } = useModal();
 
     useEffect(() => {
         fetchProducts();
@@ -43,12 +45,12 @@ function FurnitureEditor() {
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            alert('Изменения сохранены!');
+            showAlert('Изменения сохранены!', 'success');
             setSelected(null);
             fetchProducts();
         } catch (err) {
             console.error('Ошибка сохранения:', err);
-            alert('Ошибка сохранения: ' + err.message);
+            showAlert('Ошибка сохранения: ' + err.message, 'error');
         }
     };
 
@@ -68,7 +70,7 @@ function FurnitureEditor() {
             fetchProducts();
         } catch (err) {
             console.error('Ошибка сохранения фото:', err);
-            alert('Ошибка сохранения фото: ' + err.message);
+            showAlert('Ошибка сохранения фото: ' + err.message, 'error');
         }
     };
 
@@ -98,28 +100,29 @@ function FurnitureEditor() {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             const addedProduct = await response.json();
-            alert('Новая мебель добавлена!');
+            showAlert('Новая мебель добавлена!', 'success');
             fetchProducts();
             setSelected(addedProduct);
         } catch (err) {
             console.error('Ошибка добавления:', err);
-            alert('Ошибка добавления: ' + err.message);
+            showAlert('Ошибка добавления: ' + err.message, 'error');
         }
     };
 
     const deleteProduct = async (id) => {
-        if (!window.confirm(`Удалить мебель ID ${id}?`)) return;
+        const ok = await showConfirm(`Удалить мебель ID ${id}?`);
+        if (!ok) return;
 
         try {
             const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            alert('Мебель удалена!');
+            showAlert('Мебель удалена!', 'success');
             fetchProducts();
             if (selected?.id === id) setSelected(null);
         } catch (err) {
             console.error('Ошибка удаления:', err);
-            alert('Ошибка удаления: ' + err.message);
+            showAlert('Ошибка удаления: ' + err.message, 'error');
         }
     };
 
@@ -138,7 +141,7 @@ function FurnitureEditor() {
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file || !selected?.id) {
-            if (!selected?.id) alert('Сохраните мебель сначала, чтобы присвоить ID.');
+            if (!selected?.id) showAlert('Сохраните мебель сначала, чтобы присвоить ID.', 'error');
             return;
         }
 
@@ -155,12 +158,14 @@ function FurnitureEditor() {
             await saveImg(updatedProduct);
         } catch (err) {
             console.error('Ошибка загрузки фото:', err);
-            alert('Ошибка загрузки фото: ' + err.message);
+            showAlert('Ошибка загрузки фото: ' + err.message, 'error');
         }
     };
 
     const deletePhoto = async () => {
-        if (!selected.img || !window.confirm('Удалить фото?')) return;
+        if (!selected.img) return;
+        const ok = await showConfirm('Удалить фото?');
+        if (!ok) return;
 
         try {
             const fileName = selected.img.replace(/^\/utilse\//, '');
@@ -175,7 +180,7 @@ function FurnitureEditor() {
             await saveImg(updatedProduct);
         } catch (err) {
             console.error('Ошибка удаления фото:', err);
-            alert('Ошибка удаления фото: ' + err.message);
+            showAlert('Ошибка удаления фото: ' + err.message, 'error');
         }
     };
 

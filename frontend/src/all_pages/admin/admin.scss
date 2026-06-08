@@ -247,6 +247,119 @@
     }
   }
 
+  // ==================== НОВАЯ СИСТЕМА ФИЛЬТРОВ (переделана с нуля) ====================
+  &__filters {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 16px;
+    margin-bottom: 20px;
+
+    &__presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .preset-btn {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: var(--gray-700);
+
+      &:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+      }
+
+      &.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+      }
+    }
+
+    &__custom {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      input {
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+      }
+
+      span {
+        color: var(--gray-500);
+        font-weight: 500;
+      }
+    }
+
+    &__toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+
+      select {
+        padding: 7px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        background: white;
+        min-width: 160px;
+
+        &:focus {
+          outline: none;
+          border-color: var(--primary);
+        }
+      }
+
+      .reset-btn {
+        padding: 7px 14px;
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--gray-600);
+
+        &:hover {
+          background: #fee2e2;
+          color: #991b1b;
+          border-color: #fecaca;
+        }
+      }
+    }
+
+    &__stats {
+      display: flex;
+      gap: 20px;
+      font-size: 13px;
+      color: var(--gray-600);
+      padding-top: 8px;
+      border-top: 1px dashed var(--border);
+
+      strong {
+        color: var(--gray-800);
+        font-weight: 700;
+      }
+    }
+  }
+
   // ==================== BUTTONS ====================
   button {
     transition: all 0.2s ease;
@@ -506,6 +619,106 @@
         background: var(--success-dark) !important;
       }
     }
+  }
+
+  // ==================== CUSTOM ALERTS & CONFIRM DIALOGS ====================
+  .admin__notification {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    padding: 16px 24px;
+    border-radius: var(--radius);
+    color: white;
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+
+    &.success {
+      background: var(--success);
+    }
+    &.error {
+      background: var(--danger);
+    }
+  }
+
+  .confirm-dialog {
+    background: var(--surface);
+    padding: 24px;
+    border-radius: var(--radius);
+    max-width: 420px;
+    width: 90%;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    animation: scaleUp 0.2s ease;
+
+    p {
+      margin: 0 0 20px 0;
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--gray-800);
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+
+      button {
+        padding: 8px 16px;
+        border-radius: var(--radius-sm);
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:first-child {
+          background: #f1f5f9;
+          color: var(--gray-700);
+          &:hover {
+            background: #e2e8f0;
+          }
+        }
+
+        &.danger {
+          background: var(--danger);
+          color: white;
+          &:hover {
+            background: var(--danger-dark);
+          }
+        }
+
+        &.primary {
+          background: var(--primary);
+          color: white;
+          &:hover {
+            background: var(--primary-dark);
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleUp {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 

@@ -107,6 +107,13 @@ const Header = () => {
                                 {(currentUser?.role === 'admin' || currentUser?.role === 'user') && (
                                     <>
                                         <Link
+                                            to="/cabinet"
+                                            onClick={toTop}
+                                            className={`header__link ${isActive('/cabinet') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                                        >
+                                            Личный кабинет
+                                        </Link>
+                                        <Link
                                             to="/edit_mebel"
                                             onClick={toTop}
                                             className={`header__link ${isActive('/edit_mebel') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
@@ -192,6 +199,13 @@ const Header = () => {
                                     )}
                                     {(currentUser?.role === 'admin' || currentUser?.role === 'user') && (
                                         <>
+                                            <Link
+                                                to="/cabinet"
+                                                onClick={() => { toTop(); setMenuOpen(false); }}
+                                                className={`header__mobile-link ${isActive('/cabinet') ? 'active' : ''}`}
+                                            >
+                                                Личный кабинет
+                                            </Link>
                                             <Link
                                                 to="/edit_mebel"
                                                 onClick={() => { toTop(); setMenuOpen(false); }}

@@ -1,0 +1,135 @@
+/* ========================================================
+   Global Modal / Alert System
+   Центрированные диалоги — замена браузерных alert/confirm
+   ======================================================== */
+
+/* ---- Затемнённый оверлей ---- */
+.mg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  animation: mg-fade-in 0.18s ease;
+}
+
+/* ---- Карточка диалога ---- */
+.mg-dialog {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  padding: 36px 40px 28px;
+  max-width: 440px;
+  width: calc(100% - 48px);
+  animation: mg-scale-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mg-dialog__message {
+  margin: 0 0 28px 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #1e293b;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ---- Кнопки ---- */
+.mg-dialog__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.mg-btn {
+  padding: 10px 28px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  min-width: 110px;
+}
+
+.mg-btn--cancel {
+  background: #f1f5f9;
+  color: #475569;
+}
+.mg-btn--cancel:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.mg-btn--confirm {
+  background: #2563eb;
+  color: #ffffff;
+}
+.mg-btn--confirm:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+/* ---- Тост-уведомление (alert) ---- */
+.mg-alert {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  z-index: 99999;
+  min-width: 280px;
+  max-width: 480px;
+  animation: mg-slide-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+}
+
+.mg-alert--success { background: #16a34a; }
+.mg-alert--error   { background: #dc2626; }
+.mg-alert--info    { background: #2563eb; }
+
+.mg-alert__icon { font-size: 18px; }
+
+.mg-alert__text { flex: 1; }
+
+.mg-alert__close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.mg-alert__close:hover {
+  color: #ffffff;
+}
+
+/* ---- Анимации ---- */
+@keyframes mg-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes mg-scale-in {
+  from { transform: scale(0.88); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+@keyframes mg-slide-up {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+}

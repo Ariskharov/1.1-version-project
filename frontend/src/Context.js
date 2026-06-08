@@ -3,6 +3,8 @@ import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import { differenceInMinutes, parseISO, addDays, format } from 'date-fns';
 
+import { useModal } from './ModalContext';
+
 export const CustomContext = createContext();
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
@@ -59,6 +61,7 @@ export const Context = ({ children }) => {
     const [workSessions, setWorkSessions] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { showAlert, showConfirm } = useModal();
 
     // Функция обновления данных (переиспользуемая)
     const refreshData = async () => {
@@ -210,7 +213,7 @@ export const Context = ({ children }) => {
         if (!userId) return;
 
         if (currentUser && currentUser.id === userId) {
-            alert("Вы не можете удалить самого себя!");
+            showAlert("Вы не можете удалить самого себя!", "error");
             return;
         }
 
@@ -223,7 +226,7 @@ export const Context = ({ children }) => {
             console.log(`Пользователь с ID ${userId} успешно удалён`);
         } catch (err) {
             console.error('Ошибка при удалении пользователя:', err);
-            alert('Не удалось удалить пользователя. Ошибка сервера.');
+            showAlert('Не удалось удалить пользователя. Ошибка сервера.', 'error');
         }
     };
 
@@ -258,7 +261,8 @@ export const Context = ({ children }) => {
             return res.data;
         } catch (err) {
             console.error('Ошибка добавления:', err.response?.data || err);
-            alert('Не удалось создать пользователя');
+            showAlert('Не удалось создать пользователя', 'error');
+            throw err;
         }
     };
 
@@ -284,10 +288,12 @@ export const Context = ({ children }) => {
 
             const res = await axios.patch(`${API_BASE}/users/${userId}`, dataToSend);
 
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...res.data } : u));
+            setUsers(prev => prev.map(u => Number(u.id) === Number(userId) ? { ...u, ...res.data } : u));
             console.log('✅ Пользователь обновлён:', res.data);
+            return res.data;
         } catch (err) {
             console.error('Ошибка обновления:', err.response?.data || err);
+            throw err;
         }
     };
     // Остальные функции
@@ -303,7 +309,7 @@ export const Context = ({ children }) => {
         );
 
         if (openShifts.length > 0) {
-            const confirmStart = window.confirm(
+            const confirmStart = await showConfirm(
                 `У этого сотрудника есть ${openShifts.length} незакрытая смена(ы).\n\n` +
                 `Хотите начать новую смену? (Предыдущую рекомендуется закрыть)`
             );
@@ -326,7 +332,7 @@ export const Context = ({ children }) => {
             return res.data;
         } catch (err) {
             console.error('Ошибка начала смены:', err);
-            alert('Не удалось начать смену');
+            showAlert('Не удалось начать смену', 'error');
         }
     };
 
@@ -362,7 +368,7 @@ export const Context = ({ children }) => {
             ));
         } catch (err) {
             console.error('Ошибка завершения смены:', err);
-            alert('Не удалось закрыть смену');
+            showAlert('Не удалось закрыть смену', 'error');
         }
     };
 
@@ -395,7 +401,8 @@ export const Context = ({ children }) => {
 
     // Удаление смены (удобно для очистки тестовых данных)
     const deleteSession = async (sessionId) => {
-        if (!window.confirm('Вы уверены, что хотите удалить эту смену? Это действие нельзя отменить.')) {
+        const confirmed = await showConfirm('Вы уверены, что хотите удалить эту смену? Это действие нельзя отменить.');
+        if (!confirmed) {
             return;
         }
 
@@ -405,7 +412,7 @@ export const Context = ({ children }) => {
             console.log(`[DELETE SHIFT] Смена ${sessionId} успешно удалена`);
         } catch (err) {
             console.error('Ошибка удаления смены:', err.response?.data || err);
-            alert('Не удалось удалить смену. Смотри ошибку в консоли.');
+            showAlert('Не удалось удалить смену. Смотри ошибку в консоли.', 'error');
         }
     };
 

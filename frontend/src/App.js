@@ -12,6 +12,7 @@ import OrderEditor from "./all_pages/order_editor/order_editor";
 import PlacingAnOrder from "./all_pages/placing_an_order/placing_an_order";
 import ViewOrders from './all_pages/view_orders/view_orders'
 import Scan from "./all_pages/scan/scan";
+import PersonalCabinet from "./all_pages/cabinet/cabinet";
 
 function App() {
     const { currentUser, loading } = useContext(CustomContext);
@@ -40,7 +41,7 @@ function App() {
                     (currentUser?.role === 'admin' || currentUser?.role === 'scanner') ? (
                         <Scan />
                     ) : (
-                        <Navigate to="/" replace />
+                        currentUser ? <Navigate to="/" replace /> : <Navigate to="/signin" replace />
                     )
                 } 
             />
@@ -52,17 +53,18 @@ function App() {
                         <Route path="/placing_an_order" element={<PlacingAnOrder />} />
                         <Route path="/view_orders" element={<ViewOrders />} />
                         <Route path="/order_editor/:id" element={<OrderEditor />} />
+                        <Route path="cabinet" element={<PersonalCabinet />} />
                     </>
                 )}
                 {currentUser?.role === 'admin' && (
                     <Route path="admin" element={<Admin />} />
                 )}
-                <Route index element={<Catalog />}/>
+                <Route index element={(currentUser?.role === 'admin' || !currentUser) ? <Catalog /> : <Navigate to="/cabinet" replace />}/>
                 <Route path="/order/:id" element={<Order />} />
             </Route>
 
             {/* Редирект для всех остальных путей */}
-            <Route path="*" element={<Navigate to={currentUser?.role === 'scanner' ? "/scan" : "/"} replace />} />
+            <Route path="*" element={<Navigate to={currentUser ? (currentUser.role === 'scanner' ? "/scan" : "/") : "/signin"} replace />} />
         </Routes>
     );
 }
