@@ -3,6 +3,8 @@ import { evaluate } from 'mathjs';
 import { useNavigate } from 'react-router-dom';
 import './placing_an_order.scss';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 const PlacingAnOrder = () => {
     const navigate = useNavigate();
 
@@ -105,7 +107,7 @@ const PlacingAnOrder = () => {
 
     // Загрузка каталога
     useEffect(() => {
-        fetch('http://localhost:8080/product')
+        fetch(`${API_BASE}/product`)
             .then(res => res.json())
             .then(data => setProducts(Array.isArray(data) ? data : [data]))
             .catch(err => console.error('Ошибка каталога:', err));
@@ -405,7 +407,7 @@ const PlacingAnOrder = () => {
         };
 
         try {
-            const res = await fetch('http://localhost:8080/order', {
+            const res = await fetch(`${API_BASE}/order`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
