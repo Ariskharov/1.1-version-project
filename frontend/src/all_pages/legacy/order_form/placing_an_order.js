@@ -31,6 +31,7 @@ const PlacingAnOrder = () => {
 
     // Для отслеживания изменений и автосохранения
     const [isDirty, setIsDirty] = useState(false);
+    const [lastSaved, setLastSaved] = useState(null);
 
     // Скидка на весь заказ (в процентах)
     const [discountPercent, setDiscountPercent] = useState(0);
