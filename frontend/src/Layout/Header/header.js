@@ -1,11 +1,11 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, {useContext, useState} from 'react';
 import './header.scss';
 import logo from '../img_layout/logo.svg'; // поправь путь, если нужно
 import defaultAvatar from '../img_layout/avatar_default.jpg';
 import exitImg from '../img_layout/exit_img.svg';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { CustomContext } from '../../Context';
-import { animateScroll } from "react-scroll";
+import {Link, useLocation, useNavigate} from 'react-router-dom';
+import {CustomContext} from '../../Context';
+import {animateScroll} from "react-scroll";
 
 const Header = () => {
     const location = useLocation();
@@ -13,31 +13,6 @@ const Header = () => {
     const { currentUser, logout } = useContext(CustomContext);
 
     const [menuOpen, setMenuOpen] = useState(false);
-    const [showHeader, setShowHeader] = useState(true);
-    const [lastScrollY, setLastScrollY] = useState(0);
-
-    // Логика динамического скрытия хедера при скролле вниз и показа при скролле вверх
-    useEffect(() => {
-        const handleScroll = () => {
-            const currentScrollY = window.scrollY;
-
-            // Если доскроллили до самого верха - показываем по умолчанию
-            if (currentScrollY <= 10) {
-                setShowHeader(true);
-            } else {
-                // Если скроллим вниз - скрываем, если вверх - показываем
-                if (currentScrollY > lastScrollY) {
-                    setShowHeader(false);
-                } else {
-                    setShowHeader(true);
-                }
-            }
-            setLastScrollY(currentScrollY);
-        };
-
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [lastScrollY]);
 
     const handleLogout = () => {
         logout();
@@ -46,32 +21,33 @@ const Header = () => {
     };
 
     const isActive = (path) => location.pathname === path;
+    const isCatalogActive = location.pathname === '/' || location.pathname === '/catalog';
     const toTop = () => animateScroll.scrollToTop({ delay: 0, duration: 0, smooth: true });
 
     const toggleMobileMenu = () => setMenuOpen(prev => !prev);
 
-    // Определяем CSS класс для трансформации хедера
-    const headerClass = `header ${showHeader ? 'header--visible' : 'header--hidden'}`;
-
     return (
-        <header className={headerClass}>
+        <header className="header">
             <div className="header_PC">
                 <div className="header__top">
 
-                    <Link to="/home">
-                        <img src={logo} alt="TimeTrack Logo" className="header__top__logo" />
+                    <Link to="/">
+                        <img src={logo} alt="TimeTrack Logo" className="header__top__logo"/>
                     </Link>
 
                     {currentUser ? (
                         <div className="header__top__right">
                             <div className="header__top__right__user">
-                                {/* Всегда используем красивый дефолтный аватар по требованию */}
-                                <img src={defaultAvatar} alt="avatar" className="header__top__right__user__avatar" />
+                                {currentUser.avatar ? (
+                                    <img src={currentUser.avatar} alt="avatar" className="header__avatar"/>
+                                ) : (
+                                    <img src={defaultAvatar} alt="avatar" className="header__top__right__user__avatar"/>
+                                )}
                                 <span className="header__top__right__user__username">{currentUser.fullName}</span>
                             </div>
 
                             <button onClick={handleLogout} className="header__top__right__logout-btn">
-                                <img src={exitImg} alt="exit" />
+                                <img src={exitImg} alt="exit"/>
                                 Выйти
                             </button>
                         </div>
@@ -95,16 +71,14 @@ const Header = () => {
                             </Link>
                         ) : (
                             <>
-                                {currentUser?.role === 'admin' && (
-                                    <Link
-                                        to="/admin"
-                                        onClick={toTop}
-                                        className={`header__link ${isActive('/admin') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
-                                    >
-                                        Панель администратора
-                                    </Link>
-                                )}
-                                {(currentUser?.role === 'admin' || currentUser?.role === 'user') && (
+                                <Link to="/" onClick={() => toTop()}>
+                                    <p className={isCatalogActive ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}>
+                                        Каталог мебели
+                                    </p>
+                                </Link>
+
+                                {/* === Ссылки для обычного сотрудника === */}
+                                {currentUser && currentUser.role !== 'admin' && (
                                     <>
                                         <Link
                                             to="/cabinet"
@@ -112,6 +86,26 @@ const Header = () => {
                                             className={`header__link ${isActive('/cabinet') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
                                         >
                                             Личный кабинет
+                                        </Link>
+                                        <Link
+                                            to="/view_orders"
+                                            onClick={toTop}
+                                            className={`header__link ${isActive('/view_orders') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                                        >
+                                            Просмотр заказов
+                                        </Link>
+                                    </>
+                                )}
+
+                                {/* === Полный набор для администратора (включая личную панель) === */}
+                                {currentUser?.role === 'admin' && (
+                                    <>
+                                        <Link
+                                            to="/admin"
+                                            onClick={toTop}
+                                            className={`header__link ${isActive('/admin') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                                        >
+                                            Панель администратора
                                         </Link>
                                         <Link
                                             to="/edit_mebel"
@@ -134,13 +128,15 @@ const Header = () => {
                                         >
                                             Просмотр заказов
                                         </Link>
+                                        <Link
+                                            to="/cabinet"
+                                            onClick={toTop}
+                                            className={`header__link ${isActive('/cabinet') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}`}
+                                        >
+                                            Личный кабинет
+                                        </Link>
                                     </>
                                 )}
-                                <Link to="/" onClick={() => toTop()}>
-                                    <p className={isActive('/') ? 'header__menu_nav_left__active' : 'header__menu_nav_left__botton'}>
-                                        Каталог мебели
-                                    </p>
-                                </Link>
                             </>
                         )}
                     </nav>
@@ -148,7 +144,7 @@ const Header = () => {
             </div>
             <div className="header_Phon">
                 <div className="header__mobile-top">
-                    <Link to="/home" onClick={toTop}>
+                    <Link to="/" onClick={toTop}>
                         <img src={logo} alt="TimeTrack Logo" className="header__mobile-logo" />
                     </Link>
 
@@ -184,20 +180,13 @@ const Header = () => {
                                     <Link
                                         to="/"
                                         onClick={() => { toTop(); setMenuOpen(false); }}
-                                        className={`header__mobile-link ${isActive('/') ? 'active' : ''}`}
+                                        className={`header__mobile-link ${isCatalogActive ? 'active' : ''}`}
                                     >
                                         Каталог мебели
                                     </Link>
-                                    {currentUser?.role === 'admin' && (
-                                        <Link
-                                            to="/admin"
-                                            onClick={() => { toTop(); setMenuOpen(false); }}
-                                            className={`header__mobile-link ${isActive('/admin') ? 'active' : ''}`}
-                                        >
-                                            Панель администратора
-                                        </Link>
-                                    )}
-                                    {(currentUser?.role === 'admin' || currentUser?.role === 'user') && (
+
+                                    {/* === Ссылки для обычного сотрудника === */}
+                                    {currentUser && currentUser.role !== 'admin' && (
                                         <>
                                             <Link
                                                 to="/cabinet"
@@ -207,11 +196,38 @@ const Header = () => {
                                                 Личный кабинет
                                             </Link>
                                             <Link
+                                                to="/view_orders"
+                                                onClick={() => { toTop(); setMenuOpen(false); }}
+                                                className={`header__mobile-link ${isActive('/view_orders') ? 'active' : ''}`}
+                                            >
+                                                Просмотр заказов
+                                            </Link>
+                                        </>
+                                    )}
+
+                                    {/* === Полный набор для администратора (включая личную панель) === */}
+                                    {currentUser?.role === 'admin' && (
+                                        <>
+                                            <Link
+                                                to="/admin"
+                                                onClick={() => { toTop(); setMenuOpen(false); }}
+                                                className={`header__mobile-link ${isActive('/admin') ? 'active' : ''}`}
+                                            >
+                                                Панель администратора
+                                            </Link>
+                                            <Link
                                                 to="/edit_mebel"
                                                 onClick={() => { toTop(); setMenuOpen(false); }}
                                                 className={`header__mobile-link ${isActive('/edit_mebel') ? 'active' : ''}`}
                                             >
                                                 Редактор мебели
+                                            </Link>
+                                            <Link
+                                                to="/placing_an_order"
+                                                onClick={() => { toTop(); setMenuOpen(false); }}
+                                                className={`header__mobile-link ${isActive('/placing_an_order') ? 'active' : ''}`}
+                                            >
+                                                Оформить заказ
                                             </Link>
                                             <Link
                                                 to="/view_orders"
@@ -221,11 +237,11 @@ const Header = () => {
                                                 Просмотр заказов
                                             </Link>
                                             <Link
-                                                to="/placing_an_order"
+                                                to="/cabinet"
                                                 onClick={() => { toTop(); setMenuOpen(false); }}
-                                                className={`header__mobile-link ${isActive('/placing_an_order') ? 'active' : ''}`}
+                                                className={`header__mobile-link ${isActive('/cabinet') ? 'active' : ''}`}
                                             >
-                                                Оформить заказ
+                                                Личный кабинет
                                             </Link>
                                         </>
                                     )}
@@ -237,7 +253,11 @@ const Header = () => {
                         {currentUser && (
                             <div className="header__mobile-user">
                                 <div className="header__mobile-user__info">
-                                    <img src={defaultAvatar} alt="avatar" className="header__mobile-avatar" />
+                                    {currentUser.avatar ? (
+                                        <img src={currentUser.avatar} alt="avatar" className="header__mobile-avatar" />
+                                    ) : (
+                                        <img src={defaultAvatar} alt="avatar" className="header__mobile-avatar" />
+                                    )}
                                     <span className="header__mobile-username">{currentUser.fullName}</span>
                                 </div>
 

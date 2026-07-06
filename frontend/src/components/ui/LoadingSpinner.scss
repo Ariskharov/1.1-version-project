@@ -1,0 +1,42 @@
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ui-spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  border: 2px solid rgba(37, 99, 235, 0.2);
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: ui-spin 0.75s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.ui-spinner--light {
+  border-color: rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+}
+
+.ui-loading-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 240px;
+  padding: 40px 20px;
+  color: #64748b;
+
+  p {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  &--dark {
+    min-height: 100vh;
+    background: #121212;
+    color: #e2e8f0;
+  }
+}

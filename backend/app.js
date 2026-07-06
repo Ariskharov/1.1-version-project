@@ -38,7 +38,9 @@ app.use((req, res, next) => {
 });
 
 
-// Static file serving for images (no longer needed, using Supabase)
+// Static file serving for images (for local development/compatibility)
+const path = require('path');
+app.use('/utilse', express.static(path.join(__dirname, '../uploads')));
 
 // Upload route MUST come before collection routes (otherwise /:collection intercepts /upload)
 app.use('/upload', uploadRoutes);

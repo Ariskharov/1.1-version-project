@@ -1,0 +1,718 @@
+/* ============================================
+   РЕДАКТОР МЕБЕЛИ — ПОЛНЫЙ РЕДИЗАЙН
+   ============================================ */
+
+.furniture-editor {
+  --primary: #2563eb;
+  --primary-dark: #1e40af;
+  --success: #16a34a;
+  --success-dark: #15803d;
+  --danger: #dc2626;
+  --danger-dark: #b91c1c;
+  --warning: #ca8a04;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  padding: 24px 20px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  max-width: 1480px;
+  margin: 0 auto;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+/* ===== Шапка страницы ===== */
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.editor-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--gray-800);
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+
+.editor-header .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Поиск */
+.search-input {
+  width: 320px;
+  max-width: 100%;
+  padding: 11px 16px 11px 44px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--surface);
+  outline: none;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.search-wrapper {
+  position: relative;
+}
+
+.search-wrapper::before {
+  content: "🔍";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  opacity: 0.5;
+}
+
+/* ===== Сетка карточек мебели ===== */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 20px;
+}
+
+@media (min-width: 1400px) {
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+  }
+}
+
+/* Карточка продукта */
+.product-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s ease;
+  position: relative;
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
+}
+
+.product-card-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.product-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.product-card:hover .product-card-image img {
+  transform: scale(1.04);
+}
+
+.product-card-image .no-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  color: #94a3b8;
+  background: linear-gradient(145deg, #f8fafc, #f1f5f9);
+}
+
+.product-card-content {
+  padding: 14px 16px 16px;
+}
+
+.product-card-title {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--gray-800);
+  line-height: 1.3;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 40px;
+}
+
+.product-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--gray-500);
+}
+
+.product-card-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.product-card-price {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.product-card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.product-card:hover .product-card-actions {
+  opacity: 1;
+}
+
+.product-card .btn-delete {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.92);
+  color: white;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.product-card .btn-delete:hover {
+  background: var(--danger);
+}
+
+/* Пустое состояние */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--gray-500);
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.empty-state p {
+  margin: 0 0 16px;
+  font-size: 17px;
+}
+
+/* ==================== Кнопки (обновлённые) ==================== */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &-add {
+    background: var(--primary);
+    color: white;
+    padding: 11px 22px;
+    font-size: 15px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  }
+
+  &-upload { 
+    background: var(--success); 
+    color: white; 
+    padding: 10px 18px;
+  }
+  
+  &-secondary { 
+    background: #0ea5e9; 
+    color: white; 
+  }
+  
+  &-primary { 
+    background: var(--primary); 
+    color: white; 
+  }
+  
+  &-success {
+    background: var(--success);
+    color: white;
+    font-size: 15.5px;
+    padding: 14px 36px;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+  }
+  
+  &-danger { 
+    background: var(--danger); 
+    color: white; 
+  }
+  
+  &-remove {
+    background: #fee2e2;
+    color: var(--danger);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  
+  &-remove:hover {
+    background: #fecaca;
+  }
+}
+
+/* Старые стили списка удалены — теперь используется сетка карточек выше */
+
+/* ==================== DRAWER (правый редактор) ==================== */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.drawer-backdrop.open {
+  opacity: 1;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 680px;
+  background: var(--surface);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.18);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+@media (max-width: 720px) {
+  .drawer {
+    max-width: 100%;
+  }
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.drawer-header .mini-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f1f5f9;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.drawer-header .mini-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.drawer-header .mini-photo .no-photo {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #94a3b8;
+}
+
+.drawer-header .title-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.drawer-header .title-area input {
+  width: 100%;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--gray-800);
+  border: none;
+  outline: none;
+  padding: 4px 0;
+  background: transparent;
+}
+
+.drawer-header .title-area input:focus {
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.drawer-header .drawer-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px 40px;
+  background: #fafbfc;
+}
+
+.drawer-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.drawer-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+/* Формы внутри drawer */
+.form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-700);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.photo-upload-zone {
+  width: 100%;
+  min-height: 160px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  background: #fafbfc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.photo-upload-zone:hover {
+  border-color: var(--primary);
+  background: #f0f7ff;
+}
+
+.photo-upload-zone.has-image {
+  border-style: solid;
+  min-height: 180px;
+}
+
+.photo-upload-zone img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.delete-photo-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(220, 38, 38, 0.95);
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  z-index: 2;
+}
+
+.delete-photo-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ===== Анимация загрузки и защита кнопок ===== */
+
+/* Красивый спиннер */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Спиннер для тёмного фона (в зоне загрузки фото) */
+.upload-loading .spinner {
+  border-color: rgba(37, 99, 235, 0.2);
+  border-top-color: var(--primary);
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+}
+
+.upload-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-weight: 600;
+  gap: 8px;
+}
+
+/* Состояние загрузки в зоне фото */
+.photo-upload-zone.uploading {
+  pointer-events: none;
+  background: #f0f7ff;
+  border-color: var(--primary);
+}
+
+/* Отключённые кнопки */
+.btn:disabled,
+.btn-delete:disabled {
+  opacity: 0.65;
+  transform: none !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+  pointer-events: all; /* чтобы hover всё равно работал для disabled */
+}
+
+.btn:disabled:hover {
+  transform: none;
+}
+
+/* Делаем текст кнопки при загрузке чуть красивее */
+.btn-success:disabled {
+  background: #4ade80;
+}
+
+/* ===== Формы и инпуты ===== */
+.input-full {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  transition: all 0.2s;
+  background: white;
+}
+
+.input-full:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  outline: none;
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--gray-500);
+  margin-top: 6px;
+}
+
+.input-small {
+  width: 140px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: white;
+}
+
+.input-medium {
+  flex: 1;
+  min-width: 180px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: white;
+}
+
+/* ===== Секции внутри drawer ===== */
+.form-section {
+  /* уже определено выше */
+}
+
+.variable-row,
+.condition-row {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.detail-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.detail-header {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.detail-formulas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.detail-formulas input,
+.detail-formulas select {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: white;
+}
+
+/* Кнопки действий в drawer */
+.drawer-footer {
+  padding: 18px 24px;
+  border-top: 1px solid var(--border);
+  background: #fff;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.drawer-footer .btn-success {
+  flex: 1;
+  min-width: 160px;
+  padding: 14px 28px;
+  font-size: 15.5px;
+}
+
+/* ===== Пустое состояние и загрузка ===== */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  font-size: 18px;
+  color: var(--gray-500);
+}
+
+/* ===== Дополнительный адаптив ===== */
+@media (max-width: 768px) {
+  .furniture-editor {
+    padding: 16px 12px;
+  }
+  
+  .editor-header h1 {
+    font-size: 23px;
+  }
+  
+  .search-input {
+    width: 100%;
+  }
+  
+  .drawer-body {
+    padding: 18px 16px 32px;
+  }
+}
