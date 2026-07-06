@@ -31,6 +31,7 @@ const PlacingAnOrder = () => {
 
     // Для отслеживания изменений и автосохранения
     const [isDirty, setIsDirty] = useState(false);
+    // eslint-disable-next-line no-unused-vars
     const [lastSaved, setLastSaved] = useState(null);
 
     // Скидка на весь заказ (в процентах)
