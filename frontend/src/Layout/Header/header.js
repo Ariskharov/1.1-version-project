@@ -6,6 +6,7 @@ import exitImg from '../img_layout/exit_img.svg';
 import {Link, useLocation, useNavigate} from 'react-router-dom';
 import {CustomContext} from '../../Context';
 import {animateScroll} from "react-scroll";
+import ThemeToggle from '../../components/ui/ThemeToggle';
 
 const Header = () => {
     const location = useLocation();
@@ -35,27 +36,31 @@ const Header = () => {
                         <img src={logo} alt="TimeTrack Logo" className="header__top__logo"/>
                     </Link>
 
-                    {currentUser ? (
-                        <div className="header__top__right">
-                            <div className="header__top__right__user">
-                                {currentUser.avatar ? (
-                                    <img src={currentUser.avatar} alt="avatar" className="header__avatar"/>
-                                ) : (
-                                    <img src={defaultAvatar} alt="avatar" className="header__top__right__user__avatar"/>
-                                )}
-                                <span className="header__top__right__user__username">{currentUser.fullName}</span>
-                            </div>
+                    <div className="header__top__right">
+                        <ThemeToggle />
 
-                            <button onClick={handleLogout} className="header__top__right__logout-btn">
-                                <img src={exitImg} alt="exit"/>
-                                Выйти
-                            </button>
-                        </div>
-                    ) : (
-                        <Link to="/signin" className="header__top__right__logout-btn">
-                            Войти
-                        </Link>
-                    )}
+                        {currentUser ? (
+                            <>
+                                <div className="header__top__right__user">
+                                    {currentUser.avatar ? (
+                                        <img src={currentUser.avatar} alt="avatar" className="header__avatar"/>
+                                    ) : (
+                                        <img src={defaultAvatar} alt="avatar" className="header__top__right__user__avatar"/>
+                                    )}
+                                    <span className="header__top__right__user__username">{currentUser.fullName}</span>
+                                </div>
+
+                                <button onClick={handleLogout} className="header__top__right__logout-btn">
+                                    <img src={exitImg} alt="exit"/>
+                                    Выйти
+                                </button>
+                            </>
+                        ) : (
+                            <Link to="/signin" className="header__top__right__logout-btn">
+                                Войти
+                            </Link>
+                        )}
+                    </div>
 
                 </div>
                 <div className="header__menu_nav_left">
@@ -148,18 +153,21 @@ const Header = () => {
                         <img src={logo} alt="TimeTrack Logo" className="header__mobile-logo" />
                     </Link>
 
-                    {currentUser ? (
-                        <button
-                            className="header__mobile-menu-btn"
-                            onClick={toggleMobileMenu}
-                        >
-                            ☰
-                        </button>
-                    ) : (
-                        <Link to="/signin" className="header__mobile-login-btn">
-                            Войти
-                        </Link>
-                    )}
+                    <div className="header__mobile-top__actions">
+                        <ThemeToggle className="theme-toggle--compact" />
+                        {currentUser ? (
+                            <button
+                                className="header__mobile-menu-btn"
+                                onClick={toggleMobileMenu}
+                            >
+                                ☰
+                            </button>
+                        ) : (
+                            <Link to="/signin" className="header__mobile-login-btn">
+                                Войти
+                            </Link>
+                        )}
+                    </div>
                 </div>
 
                 {/* Мобильное меню (выезжает справа) */}
