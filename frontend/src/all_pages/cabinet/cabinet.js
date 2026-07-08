@@ -1,4 +1,5 @@
 import React, { useContext, useMemo, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -11,10 +12,11 @@ import {
 } from 'chart.js';
 import './cabinet.scss';
 import { CustomContext } from '../../Context';
+import { LoadingPage } from '../../components/ui/LoadingSpinner';
+import { useCatalogTheme } from '../../context/CatalogThemeContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { useModal } from '../../ModalContext';
+import { format, subDays, startOfMonth, endOfMonth, subMonths, parseISO, differenceInMinutes } from 'date-fns';
 
 // Регистрируем Chart.js один раз
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -45,6 +47,47 @@ const getShiftPeriod = (session) => {
 
 const isShiftActive = (session) => !session.endTime;
 
+const getInitials = (name = '') => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+};
+
+const ROLE_LABELS = {
+  user: 'Сотрудник',
+  manager: 'Менеджер',
+  admin: 'Администратор',
+};
+
+const getPeriodLabel = (preset, dateRange) => {
+  const labels = {
+    today: 'Сегодня',
+    week: 'Эта неделя',
+    month: 'Этот месяц',
+    last_month: 'Прошлый месяц',
+    '3_months': '3 месяца',
+    all: 'За всё время',
+    custom: 'Произвольный период',
+  };
+  if (preset === 'custom' && dateRange.from && dateRange.to) {
+    return `${formatDate(dateRange.from)} — ${formatDate(dateRange.to)}`;
+  }
+  return labels[preset] || 'Период';
+};
+
+const getUserHoursInRange = (sessions, userId, from, to) => {
+  const minutes = sessions
+    .filter(s => s.userId === userId)
+    .filter(s => {
+      const start = s.date;
+      const end = s.endDate || s.date;
+      return end >= from && start <= to;
+    })
+    .reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+  return Math.round((minutes / 60) * 10) / 10;
+};
+
 // ==================== ПРЕСЕТЫ ПЕРИОДОВ ====================
 
 const PERIOD_PRESETS = [
@@ -58,8 +101,13 @@ const PERIOD_PRESETS = [
 ];
 
 const PersonalCabinet = () => {
-  const { currentUser, workSessions } = useContext(CustomContext);
-  const { showAlert } = useModal();
+  const { currentUser, workSessions, showToast } = useContext(CustomContext);
+  const { resolvedTheme } = useCatalogTheme();
+
+  const [liveNow, setLiveNow] = useState(Date.now());
+
+  const cabinetClassName = (extra = '') =>
+    ['cabinet', `cabinet--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
 
   // ==================== СОСТОЯНИЕ ФИЛЬТРОВ ====================
   const [activePreset, setActivePreset] = useState('month');
@@ -203,14 +251,18 @@ const PersonalCabinet = () => {
   }, [filteredShifts]);
 
   // ==================== ГРАФИК ЗА ПОСЛЕДНИЕ 7 ДНЕЙ ====================
+  const chartGold = resolvedTheme === 'dark' ? '#d4af78' : '#b8954a';
+  const chartGoldDim = resolvedTheme === 'dark' ? 'rgba(212, 175, 120, 0.35)' : 'rgba(184, 149, 74, 0.4)';
+  const chartGrid = resolvedTheme === 'dark' ? 'rgba(212, 175, 120, 0.08)' : 'rgba(184, 149, 74, 0.12)';
+  const chartText = resolvedTheme === 'dark' ? '#9a9188' : '#5a6372';
+
   const weeklyChartData = useMemo(() => {
-    if (!currentUser) return { labels: [], datasets: [] };
+    if (!currentUser) return { labels: [], datasets: [], totalHours: 0, daysWorked: 0, maxValue: 12 };
 
     const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
     const today = new Date();
     const labels = [];
     const data = [];
-    const dateStrings = [];
 
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
@@ -219,7 +271,6 @@ const PersonalCabinet = () => {
 
       const weekdayIndex = date.getDay();
       labels.push(daysOfWeek[weekdayIndex]);
-      dateStrings.push(dateStr);
 
       const daySessions = workSessions.filter(
         s => s.userId === currentUser.id && s.date === dateStr
@@ -230,26 +281,35 @@ const PersonalCabinet = () => {
     }
 
     const maxValue = Math.max(12, ...data);
+    const totalHours = Math.round(data.reduce((a, b) => a + b, 0) * 10) / 10;
+    const daysWorked = data.filter(h => h > 0).length;
 
     return {
       labels,
       datasets: [{
         label: 'Отработано часов',
         data,
-        backgroundColor: '#0F74C7',
+        backgroundColor: data.map(h => (h > 0 ? chartGold : chartGoldDim)),
         borderRadius: 6,
         barThickness: 28,
       }],
-      maxValue
+      maxValue,
+      totalHours,
+      daysWorked,
     };
-  }, [workSessions, currentUser]);
+  }, [workSessions, currentUser, chartGold, chartGoldDim]);
 
-  const weeklyChartOptions = {
+  const weeklyChartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
       tooltip: {
+        backgroundColor: resolvedTheme === 'dark' ? '#1e1b18' : '#ffffff',
+        titleColor: resolvedTheme === 'dark' ? '#f5f0e8' : '#171a1f',
+        bodyColor: resolvedTheme === 'dark' ? '#9a9188' : '#5a6372',
+        borderColor: chartGold,
+        borderWidth: 1,
         callbacks: {
           label: (context) => `${context.parsed.y} ч`
         }
@@ -261,15 +321,17 @@ const PersonalCabinet = () => {
         max: weeklyChartData.maxValue || 12,
         ticks: {
           stepSize: Math.ceil((weeklyChartData.maxValue || 12) / 5),
-          callback: (value) => `${value} ч`
+          callback: (value) => `${value} ч`,
+          color: chartText,
         },
-        grid: { color: '#f1f5f9' }
+        grid: { color: chartGrid }
       },
       x: {
-        grid: { display: false }
+        grid: { display: false },
+        ticks: { color: chartText },
       }
     }
-  };
+  }), [weeklyChartData.maxValue, resolvedTheme, chartGold, chartGrid, chartText]);
 
   // ==================== ТЕКУЩАЯ АКТИВНАЯ СМЕНА ====================
   const currentActiveShift = useMemo(() => {
@@ -279,10 +341,45 @@ const PersonalCabinet = () => {
       .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
   }, [workSessions, currentUser]);
 
+  useEffect(() => {
+    if (!currentActiveShift) return undefined;
+    const timer = setInterval(() => setLiveNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, [currentActiveShift]);
+
+  const activeShiftElapsed = useMemo(() => {
+    if (!currentActiveShift) return null;
+    try {
+      const start = parseISO(`${currentActiveShift.date}T${currentActiveShift.startTime}`);
+      if (isNaN(start.getTime())) return null;
+      const minutes = Math.max(0, differenceInMinutes(new Date(liveNow), start));
+      return formatDuration(minutes);
+    } catch {
+      return null;
+    }
+  }, [currentActiveShift, liveNow]);
+
+  // ==================== ИНСАЙТЫ (новые) ====================
+  const monthComparison = useMemo(() => {
+    if (!currentUser) return { current: 0, previous: 0, diff: 0 };
+    const today = new Date();
+    const thisMonthFrom = format(startOfMonth(today), 'yyyy-MM-dd');
+    const thisMonthTo = format(today, 'yyyy-MM-dd');
+    const lastMonth = subMonths(today, 1);
+    const prevFrom = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
+    const prevTo = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
+
+    const current = getUserHoursInRange(workSessions, currentUser.id, thisMonthFrom, thisMonthTo);
+    const previous = getUserHoursInRange(workSessions, currentUser.id, prevFrom, prevTo);
+    const diff = Math.round((current - previous) * 10) / 10;
+
+    return { current, previous, diff };
+  }, [workSessions, currentUser]);
+
   // ==================== ЭКСПОРТ В PDF ====================
   const exportToPDF = () => {
     if (!currentUser || filteredShifts.length === 0) {
-      showAlert('Нет данных для экспорта', 'error');
+      showToast('info', 'Нет данных для экспорта');
       return;
     }
 
@@ -333,6 +430,44 @@ const PersonalCabinet = () => {
     doc.save(fileName);
   };
 
+  // ==================== ЭКСПОРТ В CSV (новая функция) ====================
+  const exportToCSV = () => {
+    if (!currentUser || filteredShifts.length === 0) {
+      showToast('info', 'Нет данных для экспорта');
+      return;
+    }
+
+    const periodLabel = getPeriodLabel(activePreset, dateRange);
+    const header = ['№', 'Дата / Период', 'Приход', 'Уход', 'Продолжительность', 'Статус'];
+    const rows = filteredShifts.map((s, index) => [
+      index + 1,
+      getShiftPeriod(s),
+      formatTime(s.startTime),
+      s.endTime ? formatTime(s.endTime) : 'Активна',
+      s.durationMinutes ? formatDuration(s.durationMinutes) : '—',
+      isShiftActive(s) ? 'Активна' : 'Закрыта',
+    ]);
+
+    const escapeCell = (cell) => `"${String(cell).replace(/"/g, '""')}"`;
+    const csvContent = [
+      `Отчёт по рабочему времени — ${currentUser.fullName}`,
+      `Период: ${periodLabel}`,
+      `Сформировано: ${new Date().toLocaleDateString('ru-RU')}`,
+      '',
+      header.map(escapeCell).join(';'),
+      ...rows.map(row => row.map(escapeCell).join(';')),
+    ].join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `otchet_${currentUser.fullName.replace(/\s+/g, '_')}_${dateRange.from}_${dateRange.to}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('success', 'CSV-файл скачан');
+  };
+
   // ==================== СМЕНА ПРЕСЕТА ====================
   const handlePresetChange = (presetKey) => {
     setActivePreset(presetKey);
@@ -344,25 +479,48 @@ const PersonalCabinet = () => {
 
   // ==================== ЗАЩИТА ====================
   if (!currentUser) {
-    return <div className="cabinet-loading">Загрузка...</div>;
+    return <LoadingPage message="Загрузка личного кабинета..." />;
   }
 
   const isAdmin = currentUser.role === 'admin';
 
+  const periodLabel = getPeriodLabel(activePreset, dateRange);
+
   // ==================== РЕНДЕР ====================
   return (
-    <div className="cabinet">
+    <div className={cabinetClassName()}>
+      <div className="cabinet-ambient" aria-hidden="true">
+        <div className="cabinet-ambient__orb cabinet-ambient__orb--1" />
+        <div className="cabinet-ambient__orb cabinet-ambient__orb--2" />
+        <div className="cabinet-ambient__grain" />
+      </div>
+
       {/* ===== ШАПКА ===== */}
       <div className="cabinet-header">
-        <div>
+        <div className="cabinet-header__intro">
+          <span className="cabinet-header__badge">Учёт рабочего времени</span>
           <h1>Личный кабинет</h1>
-          <p className="subtitle">Учёт рабочего времени</p>
+          <p className="subtitle">Статистика смен и отчёты</p>
         </div>
         <div className="user-badge">
-          <span>{currentUser.fullName}</span>
-          {currentUser.position && <small>{currentUser.position}</small>}
+          <div className="cabinet-avatar" aria-hidden="true">
+            {getInitials(currentUser.fullName)}
+          </div>
+          <div>
+            <span>{currentUser.fullName}</span>
+            {currentUser.position && <small>{currentUser.position}</small>}
+          </div>
         </div>
       </div>
+
+      {/* ===== БЫСТРЫЕ ССЫЛКИ (новый блок) ===== */}
+      <nav className="cabinet-quick-actions" aria-label="Быстрая навигация">
+        <Link to="/" className="cabinet-quick-actions__link">Каталог</Link>
+        <Link to="/view_orders" className="cabinet-quick-actions__link">Мои заказы</Link>
+        {isAdmin && (
+          <Link to="/edit_mebel" className="cabinet-quick-actions__link">Редактор мебели</Link>
+        )}
+      </nav>
 
       {/* ===== СТАТУС + КАРТОЧКА СОТРУДНИКА ===== */}
       <div className="status-section">
@@ -373,18 +531,56 @@ const PersonalCabinet = () => {
               {currentActiveShift ? 'Сейчас на смене' : 'Не на смене'}
             </div>
             {currentActiveShift && (
-              <div className="status-detail">
-                Начало: {formatDate(currentActiveShift.date)} в {formatTime(currentActiveShift.startTime)}
-              </div>
+              <>
+                <div className="status-detail">
+                  Начало: {formatDate(currentActiveShift.date)} в {formatTime(currentActiveShift.startTime)}
+                </div>
+                {activeShiftElapsed && (
+                  <span className="status-live">На смене: {activeShiftElapsed}</span>
+                )}
+              </>
             )}
           </div>
         </div>
 
         <div className="employee-card">
+          <div className="cabinet-avatar" aria-hidden="true">
+            {getInitials(currentUser.fullName)}
+          </div>
           <div className="employee-info">
             <div className="name">{currentUser.fullName}</div>
             {currentUser.position && <div className="position">{currentUser.position}</div>}
             {currentUser.badgeId && <div className="badge">Табельный №{currentUser.badgeId}</div>}
+            {currentUser.role && (
+              <span className="role-badge">{ROLE_LABELS[currentUser.role] || currentUser.role}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ===== ИНСАЙТЫ (новый блок) ===== */}
+      <div className="cabinet-insights">
+        <div className="cabinet-insight">
+          <span className="cabinet-insight__icon" aria-hidden="true">📅</span>
+          <div className="cabinet-insight__body">
+            <div className="cabinet-insight__value">{weeklyChartData.daysWorked} / 7</div>
+            <div className="cabinet-insight__label">Рабочих дней за неделю</div>
+          </div>
+        </div>
+        <div className="cabinet-insight">
+          <span className="cabinet-insight__icon" aria-hidden="true">⏱</span>
+          <div className="cabinet-insight__body">
+            <div className="cabinet-insight__value">{weeklyChartData.totalHours} ч</div>
+            <div className="cabinet-insight__label">Часов за 7 дней</div>
+          </div>
+        </div>
+        <div className={`cabinet-insight ${monthComparison.diff >= 0 ? 'cabinet-insight--positive' : 'cabinet-insight--negative'}`}>
+          <span className="cabinet-insight__icon" aria-hidden="true">{monthComparison.diff >= 0 ? '↑' : '↓'}</span>
+          <div className="cabinet-insight__body">
+            <div className="cabinet-insight__value">
+              {monthComparison.diff > 0 ? '+' : ''}{monthComparison.diff} ч
+            </div>
+            <div className="cabinet-insight__label">К прошлому месяцу ({monthComparison.current} ч)</div>
           </div>
         </div>
       </div>
@@ -412,8 +608,20 @@ const PersonalCabinet = () => {
       {/* ===== ГРАФИК ЗА ПОСЛЕДНИЕ 7 ДНЕЙ ===== */}
       <div className="weekly-chart-section">
         <div className="section-header">
-          <h3>Активность за последние 7 дней</h3>
-          <span className="chart-hint">Независимо от фильтров выше</span>
+          <div>
+            <h3>Активность за последние 7 дней</h3>
+            <span className="chart-hint">Независимо от фильтров ниже</span>
+          </div>
+          <div className="cabinet-chart-summary">
+            <div className="cabinet-chart-summary__item">
+              <span className="cabinet-chart-summary__value">{weeklyChartData.totalHours}</span>
+              <span className="cabinet-chart-summary__label">часов всего</span>
+            </div>
+            <div className="cabinet-chart-summary__item">
+              <span className="cabinet-chart-summary__value">{weeklyChartData.daysWorked}</span>
+              <span className="cabinet-chart-summary__label">рабочих дней</span>
+            </div>
+          </div>
         </div>
         <div className="chart-wrapper">
           <Bar data={weeklyChartData} options={weeklyChartOptions} />
@@ -423,10 +631,22 @@ const PersonalCabinet = () => {
       {/* ===== ФИЛЬТРЫ (САМОЕ ВАЖНОЕ) ===== */}
       <div className="filters-section">
         <div className="filters-header">
-          <h3>Фильтры</h3>
-          <button className="export-btn" onClick={exportToPDF} disabled={filteredShifts.length === 0}>
-            ⬇ Экспортировать в PDF
-          </button>
+          <div>
+            <h3>Фильтры</h3>
+            <span className="filters-period">{periodLabel}</span>
+          </div>
+          <div className="filters-export-group">
+            <button className="export-btn" onClick={exportToPDF} disabled={filteredShifts.length === 0}>
+              PDF
+            </button>
+            <button
+              className="export-btn export-btn--secondary"
+              onClick={exportToCSV}
+              disabled={filteredShifts.length === 0}
+            >
+              CSV
+            </button>
+          </div>
         </div>
 
         {/* Пресеты периодов */}

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useParams } from 'react-router-dom';
 import './order.scss';
 import { CustomContext } from '../../../Context';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
+import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import {
     downloadCommercialProposal,
     downloadFullContract,
@@ -31,6 +33,7 @@ const statusClass = (status) => {
 
 const Order = () => {
     const { id } = useParams();
+    const { resolvedTheme } = useCatalogTheme();
     const { currentUser, showToast } = useContext(CustomContext);
     const isAdmin = currentUser?.role === 'admin';
 
@@ -39,6 +42,12 @@ const Order = () => {
     const [error, setError] = useState(null);
     const [detailsItem, setDetailsItem] = useState(null);
     const [isDocLoading, setIsDocLoading] = useState(null);
+
+    const pageClassName = (extra = '') =>
+        ['order-page', `order-page--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
+
+    const ordModalClassName = () =>
+        ['ord-modal', `ord-modal--theme-${resolvedTheme}`].join(' ');
 
     const closeDetailsModal = () => setDetailsItem(null);
 
@@ -121,7 +130,7 @@ const Order = () => {
 
     if (loading) {
         return (
-            <div className="order-page">
+            <div className={pageClassName('order-page--loading')}>
                 <LoadingPage message="Загрузка заказа..." />
             </div>
         );
@@ -129,7 +138,7 @@ const Order = () => {
 
     if (error) {
         return (
-            <div className="order-page">
+            <div className={pageClassName()}>
                 <div className="order-page__content">
                     <div className="order-page__state order-page__state--error">{error}</div>
                     <Link to={isGuest ? '/' : '/view_orders'} className="order-page__back">
@@ -142,7 +151,7 @@ const Order = () => {
 
     if (!order) {
         return (
-            <div className="order-page">
+            <div className={pageClassName()}>
                 <div className="order-page__content">
                     <div className="order-page__state">Заказ не найден</div>
                     <Link to={isGuest ? '/' : '/view_orders'} className="order-page__back">
@@ -159,7 +168,13 @@ const Order = () => {
     const backLabel = currentUser ? '← Все заказы' : '← Каталог мебели';
 
     return (
-        <div className="order-page">
+        <div className={pageClassName()}>
+            <div className="ord-ambient" aria-hidden="true">
+                <div className="ord-ambient__orb ord-ambient__orb--1" />
+                <div className="ord-ambient__orb ord-ambient__orb--2" />
+                <div className="ord-ambient__grain" />
+            </div>
+
             <div className="order-page__content">
                 <nav className="order-page__nav">
                     <Link to={backLink} className="order-page__back">{backLabel}</Link>
@@ -170,17 +185,25 @@ const Order = () => {
                     )}
                 </nav>
 
-                <header className="order-page__header">
-                    <div className="order-page__title">
-                        <h1>Заказ №{order.id}</h1>
-                        <span className={`order-page__status ${statusClass(order.status)}`}>
-                            {order.status || 'Оформлен'}
-                        </span>
+                <header className="order-page__hero">
+                    <div className="order-page__hero-intro">
+                        <span className="order-page__badge">Просмотр заказа</span>
+                        <div className="order-page__title">
+                            <h1>Заказ №{order.id}</h1>
+                            <span className={`order-page__status ${statusClass(order.status)}`}>
+                                {order.status || 'Оформлен'}
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="order-page__header-actions">
-                        <div className="order-page__total-pill">
-                            Итого: <strong>{orderTotal.toLocaleString()} сом</strong>
+                    <div className="order-page__summary">
+                        <div className="order-page__summary-item">
+                            <span className="order-page__summary-label">Позиций</span>
+                            <span className="order-page__summary-value">{positions.length}</span>
+                        </div>
+                        <div className="order-page__summary-item order-page__summary-item--total">
+                            <span className="order-page__summary-label">К оплате</span>
+                            <span className="order-page__summary-value">{orderTotal.toLocaleString()} сом</span>
                         </div>
                     </div>
                 </header>
@@ -347,77 +370,74 @@ const Order = () => {
                     )}
                 </section>
 
-                {detailsItem && (
-                    <div className="order-page__details-overlay" onClick={closeDetailsModal}>
-                        <div
-                            className="order-page__details-modal"
-                            onClick={(e) => e.stopPropagation()}
-                            role="dialog"
-                            aria-modal="true"
-                            aria-labelledby="order-details-title"
-                        >
-                            <div className="order-page__details-header">
-                                <div>
-                                    <h3 id="order-details-title">{detailsItem.title}</h3>
-                                    <p>
-                                        {Number(detailsItem.price).toLocaleString()} сом × {getQty(detailsItem)} ={' '}
-                                        <strong>{getLineTotal(detailsItem).toLocaleString()} сом</strong>
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="order-page__details-close"
-                                    onClick={closeDetailsModal}
-                                    aria-label="Закрыть"
-                                >
-                                    ×
-                                </button>
-                            </div>
-
-                            <div className="order-page__details-split">
-                                <div className="order-page__details-photo">
-                                    {getItemImageSrc(detailsItem) ? (
-                                        <img src={getItemImageSrc(detailsItem)} alt={detailsItem.title} />
-                                    ) : (
-                                        <div className="order-page__details-photo-empty">🪑</div>
-                                    )}
+                {detailsItem && createPortal(
+                    <div className={ordModalClassName()} role="dialog" aria-modal="true" aria-labelledby="order-details-title">
+                        <div className="ord-modal__overlay" onClick={closeDetailsModal}>
+                            <div className="ord-modal__dialog" onClick={(e) => e.stopPropagation()}>
+                                <div className="ord-modal__header">
+                                    <div>
+                                        <h3 id="order-details-title">{detailsItem.title}</h3>
+                                        <p>
+                                            {Number(detailsItem.price).toLocaleString()} сом × {getQty(detailsItem)} ={' '}
+                                            <strong>{getLineTotal(detailsItem).toLocaleString()} сом</strong>
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="ord-modal__close"
+                                        onClick={closeDetailsModal}
+                                        aria-label="Закрыть"
+                                    >
+                                        ×
+                                    </button>
                                 </div>
 
-                                <div className="order-page__details-panel">
-                                    <h4>Деталировка</h4>
-                                    {detailsItem.description && (
-                                        <p className="order-page__details-note">{detailsItem.description}</p>
-                                    )}
-                                    {(detailsItem.bodyColor || detailsItem.facadeColor) && (
-                                        <div className="order-page__details-colors">
-                                            {detailsItem.bodyColor && <span>Корпус: {detailsItem.bodyColor}</span>}
-                                            {detailsItem.facadeColor && <span>Фасады: {detailsItem.facadeColor}</span>}
-                                        </div>
-                                    )}
-                                    <div className="order-page__details-table-wrap">
-                                        <table className="details-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Деталь</th>
-                                                    <th>Размер</th>
-                                                    <th>Кол-во</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {detailsItem.calculatedDetails.map((d) => (
-                                                    <tr key={d.key}>
-                                                        <td>{d.label}</td>
-                                                        <td>{d.size}</td>
-                                                        <td>{d.count}</td>
+                                <div className="ord-modal__split">
+                                    <div className="ord-modal__photo">
+                                        {getItemImageSrc(detailsItem) ? (
+                                            <img src={getItemImageSrc(detailsItem)} alt={detailsItem.title} />
+                                        ) : (
+                                            <div className="ord-modal__photo-empty">🪑</div>
+                                        )}
+                                    </div>
+
+                                    <div className="ord-modal__panel">
+                                        <h4>Деталировка</h4>
+                                        {detailsItem.description && (
+                                            <p className="ord-modal__note">{detailsItem.description}</p>
+                                        )}
+                                        {(detailsItem.bodyColor || detailsItem.facadeColor) && (
+                                            <div className="ord-modal__colors">
+                                                {detailsItem.bodyColor && <span>Корпус: {detailsItem.bodyColor}</span>}
+                                                {detailsItem.facadeColor && <span>Фасады: {detailsItem.facadeColor}</span>}
+                                            </div>
+                                        )}
+                                        <div className="ord-modal__table-wrap">
+                                            <table className="ord-modal__table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Деталь</th>
+                                                        <th>Размер</th>
+                                                        <th>Кол-во</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody>
+                                                    {detailsItem.calculatedDetails.map((d) => (
+                                                        <tr key={d.key}>
+                                                            <td>{d.label}</td>
+                                                            <td>{d.size}</td>
+                                                            <td>{d.count}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
                 {!isGuest && (

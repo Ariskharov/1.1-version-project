@@ -1,9 +1,8 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import { differenceInMinutes, parseISO, addDays, format } from 'date-fns';
-
-import { useModal } from './ModalContext';
+import AppUi from './components/ui/AppUi';
 
 export const CustomContext = createContext();
 
@@ -61,7 +60,42 @@ export const Context = ({ children }) => {
     const [workSessions, setWorkSessions] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const { showAlert, showConfirm } = useModal();
+
+    const [toast, setToast] = useState(null);
+    const [confirmDialog, setConfirmDialog] = useState(null);
+    const toastTimerRef = useRef(null);
+    const confirmResolverRef = useRef(null);
+
+    const showToast = useCallback((type, message) => {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        setToast({ type, message });
+        toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+    }, []);
+
+    const confirm = useCallback((options) => {
+        const opts = typeof options === 'string' ? { message: options } : options;
+        return new Promise((resolve) => {
+            confirmResolverRef.current = resolve;
+            setConfirmDialog({
+                message: opts.message,
+                confirmLabel: opts.confirmLabel || 'Подтвердить',
+                cancelLabel: opts.cancelLabel || 'Отмена',
+                danger: opts.danger ?? false,
+            });
+        });
+    }, []);
+
+    const handleConfirmOk = () => {
+        confirmResolverRef.current?.(true);
+        confirmResolverRef.current = null;
+        setConfirmDialog(null);
+    };
+
+    const handleConfirmCancel = () => {
+        confirmResolverRef.current?.(false);
+        confirmResolverRef.current = null;
+        setConfirmDialog(null);
+    };
 
     // Функция обновления данных (переиспользуемая)
     const refreshData = async () => {
@@ -213,7 +247,7 @@ export const Context = ({ children }) => {
         if (!userId) return;
 
         if (currentUser && currentUser.id === userId) {
-            showAlert("Вы не можете удалить самого себя!", "error");
+            showToast('error', 'Вы не можете удалить самого себя!');
             return;
         }
 
@@ -226,7 +260,7 @@ export const Context = ({ children }) => {
             console.log(`Пользователь с ID ${userId} успешно удалён`);
         } catch (err) {
             console.error('Ошибка при удалении пользователя:', err);
-            showAlert('Не удалось удалить пользователя. Ошибка сервера.', 'error');
+            showToast('error', 'Не удалось удалить пользователя. Ошибка сервера.');
         }
     };
 
@@ -261,7 +295,7 @@ export const Context = ({ children }) => {
             return res.data;
         } catch (err) {
             console.error('Ошибка добавления:', err.response?.data || err);
-            showAlert('Не удалось создать пользователя', 'error');
+            showToast('error', 'Не удалось создать пользователя');
             throw err;
         }
     };
@@ -296,8 +330,8 @@ export const Context = ({ children }) => {
             throw err;
         }
     };
-    // Остальные функции
-    // Начать новую смену (поддерживает несколько смен в день + гибкие сценарии)
+
+    // Начать новую смену
     const manualStartShift = async (userId) => {
         const now = new Date();
         const today = format(now, 'yyyy-MM-dd');
@@ -309,10 +343,10 @@ export const Context = ({ children }) => {
         );
 
         if (openShifts.length > 0) {
-            const confirmStart = await showConfirm(
-                `У этого сотрудника есть ${openShifts.length} незакрытая смена(ы).\n\n` +
-                `Хотите начать новую смену? (Предыдущую рекомендуется закрыть)`
-            );
+            const confirmStart = await confirm({
+                message: `У этого сотрудника есть ${openShifts.length} незакрытая смена(ы).\n\nХотите начать новую смену? (Предыдущую рекомендуется закрыть)`,
+                confirmLabel: 'Начать смену',
+            });
             if (!confirmStart) return null;
         }
 
@@ -332,7 +366,7 @@ export const Context = ({ children }) => {
             return res.data;
         } catch (err) {
             console.error('Ошибка начала смены:', err);
-            showAlert('Не удалось начать смену', 'error');
+            showToast('error', 'Не удалось начать смену');
         }
     };
 
@@ -344,7 +378,6 @@ export const Context = ({ children }) => {
         const endDate = format(now, 'yyyy-MM-dd');
         const endTime = format(now, 'HH:mm:ss');
 
-        // Правильный расчёт даже если смена перешла на следующий день
         const durationMinutes = calculateShiftDuration(
             session.date, 
             session.startTime, 
@@ -354,7 +387,7 @@ export const Context = ({ children }) => {
 
         try {
             await axios.patch(`${API_BASE}/workSessions/${sessionId}`, {
-                endDate,                    // Сохраняем дату окончания (важно для смен через сутки)
+                endDate,
                 endTime,
                 durationMinutes,
                 status: "manually_edited",
@@ -368,25 +401,22 @@ export const Context = ({ children }) => {
             ));
         } catch (err) {
             console.error('Ошибка завершения смены:', err);
-            showAlert('Не удалось закрыть смену', 'error');
+            showToast('error', 'Не удалось закрыть смену');
         }
     };
 
     const editSession = async (sessionId, updates) => {
         try {
             const res = await axios.patch(`${API_BASE}/workSessions/${sessionId}`, updates);
-
             console.log('[EDIT SHIFT] Ответ от сервера:', res.data);
 
             if (!res.data) {
                 throw new Error('Бэкенд вернул пустой ответ при обновлении смены');
             }
 
-            // Безопасное слияние: сохраняем старые поля, если бэкенд вернул неполный объект
             setWorkSessions(prev => prev.map(s => {
                 if (s.id !== sessionId) return s;
                 const merged = { ...s, ...res.data };
-                // Защита от потери важных полей
                 if (!merged.date && s.date) merged.date = s.date;
                 if (!merged.startTime && s.startTime) merged.startTime = s.startTime;
                 return merged;
@@ -399,20 +429,22 @@ export const Context = ({ children }) => {
         }
     };
 
-    // Удаление смены (удобно для очистки тестовых данных)
+    // Удаление смены
     const deleteSession = async (sessionId) => {
-        const confirmed = await showConfirm('Вы уверены, что хотите удалить эту смену? Это действие нельзя отменить.');
-        if (!confirmed) {
-            return;
-        }
+        const confirmed = await confirm({
+            message: 'Вы уверены, что хотите удалить эту смену? Это действие нельзя отменить.',
+            confirmLabel: 'Удалить',
+            danger: true,
+        });
+        if (!confirmed) return;
 
         try {
             await axios.delete(`${API_BASE}/workSessions/${sessionId}`);
             setWorkSessions(prev => prev.filter(s => s.id !== sessionId));
-            console.log(`[DELETE SHIFT] Смена ${sessionId} успешно удалена`);
+            showToast('success', 'Смена удалена');
         } catch (err) {
             console.error('Ошибка удаления смены:', err.response?.data || err);
-            showAlert('Не удалось удалить смену. Смотри ошибку в консоли.', 'error');
+            showToast('error', 'Не удалось удалить смену');
         }
     };
 
@@ -462,12 +494,20 @@ export const Context = ({ children }) => {
         updateProduct,
         deleteProduct,
         refreshData,
-        formatDuration
+        formatDuration,
+        showToast,
+        confirm,
     };
 
     return (
         <CustomContext.Provider value={value}>
             {children}
+            <AppUi
+                toast={toast}
+                confirmDialog={confirmDialog}
+                onConfirm={handleConfirmOk}
+                onCancel={handleConfirmCancel}
+            />
         </CustomContext.Provider>
     );
 };

@@ -2,12 +2,12 @@ import React, { useContext, useState, useMemo } from 'react';
 import { useForm } from "react-hook-form";
 import './admin.scss';
 import { CustomContext } from '../../Context';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { useCatalogTheme } from '../../context/CatalogThemeContext';
 import { parseISO, differenceInMinutes, addDays, format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { QRCodeSVG } from 'qrcode.react';
-import { useModal } from '../../ModalContext';
 
 // ==================== PURE UTILITIES ====================
-// ... (code omitted for lines 10-69)
+
 const calculateShiftDuration = (startDate, startTime, endDate, endTime) => {
   if (!startDate || !startTime || !endDate || !endTime) return null;
   try {
@@ -58,6 +58,28 @@ const sortSessions = (sessions) =>
     return dateB.localeCompare(dateA) || a.startTime.localeCompare(b.startTime);
   });
 
+const getInitials = (name = '') => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+};
+
+const getPeriodLabel = (preset, dateRange) => {
+  const labels = {
+    today: 'Сегодня',
+    week: 'Эта неделя',
+    month: 'Этот месяц',
+    last_month: 'Прошлый месяц',
+    all: 'За всё время',
+    custom: 'Произвольный период',
+  };
+  if (preset === 'custom' && dateRange.from && dateRange.to) {
+    return `${formatDate(dateRange.from)} — ${formatDate(dateRange.to)}`;
+  }
+  return labels[preset] || 'Период';
+};
+
 // ==================== ПРЕСЕТЫ ПЕРИОДОВ (упрощённые и удобные) ====================
 const PERIOD_PRESETS = [
   { key: 'today', label: 'Сегодня' },
@@ -68,7 +90,14 @@ const PERIOD_PRESETS = [
   { key: 'custom', label: 'Произвольный' },
 ];
 
+const ROLE_LABELS = {
+    user: 'Сотрудник',
+    manager: 'Менеджер',
+    admin: 'Администратор',
+};
+
 const Admin = () => {
+    const { resolvedTheme } = useCatalogTheme();
     const {
         currentUser,
         users,
@@ -80,9 +109,9 @@ const Admin = () => {
         addUser,
         updateUser,
         deleteUser,
+        showToast,
+        confirm,
     } = useContext(CustomContext);
-
-    const { showAlert, showConfirm } = useModal();
 
     // ==================== СОСТОЯНИЯ ====================
     const [selectedUser, setSelectedUser] = useState(null);
@@ -90,22 +119,15 @@ const Admin = () => {
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isEditSessionModalOpen, setIsEditSessionModalOpen] = useState(false);
     const [editingSession, setEditingSession] = useState(null);
-    const [qrUser, setQrUser] = useState(null);
-    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-
-    // Получение актуального пользователя из глобального стейта context по ID
-    const activeUser = useMemo(() => {
-        if (!selectedUser) return null;
-        return users.find(u => Number(u.id) === Number(selectedUser.id)) || selectedUser;
-    }, [selectedUser, users]);
 
     // ==================== НОВАЯ МОЩНАЯ ФИЛЬТРАЦИЯ (переделана с нуля по образцу кабинета) ====================
-    const [activePreset, setActivePreset] = useState('month');
+    const [activePreset, setActivePreset] = useState('today');
     const [customDateFrom, setCustomDateFrom] = useState('');
     const [customDateTo, setCustomDateTo] = useState('');
     const [employeeFilter, setEmployeeFilter] = useState(''); // '' = все, или numeric user.id (coerced from select)
     const [statusFilter, setStatusFilter] = useState('all'); // all | active | closed
     const [sortBy, setSortBy] = useState('date_desc');
+    const [employeeSearch, setEmployeeSearch] = useState('');
 
     // Состояния загрузки для защиты от множественных кликов и визуальной обратной связи
     const [pendingShiftActions, setPendingShiftActions] = useState(new Set()); // sessionId
@@ -143,22 +165,6 @@ const Admin = () => {
     const handleDeleteShift = (sessionId) => {
         if (isShiftActionPending(sessionId)) return;
         withLoading(setPendingShiftActions, sessionId, () => deleteSession(sessionId));
-    };
-
-    const handleShowQR = async (user) => {
-        let badgeId = user.badgeId;
-        if (!badgeId) {
-            badgeId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                var r = Math.random() * 16 | 0, v = c === 'x' ? r : ((r & 0x3) | 0x8);
-                return v.toString(16);
-            });
-            // Обновляем пользователя с новым badgeId
-            await updateUser(user.id, { ...user, badgeId });
-            setQrUser({ ...user, badgeId });
-        } else {
-            setQrUser(user);
-        }
-        setIsQrModalOpen(true);
     };
 
     // ==================== ДИАПАЗОН ДАТ (мощные пресеты + произвольный период) ====================
@@ -299,8 +305,47 @@ const Admin = () => {
         ? users.filter(u => Number(u.id) === Number(employeeFilter))
         : users;
 
+    const sidebarUsers = useMemo(() => {
+        const q = employeeSearch.trim().toLowerCase();
+        if (!q) return users;
+        return users.filter(u =>
+            u.fullName?.toLowerCase().includes(q) ||
+            u.position?.toLowerCase().includes(q) ||
+            u.phone?.includes(q)
+        );
+    }, [users, employeeSearch]);
+
+    const getUserShiftStats = (userId) => {
+        const sessions = getFilteredUserSessions(userId);
+        const totalMinutes = sessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+        return {
+            count: sessions.length,
+            hours: Math.floor(totalMinutes / 60),
+            minutes: totalMinutes % 60,
+            activeCount: sessions.filter(s => !s.endTime).length,
+        };
+    };
+
+    const focusEmployee = (userId) => {
+        setEmployeeFilter(userId);
+        setActivePreset('all');
+        setCustomDateFrom('');
+        setCustomDateTo('');
+    };
+
+    const adminClassName = (extra = '') =>
+        ['admin', `admin--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
+
     if (!currentUser || currentUser.role !== 'admin') {
-        return <div className="access_denied">Доступ запрещён</div>;
+        return (
+            <div className={adminClassName('admin--denied')}>
+                <div className="admin-access-denied">
+                    <span className="admin-access-denied__icon" aria-hidden="true">⛔</span>
+                    <h2>Доступ запрещён</h2>
+                    <p>Эта страница доступна только администраторам</p>
+                </div>
+            </div>
+        );
     }
 
     // getAllUserSessions — используется в модалке просмотра профиля (показывает ВСЕ смены сотрудника)
@@ -342,53 +387,41 @@ const Admin = () => {
     // Главная функция сохранения
     const onSubmitUser = async (data) => {
         if (isSavingUser) return;
+        setIsSavingUser(true);
 
-        const proceedSave = async () => {
-            setIsSavingUser(true);
-            try {
-                if (selectedUser) {
-                    // Редактирование
-                    await updateUser(selectedUser.id, data);
-                    showAlert('Данные сотрудника обновлены!', 'success');
-                } else {
-                    // Создание нового
-                    const newUserData = {
-                        ...data,
-                        email: null,
-                        avatar: null
-                    };
-                    await addUser(newUserData);
-                    showAlert('Новый сотрудник успешно создан!', 'success');
-                }
-
-                setIsUserModalOpen(false);
-                reset();
-            } catch (err) {
-                console.error("Ошибка при сохранении:", err);
-                showAlert('Ошибка при сохранении. Проверьте консоль.', 'error');
-            } finally {
-                setIsSavingUser(false);
+        try {
+            if (selectedUser) {
+                // Редактирование
+                await updateUser(selectedUser.id, data);
+                showToast('success', 'Данные сотрудника обновлены!');
+            } else {
+                // Создание нового
+                const newUserData = {
+                    ...data,
+                    email: null,           // если нужно
+                    avatar: null
+                };
+                await addUser(newUserData);
+                showToast('success', 'Новый сотрудник успешно создан!');
             }
-        };
 
-        // Предупреждение о дублировании роли scanner
-        if (data.role === 'scanner') {
-            const scannerUser = users.find(u => u.role === 'scanner' && u.id !== selectedUser?.id);
-            if (scannerUser) {
-                const confirmed = await showConfirm(`Внимание: роль оператора сканера уже назначена ${scannerUser.fullName}. Назначить новому сотруднику?`);
-                if (!confirmed) return;
-            }
+            setIsUserModalOpen(false);
+            reset();
+        } catch (err) {
+            console.error("Ошибка при сохранении:", err);
+            showToast('error', 'Ошибка при сохранении. Проверьте консоль.');
+        } finally {
+            setIsSavingUser(false);
         }
-
-        await proceedSave();
     };
 
     const handleDeleteUser = async (user) => {
-        const confirmed = await showConfirm(`Вы уверены, что хотите удалить сотрудника "${user.fullName}"?`);
-        if (confirmed) {
-            await deleteUser(user.id);
-            showAlert('Сотрудник успешно удалён', 'success');
-        }
+        const confirmed = await confirm({
+            message: `Вы уверены, что хотите удалить сотрудника "${user.fullName}"?`,
+            confirmLabel: 'Удалить',
+            danger: true,
+        });
+        if (confirmed) await deleteUser(user.id);
     };
 
     const openEditSessionModal = (session) => {
@@ -414,8 +447,7 @@ const Admin = () => {
 
         const normalizedStart = normalizeTime(data.startTime);
         if (!normalizedStart) {
-            showAlert('Неверный формат времени прихода', 'error');
-            setIsSavingShift(false);
+            showToast('error', 'Неверный формат времени прихода');
             return;
         }
 
@@ -423,8 +455,7 @@ const Admin = () => {
         if (data.endTime?.trim()) {
             normalizedEnd = normalizeTime(data.endTime);
             if (!normalizedEnd) {
-                showAlert('Неверный формат времени ухода', 'error');
-                setIsSavingShift(false);
+                showToast('error', 'Неверный формат времени ухода');
                 return;
             }
         }
@@ -480,12 +511,12 @@ const Admin = () => {
 
         try {
             await editSession(editingSession.id, updates);
-            showAlert('Смена успешно обновлена!', 'success');
+            showToast('success', 'Смена успешно обновлена!');
             setIsEditSessionModalOpen(false);
             setEditingSession(null);
         } catch (err) {
             console.error('Ошибка при сохранении смены:', err);
-            showAlert('Не удалось сохранить изменения смены. Смотри подробности в консоли браузера.', 'error');
+            showToast('error', 'Не удалось сохранить изменения смены. Смотри консоль браузера (F12).');
             // Не закрываем модалку при ошибке — пользователь может исправить данные
         } finally {
             setIsSavingShift(false);
@@ -493,33 +524,41 @@ const Admin = () => {
     };
 
     return (
-        <div className="admin">
+        <div className={adminClassName()}>
+            <div className="admin-ambient" aria-hidden="true">
+                <div className="admin-ambient__orb admin-ambient__orb--1" />
+                <div className="admin-ambient__orb admin-ambient__orb--2" />
+                <div className="admin-ambient__grain" />
+            </div>
+
+            <header className="admin-hero">
+                <div className="admin-hero__intro">
+                    <span className="admin-hero__badge">Управление командой</span>
+                    <h1 className="admin-hero__title">Панель администратора</h1>
+                </div>
+                <div className="admin-hero__stats">
+                    <div className="admin-stat">
+                        <span className="admin-stat__value">{users.length}</span>
+                        <span className="admin-stat__label">сотрудников</span>
+                    </div>
+                    <div className="admin-stat">
+                        <span className="admin-stat__value">{filterStats.activeNow}</span>
+                        <span className="admin-stat__label">на смене</span>
+                    </div>
+                    <div className="admin-stat">
+                        <span className="admin-stat__value">{filterStats.totalHours}</span>
+                        <span className="admin-stat__label">часов за период</span>
+                    </div>
+                </div>
+            </header>
+
             <div className="admin__top">
                 <div className="admin__top__left">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', marginBottom: '20px' }}>
-                        <h1 style={{ margin: 0 }}>Панель администратора</h1>
-                        <button 
-                            onClick={() => window.open('/scan', '_blank')} 
-                            className="btn-open-scanner"
-                            style={{ 
-                                background: '#10b981', 
-                                color: 'white', 
-                                border: 'none', 
-                                padding: '10px 20px', 
-                                borderRadius: '8px', 
-                                fontWeight: 'bold', 
-                                cursor: 'pointer',
-                                transition: 'background 0.2s' 
-                            }}
-                            onMouseOver={(e) => e.target.style.background = '#059669'}
-                            onMouseOut={(e) => e.target.style.background = '#10b981'}
-                        >
-                            📱 Открыть сканер
-                        </button>
-                    </div>
-
-                    {/* ==================== ФИЛЬТРАЦИЯ СМЕН (упрощённая и удобная) ==================== */}
                     <div className="admin__filters">
+                        <div className="admin__filters__head">
+                            <h2 className="admin__filters__title">Журнал смен</h2>
+                            <span className="admin__filters__period">{getPeriodLabel(activePreset, dateRange)}</span>
+                        </div>
                         {/* Быстрые пресеты периодов */}
                         <div className="admin__filters__presets">
                             {PERIOD_PRESETS.map(preset => (
@@ -600,7 +639,7 @@ const Admin = () => {
                             <button
                                 className="reset-btn"
                                 onClick={() => {
-                                    setActivePreset('month');
+                                    setActivePreset('today');
                                     setCustomDateFrom('');
                                     setCustomDateTo('');
                                     setEmployeeFilter('');
@@ -610,20 +649,38 @@ const Admin = () => {
                             >
                                 Сбросить
                             </button>
+
+                            {employeeFilter !== '' && employeeFilter != null && (
+                                <button
+                                    type="button"
+                                    className="btn-clear-focus"
+                                    onClick={() => setEmployeeFilter('')}
+                                >
+                                    Сбросить фокус
+                                </button>
+                            )}
                         </div>
 
-                        {/* Живая статистика по текущим фильтрам */}
                         <div className="admin__filters__stats">
-                            <span>Смен: <strong>{filterStats.totalShifts}</strong></span>
-                            <span>Активных сейчас: <strong>{filterStats.activeNow}</strong></span>
-                            <span>Отработано всего: <strong>{filterStats.totalHours} ч</strong></span>
+                            <div className="admin-mini-stat">
+                                <span className="admin-mini-stat__value">{filterStats.totalShifts}</span>
+                                <span className="admin-mini-stat__label">смен в выборке</span>
+                            </div>
+                            <div className="admin-mini-stat">
+                                <span className="admin-mini-stat__value">{filterStats.activeNow}</span>
+                                <span className="admin-mini-stat__label">активных</span>
+                            </div>
+                            <div className="admin-mini-stat">
+                                <span className="admin-mini-stat__value">{filterStats.totalHours} ч</span>
+                                <span className="admin-mini-stat__label">отработано</span>
+                            </div>
                         </div>
                     </div>
 
                     <div className="admin__table">
                         <div className="admin__table__header">
-                            <span>Сотрудник</span>
-                            <span>Дата</span>
+                            <span></span>
+                            <span>Период</span>
                             <span>Приход</span>
                             <span>Уход</span>
                             <span>Отработано</span>
@@ -636,20 +693,32 @@ const Admin = () => {
                             return (
                                 <div key={user.id} className="admin__table__user-group">
                                     <div className="admin__table__user-header">
-                                        <strong>{user.fullName}</strong>
-                                        {user.position && <span className="user-position"> — {user.position}</span>}
+                                        <div className="admin__table__user-title">
+                                            <strong>{user.fullName}</strong>
+                                            {user.position && <span className="user-position"> — {user.position}</span>}
+                                        </div>
+                                        {Number(employeeFilter) !== Number(user.id) && (
+                                            <button
+                                                type="button"
+                                                className="btn-focus"
+                                                onClick={() => focusEmployee(user.id)}
+                                                title="Показать все смены этого сотрудника"
+                                            >
+                                                Фокус
+                                            </button>
+                                        )}
                                     </div>
 
                                     {sessions.length === 0 ? (
                                         <div className="admin__table__row admin__table__row--empty">
                                             <span>Смены отсутствуют в выбранном фильтре</span>
                                             <span className="admin__table__actions">
-                                                <button 
-                                                    onClick={() => handleStartShift(user.id)} 
+                                                <button
+                                                    onClick={() => handleStartShift(user.id)}
                                                     className="btn-start"
                                                     disabled={isUserStartPending(user.id)}
                                                 >
-                                                    {isUserStartPending(user.id) ? '⏳ Загрузка...' : '▶ Начать смену'}
+                                                    {isUserStartPending(user.id) ? '⏳ Загрузка...' : '▶ Старт'}
                                                 </button>
                                             </span>
                                         </div>
@@ -663,27 +732,27 @@ const Admin = () => {
                                                 <span>{formatDuration(session)}</span>
                                                 <span className={`status status--${session.endTime ? 'completed' : 'active'}`}>
                                                     {session.endTime ? 'Завершена' : 'На работе'}
-                                                    {session.source === 'qr' && ' 📱'}
                                                 </span>
                                                 <span className="admin__table__actions">
                                                     {!session.endTime && (
-                                                        <button 
-                                                            onClick={() => handleEndShift(session.id)} 
+                                                        <button
+                                                            onClick={() => handleEndShift(session.id)}
                                                             className="btn-end"
                                                             disabled={isShiftActionPending(session.id)}
                                                         >
                                                             {isShiftActionPending(session.id) ? '⏳' : '⏹ Завершить'}
                                                         </button>
                                                     )}
-                                                    <button 
-                                                        onClick={() => openEditSessionModal(session)} 
+                                                    <button
+                                                        onClick={() => openEditSessionModal(session)}
                                                         className="btn-edit"
+                                                        title="Редактировать смену"
                                                         disabled={isShiftActionPending(session.id)}
                                                     >
-                                                        ✎ Редактировать
+                                                        ✎
                                                     </button>
-                                                    <button 
-                                                        onClick={() => handleDeleteShift(session.id)} 
+                                                    <button
+                                                        onClick={() => handleDeleteShift(session.id)}
                                                         className="btn-delete"
                                                         title="Удалить смену"
                                                         disabled={isShiftActionPending(session.id)}
@@ -695,9 +764,8 @@ const Admin = () => {
                                         ))
                                     )}
 
-                                    {/* Кнопка начать новую смену — показываем всегда, если есть хотя бы одна смена */}
                                     {sessions.length > 0 && (
-                                        <div className="admin__table__row admin__table__row--empty" style={{ borderTop: '1px dashed #ccc' }}>
+                                        <div className="admin__table__row admin__table__row--footer">
                                             <span></span>
                                             <span></span>
                                             <span></span>
@@ -705,12 +773,12 @@ const Admin = () => {
                                             <span></span>
                                             <span></span>
                                             <span className="admin__table__actions">
-                                                <button 
-                                                    onClick={() => handleStartShift(user.id)} 
+                                                <button
+                                                    onClick={() => handleStartShift(user.id)}
                                                     className="btn-start"
                                                     disabled={isUserStartPending(user.id)}
                                                 >
-                                                    {isUserStartPending(user.id) ? '⏳ Загрузка...' : '▶ Начать новую смену'}
+                                                    {isUserStartPending(user.id) ? '⏳ Загрузка...' : '▶ Новая'}
                                                 </button>
                                             </span>
                                         </div>
@@ -723,38 +791,88 @@ const Admin = () => {
 
                 <div className="admin__top__right">
                     <h2>Сотрудники</h2>
+
+                    <div className="admin-search">
+                        <svg className="admin-search__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+                            <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                        <input
+                            type="text"
+                            className="admin-search__input"
+                            placeholder="Поиск сотрудника..."
+                            value={employeeSearch}
+                            onChange={(e) => setEmployeeSearch(e.target.value)}
+                        />
+                        {employeeSearch && (
+                            <button
+                                type="button"
+                                className="admin-search__clear"
+                                onClick={() => setEmployeeSearch('')}
+                                aria-label="Очистить поиск"
+                            >
+                                ×
+                            </button>
+                        )}
+                    </div>
+
                     <button onClick={() => openUserForm()} className="btn-add">＋ Добавить сотрудника</button>
 
                     <div className="users-list">
-                        {users.map(user => (
-                            <div key={user.id} className="user-item">
-                                <div>
-                                    <strong>{user.fullName}</strong><br />
-                                    <small>{user.position || '—'} • {user.phone || '—'}</small>
+                        {sidebarUsers.length === 0 ? (
+                            <div className="users-list__empty">Никого не найдено</div>
+                        ) : sidebarUsers.map(user => {
+                            const stats = getUserShiftStats(user.id);
+                            return (
+                            <div
+                                key={user.id}
+                                className={`user-item${Number(employeeFilter) === Number(user.id) ? ' user-item--focused' : ''}`}
+                            >
+                                <div className="user-item__head">
+                                    <span className="user-item__avatar" aria-hidden="true">{getInitials(user.fullName)}</span>
+                                    <div className="user-item__info">
+                                        <strong>{user.fullName}</strong>
+                                        <small>{user.position || '—'} • {user.phone || '—'}</small>
+                                        <span className="user-item__meta">
+                                            {stats.count} смен · {stats.hours} ч
+                                            {stats.activeCount > 0 && (
+                                                <span className="user-item__live"> · на смене</span>
+                                            )}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="user-actions">
-                                    <button 
-                                        onClick={() => handleStartShift(user.id)} 
+                                    <button
+                                        onClick={() => handleStartShift(user.id)}
                                         className="btn-start"
                                         disabled={isUserStartPending(user.id)}
                                     >
-                                        {isUserStartPending(user.id) ? '⏳' : '▶ Начать смену'}
+                                        {isUserStartPending(user.id) ? '⏳ Загрузка...' : '▶ Начать смену'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => focusEmployee(user.id)}
+                                        className="btn-focus"
+                                        title="Показать все смены этого сотрудника"
+                                    >
+                                        Фокус
                                     </button>
                                     <button onClick={() => openViewModal(user)} className="btn-view">👁 Просмотреть</button>
-                                    <button onClick={() => handleShowQR(user)} className="btn-qr">📱 Показать QR</button>
                                     <button onClick={() => openUserForm(user)} className="btn-edit">✎ Редактировать</button>
                                     <button onClick={() => handleDeleteUser(user)} className="btn-delete">🗑 Удалить</button>
                                 </div>
                             </div>
-                        ))}
+                        );
+                        })}
                     </div>
                 </div>
             </div>
 
             {/* Модалка создания / редактирования */}
             {isUserModalOpen && (
-                <div className="modal">
-                    <div className="modal__content">
+                <div className="modal" onClick={() => !isSavingUser && setIsUserModalOpen(false)}>
+                    <div className="modal__content" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" className="modal__close" onClick={() => setIsUserModalOpen(false)} aria-label="Закрыть">✕</button>
                         <h2>{selectedUser ? 'Редактирование сотрудника' : 'Новый сотрудник'}</h2>
                         <form onSubmit={handleSubmit(onSubmitUser)}>
                             <input {...register('fullName', { required: true })} placeholder="ФИО *" />
@@ -767,13 +885,12 @@ const Admin = () => {
                                 <option value="user">Сотрудник</option>
                                 <option value="manager">Менеджер</option>
                                 <option value="admin">Администратор</option>
-                                <option value="scanner">Оператор сканера</option>
                             </select>
                             <textarea {...register('description')} placeholder="Описание" rows={3} />
 
                             <div className="modal__actions">
                                 <button type="submit" disabled={isSavingUser}>
-                                    {isSavingUser ? '⏳ Сохранение...' : (selectedUser ? 'Сохранить изменения' : 'Создать сотрудника')}
+                                    {isSavingUser ? <><LoadingSpinner size="sm" /> Сохранение...</> : (selectedUser ? 'Сохранить изменения' : 'Создать сотрудника')}
                                 </button>
                                 <button 
                                     type="button" 
@@ -789,32 +906,37 @@ const Admin = () => {
             )}
 
             {/* Остальные модалки (просмотр и редактирование смены) */}
-            {isViewModalOpen && activeUser && (
-                <div className="modal">
-                    <div className="modal__content modal__content--large">
-                        <h2>Профиль — {activeUser.fullName}</h2>
-                        <button className="modal__close" onClick={() => setIsViewModalOpen(false)}>✕</button>
+            {isViewModalOpen && selectedUser && (
+                <div className="modal" onClick={() => setIsViewModalOpen(false)}>
+                    <div className="modal__content modal__content--large" onClick={(e) => e.stopPropagation()}>
+                        <h2>Профиль — {selectedUser.fullName}</h2>
+                        <button type="button" className="modal__close" onClick={() => setIsViewModalOpen(false)} aria-label="Закрыть">✕</button>
 
                         <div className="user-info">
-                            <p><strong>Логин:</strong> {activeUser.login}</p>
-                            <p><strong>Телефон:</strong> {activeUser.phone || '—'}</p>
-                            <p><strong>Должность:</strong> {activeUser.position || '—'}</p>
-                            <p><strong>Роль:</strong> {activeUser.role}</p>
-                            <p><strong>ID Бейджика:</strong> {activeUser.badgeId || '—'}</p>
-                            {activeUser.description && <p><strong>Описание:</strong><br/>{activeUser.description}</p>}
+                            <div className="user-info__avatar" aria-hidden="true">{getInitials(selectedUser.fullName)}</div>
+                            <div className="user-info__grid">
+                                <p><strong>Логин</strong><span>{selectedUser.login}</span></p>
+                                <p><strong>Телефон</strong><span>{selectedUser.phone || '—'}</span></p>
+                                <p><strong>Должность</strong><span>{selectedUser.position || '—'}</span></p>
+                                <p><strong>Роль</strong><span>{ROLE_LABELS[selectedUser.role] || selectedUser.role}</span></p>
+                                <p><strong>ID бейджа</strong><span>{selectedUser.badgeId || '—'}</span></p>
+                            </div>
+                            {selectedUser.description && (
+                                <p className="user-info__desc"><strong>Описание</strong><span>{selectedUser.description}</span></p>
+                            )}
                         </div>
 
-                        <h3>Смены</h3>
+                        <h3 className="modal__section-title">История смен</h3>
                         <div className="history-list">
-                            {getAllUserSessions(activeUser.id).length === 0 ? (
+                            {getAllUserSessions(selectedUser.id).length === 0 ? (
                                 <p>Смен нет</p>
                             ) : (
-                                getAllUserSessions(activeUser.id).map(session => (
+                                getAllUserSessions(selectedUser.id).map(session => (
                                     <div key={session.id} className="history-item">
                                         <div className="history-date">{formatShiftPeriod(session)}</div>
                                         <div className="history-time">{formatTime(session.startTime)} — {formatTime(session.endTime)}</div>
                                         <div className="history-duration">{formatDuration(session)}</div>
-                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                        <div className="history-item__actions">
                                             <button 
                                                 onClick={() => openEditSessionModal(session)} 
                                                 className="btn-edit-small"
@@ -824,8 +946,7 @@ const Admin = () => {
                                             </button>
                                             <button 
                                                 onClick={() => handleDeleteShift(session.id)} 
-                                                className="btn-delete"
-                                                style={{ padding: '5px 8px', fontSize: '12px' }}
+                                                className="btn-delete btn-delete--compact"
                                                 title="Удалить смену"
                                                 disabled={isShiftActionPending(session.id)}
                                             >
@@ -841,30 +962,35 @@ const Admin = () => {
             )}
 
             {isEditSessionModalOpen && editingSession && (
-                <div className="modal">
-                    <div className="modal__content">
+                <div className="modal" onClick={() => !isSavingShift && setIsEditSessionModalOpen(false)}>
+                    <div className="modal__content" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            type="button"
+                            className="modal__close"
+                            onClick={() => { setIsEditSessionModalOpen(false); setEditingSession(null); }}
+                            aria-label="Закрыть"
+                        >
+                            ✕
+                        </button>
                         <h2>Редактирование смены</h2>
-                        <p><strong>{activeUser?.fullName}</strong> — {formatShiftPeriod(editingSession)}</p>
+                        <p className="modal__subtitle">
+                            <strong>{users.find(u => Number(u.id) === Number(editingSession.userId))?.fullName || 'Сотрудник'}</strong>
+                            {' — '}{formatShiftPeriod(editingSession)}
+                        </p>
 
                         <form onSubmit={handleSubmit(onSubmitEditSession)}>
-                            {/* === Дата и время НАЧАЛА === */}
-                            <div style={{ marginBottom: 12 }}>
-                                <label style={{ fontSize: 13, color: '#555', display: 'block', marginBottom: 4 }}>
-                                    Дата начала смены
-                                </label>
-                                <input 
-                                    type="date" 
-                                    {...register('startDate')} 
-                                />
+                            <div className="modal__field">
+                                <label>Дата начала смены</label>
+                                <input type="date" {...register('startDate')} />
                             </div>
 
-                            <input {...register('startTime', { required: true })} placeholder="Время прихода (ЧЧ:ММ)" />
+                            <div className="modal__field">
+                                <label>Время прихода</label>
+                                <input {...register('startTime', { required: true })} placeholder="ЧЧ:ММ" />
+                            </div>
 
-                            {/* === Дата и время ОКОНЧАНИЯ === */}
-                            <div style={{ marginTop: 16 }}>
-                                <label style={{ fontSize: 13, color: '#555', display: 'block', marginBottom: 4 }}>
-                                    Дата окончания смены
-                                </label>
+                            <div className="modal__field">
+                                <label>Дата окончания смены</label>
                                 <select {...register('endDateType')} defaultValue="same">
                                     <option value="same">В тот же день</option>
                                     <option value="next">На следующий день</option>
@@ -872,28 +998,28 @@ const Admin = () => {
                                 </select>
 
                                 {watch('endDateType') === 'custom' && (
-                                    <input 
-                                        type="date" 
-                                        {...register('customEndDate')} 
-                                        style={{ marginTop: 8, display: 'block' }}
-                                    />
+                                    <input type="date" {...register('customEndDate')} className="modal__field-nested" />
                                 )}
                             </div>
 
-                            <input {...register('endTime')} placeholder="Время ухода (оставьте пустым если активна)" />
+                            <div className="modal__field">
+                                <label>Время ухода</label>
+                                <input {...register('endTime')} placeholder="Оставьте пустым, если смена активна" />
+                            </div>
 
-                            {/* Ручной ввод продолжительности (приоритет для сложных случаев) */}
-                            <input 
-                                {...register('manualDurationHours')} 
-                                type="number" 
-                                step="0.25" 
-                                placeholder="Или укажи продолжительность вручную в часах (например 25.5)"
-                                style={{ marginTop: 12 }}
-                            />
+                            <div className="modal__field">
+                                <label>Продолжительность вручную (часы)</label>
+                                <input
+                                    {...register('manualDurationHours')}
+                                    type="number"
+                                    step="0.25"
+                                    placeholder="Например 25.5"
+                                />
+                            </div>
 
                             <div className="modal__actions">
                                 <button type="submit" disabled={isSavingShift}>
-                                    {isSavingShift ? '⏳ Сохранение...' : 'Сохранить'}
+                                    {isSavingShift ? <><LoadingSpinner size="sm" /> Сохранение...</> : 'Сохранить'}
                                 </button>
                                 <button 
                                     type="button" 
@@ -904,28 +1030,6 @@ const Admin = () => {
                                 </button>
                             </div>
                         </form>
-                    </div>
-                </div>
-            )}
-            {/* Модальное окно QR-кода */}
-            {isQrModalOpen && qrUser && (
-                <div className="modal print-qr-modal-wrapper">
-                    <div className="modal__content print-qr-section">
-                        <h2>Карточка сотрудника</h2>
-                        <div className="qr-code-box" style={{ margin: '20px 0', display: 'flex', justifyContent: 'center' }}>
-                            <QRCodeSVG value={qrUser.badgeId} size={200} />
-                        </div>
-                        <p style={{ fontSize: '18px', fontWeight: 'bold', margin: '10px 0' }}>{qrUser.fullName}</p>
-                        <p style={{ color: '#666', fontStyle: 'italic', marginBottom: '20px' }}>ID: {qrUser.badgeId}</p>
-                        
-                        <div className="modal__actions qr-modal-buttons">
-                            <button onClick={() => window.print()} className="btn-print" style={{ background: '#10b981', color: 'white' }}>
-                                Распечатать
-                            </button>
-                            <button onClick={() => { setIsQrModalOpen(false); setQrUser(null); }}>
-                                Закрыть
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}

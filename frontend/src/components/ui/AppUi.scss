@@ -1,0 +1,129 @@
+.app-ui-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  max-width: 420px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  animation: app-ui-toast-in 0.25s ease;
+
+  &--success {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  &--error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  &--info {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+}
+
+@keyframes app-ui-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app-ui-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: app-ui-fade-in 0.2s ease;
+}
+
+@keyframes app-ui-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes app-ui-confirm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.app-ui-confirm {
+  background: white;
+  border-radius: 14px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15);
+  animation: app-ui-confirm-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+
+  p {
+    font-size: 15.5px;
+    line-height: 1.5;
+    margin: 0 0 22px;
+    color: #1f2937;
+    white-space: pre-line;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  &__btn {
+    padding: 9px 18px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    background: white;
+    color: #334155;
+
+    &:hover {
+      background: #f8fafc;
+    }
+
+    &--primary {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+
+      &:hover {
+        background: #1d4ed8;
+      }
+    }
+
+    &--danger {
+      background: #ef4444;
+      color: white;
+      border-color: #ef4444;
+
+      &:hover {
+        background: #dc2626;
+      }
+    }
+  }
+}

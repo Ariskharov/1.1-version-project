@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import './edit_mebel.scss';
 import { CustomContext } from '../../../Context';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
+import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 const API_URL = `${API_BASE}/product`;
 const UPLOAD_URL = `${API_BASE}/upload`;
 
 function FurnitureEditor() {
+    const { resolvedTheme } = useCatalogTheme();
     const { showToast, confirm } = useContext(CustomContext);
     const [products, setProducts] = useState([]);
     const [selected, setSelected] = useState(null);
@@ -314,74 +316,140 @@ function FurnitureEditor() {
     p.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const editorStats = useMemo(() => ({
+    total: products.length,
+    filtered: filteredProducts.length,
+    withPhoto: products.filter(p => p.img).length,
+  }), [products, filteredProducts]);
+
+  const editorClassName = (extra = '') =>
+    ['furniture-editor', `furniture-editor--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
+
   if (loading) {
     return (
-      <div className="furniture-editor">
+      <div className={editorClassName('furniture-editor--loading')}>
         <LoadingPage message="Загрузка мебели..." />
       </div>
     );
   }
 
   return (
-    <div className="furniture-editor">
-      {/* Шапка страницы */}
-      <div className="editor-header">
-        <h1>Редактор мебели</h1>
+    <div className={editorClassName()}>
+      <div className="editor-ambient" aria-hidden="true">
+        <div className="editor-ambient__orb editor-ambient__orb--1" />
+        <div className="editor-ambient__orb editor-ambient__orb--2" />
+        <div className="editor-ambient__grain" />
+      </div>
 
-        <div className="header-actions">
-          <div className="search-wrapper">
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Поиск по названию..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <button 
-            onClick={() => withLoading('add', addNewProduct)} 
-            className="btn btn-add"
-            disabled={isPending('add')}
-          >
-            {isPending('add') ? (
-              <><span className="spinner" /> Добавляем...</>
-            ) : (
-              '+ Добавить новую мебель'
-            )}
-          </button>
+      <header className="editor-hero">
+        <div className="editor-hero__intro">
+          <span className="editor-hero__badge">Конфигуратор</span>
+          <h1 className="editor-hero__title">Редактор мебели</h1>
         </div>
+        <div className="editor-hero__stats">
+          <div className="editor-stat">
+            <span className="editor-stat__value">{editorStats.total}</span>
+            <span className="editor-stat__label">позиций</span>
+          </div>
+          <div className="editor-stat">
+            <span className="editor-stat__value">{editorStats.withPhoto}</span>
+            <span className="editor-stat__label">с фото</span>
+          </div>
+          {searchTerm && (
+            <div className="editor-stat">
+              <span className="editor-stat__value">{editorStats.filtered}</span>
+              <span className="editor-stat__label">в поиске</span>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <div className="editor-toolbar">
+        <div className="editor-search">
+          <svg className="editor-search__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            className="editor-search__input"
+            placeholder="Поиск по названию..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              className="editor-search__clear"
+              onClick={() => setSearchTerm('')}
+              aria-label="Очистить поиск"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => withLoading('add', addNewProduct)}
+          className="btn btn-add"
+          disabled={isPending('add')}
+        >
+          {isPending('add') ? (
+            <><span className="spinner" /> Добавляем...</>
+          ) : (
+            '+ Добавить мебель'
+          )}
+        </button>
       </div>
 
       {/* Сетка карточек */}
       <div className="products-grid">
         {filteredProducts.length > 0 ? (
-          filteredProducts.map(p => (
+          filteredProducts.map((p, idx) => (
             <div
               key={p.id}
               className="product-card"
+              style={{ '--card-delay': `${idx * 45}ms` }}
               onClick={() => openDrawer(p)}
             >
+              <span className="product-card__shine" aria-hidden="true" />
+
               <div className="product-card-image">
+                <span className="product-card-id-badge">#{p.id}</span>
                 {p.img ? (
-                  <img 
-                    src={p.img} 
-                    alt={p.title} 
-                    loading="lazy" 
-                    decoding="async" 
+                  <img
+                    src={p.img}
+                    alt={p.title}
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : (
-                  <div className="no-image">📷</div>
+                  <div className="no-image">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                      <circle cx="9" cy="10" r="2" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M21 16l-5-5-4 4-2-2-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span>Нет фото</span>
+                  </div>
                 )}
+                <div className="product-card-overlay">
+                  <span className="product-card-edit-hint">Редактировать</span>
+                </div>
               </div>
 
               <div className="product-card-content">
                 <div className="product-card-title">{p.title}</div>
                 <div className="product-card-meta">
-                  <span className="product-card-id">ID: {p.id}</span>
-                  {p.price && (
+                  {p.price ? (
                     <span className="product-card-price">{p.price} сом</span>
+                  ) : (
+                    <span className="product-card-price product-card-price--empty">Цена не указана</span>
                   )}
+                </div>
+                <div className="product-card-tags">
+                  <span className="product-card-tag">{p.variables?.length || 0} перем.</span>
+                  <span className="product-card-tag">{p.details?.length || 0} деталей</span>
                 </div>
               </div>
 
@@ -402,9 +470,10 @@ function FurnitureEditor() {
           ))
         ) : (
           <div className="empty-state">
-            <p>Ничего не найдено</p>
-            <button onClick={addNewProduct} className="btn btn-add">
-              Добавить первую мебель
+            <span className="empty-state__icon" aria-hidden="true">◇</span>
+            <p>{searchTerm ? 'По запросу ничего не найдено' : 'Каталог пуст — добавьте первую позицию'}</p>
+            <button onClick={() => withLoading('add', addNewProduct)} className="btn btn-add" disabled={isPending('add')}>
+              {isPending('add') ? 'Добавляем...' : 'Добавить первую мебель'}
             </button>
           </div>
         )}
@@ -496,36 +565,41 @@ function FurnitureEditor() {
                   <input
                     type="file"
                     id="fileInput"
-                    style={{ display: 'none' }}
+                    className="editor-file-input"
                     accept="image/*"
                     onChange={handleFileUploadWithLoading}
                   />
                 </div>
 
-                <div style={{ marginTop: 16 }}>
+                <div className="editor-form-group">
+                  <label className="editor-label">Ссылка на фото</label>
                   <input
                     value={selected.img || ''}
                     onChange={e => update(['img'], e.target.value)}
-                    placeholder="Или вставьте прямую ссылку на фото"
+                    placeholder="Прямая ссылка или путь после загрузки"
                     className="input-full"
                   />
                   <p className="hint">Прямая ссылка или загруженный файл</p>
                 </div>
 
-                <div style={{ marginTop: 12 }}>
+                <div className="editor-form-group">
+                  <label className="editor-label">Цена (сом)</label>
                   <input
                     type="number"
                     value={selected.price || ''}
                     onChange={e => update(['price'], e.target.value)}
-                    placeholder="Цена (сом)"
+                    placeholder="0"
                     className="input-full"
                   />
                 </div>
               </div>
 
-              {/* Переменные */}
               <div className="form-section">
-                <div className="form-section-title">Переменные (размеры и параметры)</div>
+                <div className="form-section-title">
+                  Переменные
+                  <span className="form-section-count">{selected.variables?.length || 0}</span>
+                </div>
+                <p className="form-section-desc">Размеры и параметры для калькулятора</p>
                 {selected.variables?.map((v, idx) => (
                   <div key={idx} className="variable-row">
                     <input 
@@ -555,7 +629,11 @@ function FurnitureEditor() {
 
               {/* Условия */}
               <div className="form-section">
-                <div className="form-section-title">Условия (флаги)</div>
+                <div className="form-section-title">
+                  Условия
+                  <span className="form-section-count">{selected.conditions?.length || 0}</span>
+                </div>
+                <p className="form-section-desc">Флаги для формул деталей</p>
                 {selected.conditions?.map((c, idx) => (
                   <div key={idx} className="condition-row">
                     <input 
@@ -578,7 +656,11 @@ function FurnitureEditor() {
 
               {/* Детали */}
               <div className="form-section">
-                <div className="form-section-title">Детали (формулы расчёта)</div>
+                <div className="form-section-title">
+                  Детали
+                  <span className="form-section-count">{selected.details?.length || 0}</span>
+                </div>
+                <p className="form-section-desc">Формулы расчёта материалов</p>
                 {selected.details?.map((d, idx) => (
                   <div key={idx} className="detail-card">
                     <div className="detail-header">

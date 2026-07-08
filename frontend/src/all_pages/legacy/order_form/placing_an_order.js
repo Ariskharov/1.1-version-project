@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
+import { createPortal } from 'react-dom';
 import { evaluate } from 'mathjs';
 import { useNavigate } from 'react-router-dom';
 import './placing_an_order.scss';
 import { CustomContext } from '../../../Context';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
+import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 const PlacingAnOrder = () => {
     const navigate = useNavigate();
+    const { resolvedTheme } = useCatalogTheme();
     const { showToast, confirm } = useContext(CustomContext);
 
     const [order, setOrder] = useState({
@@ -31,7 +34,6 @@ const PlacingAnOrder = () => {
 
     // Для отслеживания изменений и автосохранения
     const [isDirty, setIsDirty] = useState(false);
-    // eslint-disable-next-line no-unused-vars
     const [lastSaved, setLastSaved] = useState(null);
 
     // Скидка на весь заказ (в процентах)
@@ -425,14 +427,25 @@ const PlacingAnOrder = () => {
         }
     };
 
+    const paoClassName = (extra = '') =>
+        ['placing_an_order', `placing_an_order--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
+
+    const paoModalClassName = () =>
+        ['pao-modal', `pao-modal--theme-${resolvedTheme}`].join(' ');
+
     return (
-        <section className="placing_an_order">
+        <section className={paoClassName()}>
+            <div className="pao-ambient" aria-hidden="true">
+                <div className="pao-ambient__orb pao-ambient__orb--1" />
+                <div className="pao-ambient__orb pao-ambient__orb--2" />
+                <div className="pao-ambient__grain" />
+            </div>
+
             <div className="placing_an_order__content">
-                {/* Шапка (в стиле кабинета) */}
-                <div className="placing_an_order__header">
-                    <div className="placing_an_order__title">
-                        <h1>Оформление заказа</h1>
-                        <p>Заполните данные и добавьте позиции мебели</p>
+                <header className="placing_an_order__hero">
+                    <div className="placing_an_order__hero-intro">
+                        <span className="placing_an_order__badge">Новый заказ</span>
+                        <h1 className="placing_an_order__hero-title">Оформление заказа</h1>
                     </div>
 
                     <div className="placing_an_order__summary">
@@ -461,9 +474,13 @@ const PlacingAnOrder = () => {
                             <div className="placing_an_order__summary-value">{calculateTotal().toLocaleString()} сом</div>
                         </div>
                     </div>
-                </div>
+                </header>
 
-                {/* Контактные данные клиента */}
+                {lastSaved && (
+                    <p className="placing_an_order__autosave" role="status">
+                        Черновик сохранён локально · {lastSaved.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                )}
                 <article className="placing_an_order__info-card">
                     <h2 className="placing_an_order__section-title">Данные клиента</h2>
                     <p className="placing_an_order__section-subtitle">
@@ -524,248 +541,246 @@ const PlacingAnOrder = () => {
                 </article>
 
                 <div className="placing_an_order__add-wrap">
-                    <button className="placing_an_order__add-button" onClick={() => openModal('catalog')}>
+                    <button type="button" className="placing_an_order__add-button placing_an_order__add-button--catalog" onClick={() => openModal('catalog')}>
                         ＋ Добавить из каталога
                     </button>
-                    <button className="placing_an_order__add-button custom" onClick={() => openModal('custom')}>
+                    <button type="button" className="placing_an_order__add-button placing_an_order__add-button--custom" onClick={() => openModal('custom')}>
                         ＋ Добавить произвольную позицию
                     </button>
                 </div>
 
-                {/* Модальное окно */}
-                {modalOpen && (
-                    <div className="modal-overlay" onClick={closeModal}>
-                        <div className="modal-content" onClick={e => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3>
-                                    {editingItemId ? 'Редактирование позиции' :
-                                        modalType === 'catalog' ? 'Добавить из каталога' : 'Новая произвольная позиция'}
-                                </h3>
-                                <button className="modal-close-btn" onClick={closeModal}>×</button>
-                            </div>
-
-                            {modalType === 'catalog' ? (
-                                /* УЛУЧШЕННАЯ МОДАЛКА КАТАЛОГА — двухпанельная + поиск */
-                                <div className="modal-body catalog-modal">
-                                    {/* Поиск по каталогу */}
-                                    <div className="catalog-search">
-                                        <input
-                                            type="text"
-                                            placeholder="Поиск по названию мебели..."
-                                            value={productSearch}
-                                            onChange={(e) => setProductSearch(e.target.value)}
-                                        />
-                                        {productSearch && (
-                                            <button 
-                                                className="search-clear" 
-                                                onClick={() => setProductSearch('')}
-                                                title="Очистить поиск"
-                                            >
-                                                ×
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    <div className="catalog-split">
-                                        {/* Левая панель: список мебели (прокручиваемый) */}
-                                        <div className="products-pane">
-                                            {filteredProducts.length === 0 ? (
-                                                <div className="products-empty">Ничего не найдено</div>
-                                            ) : (
-                                                <div className="products-list">
-                                                    {filteredProducts.map(p => {
-                                                        const isActive = selectedProduct?.id === p.id;
-                                                        const price = p.price ? `${Number(p.price).toLocaleString()} сом` : '';
-                                                        return (
-                                                            <div 
-                                                                key={p.id} 
-                                                                className={`product-card ${isActive ? 'active' : ''}`}
-                                                                onClick={() => setSelectedProduct(p)}
-                                                            >
-                                                                <div className="product-card-img">
-                                                                    {p.img ? <img src={p.img} alt={p.title} /> : <div className="no-img">🪑</div>}
-                                                                </div>
-                                                                <div className="product-card-info">
-                                                                    <div className="product-title">{p.title}</div>
-                                                                    {price && <div className="product-price">{price}</div>}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Правая панель: настройка выбранной мебели */}
-                                        <div className="config-pane">
-                                            {selectedProduct ? (
-                                                <div className="config-content">
-                                                    <div className="config-header">
-                                                        <h4>{selectedProduct.title}</h4>
-                                                        {selectedProduct.price && (
-                                                            <div className="config-price">{Number(selectedProduct.price).toLocaleString()} сом / шт</div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Параметры */}
-                                                    {(selectedProduct.variables || []).length > 0 && (
-                                                        <div className="config-section">
-                                                            <div className="section-label">Параметры</div>
-                                                            <div className="modal-inputs">
-                                                                {(selectedProduct.variables || []).map(v => (
-                                                                    <label key={v.name} className="modal-field">
-                                                                        <span>{v.label}</span>
-                                                                        <input 
-                                                                            type="number" 
-                                                                            value={inputs[v.name] ?? ''} 
-                                                                            onChange={e => setInputs(prev => ({ ...prev, [v.name]: e.target.value }))} 
-                                                                        />
-                                                                    </label>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Опции / флаги */}
-                                                    {(selectedProduct.conditions || []).some(c => c.type === 'flag') && (
-                                                        <div className="config-section">
-                                                            <div className="section-label">Опции</div>
-                                                            <div className="modal-checkboxes">
-                                                                {(selectedProduct.conditions || []).map(c => c.type === 'flag' && (
-                                                                    <label key={c.name} className="modal-checkbox">
-                                                                        <input 
-                                                                            type="checkbox" 
-                                                                            checked={!!inputs[c.name]} 
-                                                                            onChange={() => setInputs(prev => ({ ...prev, [c.name]: !prev[c.name] }))} 
-                                                                        />
-                                                                        {c.label}
-                                                                    </label>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Цвета */}
-                                                    <div className="config-section">
-                                                        <div className="section-label">Цвета</div>
-                                                        <div className="colors-row">
-                                                            <label className="modal-field">
-                                                                <span>Цвет корпуса</span>
-                                                                <input 
-                                                                    value={bodyColor} 
-                                                                    onChange={e => setBodyColor(e.target.value)} 
-                                                                    placeholder="Дуб Сонома, Венге..." 
-                                                                />
-                                                            </label>
-                                                            <label className="modal-field">
-                                                                <span>Цвет фасадов</span>
-                                                                <input 
-                                                                    value={facadeColor} 
-                                                                    onChange={e => setFacadeColor(e.target.value)} 
-                                                                    placeholder="Белый, ЛДСП..." 
-                                                                />
-                                                            </label>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Описание */}
-                                                    <div className="config-section">
-                                                        <label className="modal-field">
-                                                            <span>Описание позиции / примечание</span>
-                                                            <textarea 
-                                                                value={customDesc} 
-                                                                onChange={e => setCustomDesc(e.target.value)} 
-                                                                placeholder="Дополнительные пожелания..."
-                                                            />
-                                                        </label>
-                                                    </div>
-
-                                                    {/* Кнопки действий */}
-                                                    <div className="config-actions">
-                                                        {editingItemId && (
-                                                            <button 
-                                                                className="modal-delete-btn"
-                                                                onClick={async () => {
-                                                                    const confirmed = await confirm({
-                                                                        message: 'Удалить эту позицию из заказа?',
-                                                                        confirmLabel: 'Удалить',
-                                                                        danger: true,
-                                                                    });
-                                                                    if (!confirmed) return;
-                                                                    await removePosition(editingItemId);
-                                                                    closeModal();
-                                                                }}
-                                                            >
-                                                                Удалить позицию
-                                                            </button>
-                                                        )}
-
-                                                        <button className="modal-save-btn" onClick={savePosition}>
-                                                            {editingItemId ? 'Сохранить изменения' : 'Добавить в заказ'}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="config-placeholder">
-                                                    <div className="placeholder-icon">🛠️</div>
-                                                    <p>Выберите позицию слева</p>
-                                                    <small>Настройте размеры, цвета и описание выбранной мебели</small>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                {/* Модальное окно (portal — избегаем конфликтов глобальных стилей) */}
+                {modalOpen && createPortal(
+                    <div className={paoModalClassName()} role="dialog" aria-modal="true">
+                        <div className="pao-modal__overlay" onClick={closeModal}>
+                            <div className="pao-modal__dialog" onClick={e => e.stopPropagation()}>
+                                <div className="pao-modal__header">
+                                    <h3>
+                                        {editingItemId ? 'Редактирование позиции' :
+                                            modalType === 'catalog' ? 'Добавить из каталога' : 'Новая произвольная позиция'}
+                                    </h3>
+                                    <button type="button" className="pao-modal__close" onClick={closeModal} aria-label="Закрыть">×</button>
                                 </div>
-                            ) : (
-                                /* УЛУЧШЕННАЯ МОДАЛКА ПРОИЗВОЛЬНОЙ ПОЗИЦИИ */
-                                <div className="modal-body">
-                                    <div className="modal-form custom-form">
-                                        <div className="form-row">
-                                            <label className="modal-field">
-                                                <span>Название позиции *</span>
-                                                <input 
-                                                    value={customItem.title} 
-                                                    onChange={e => setCustomItem(p => ({...p, title: e.target.value}))} 
-                                                    placeholder="Например: Стол обеденный" 
-                                                />
-                                            </label>
-                                            <label className="modal-field">
-                                                <span>Цена за единицу (сом) *</span>
-                                                <input 
-                                                    type="number" 
-                                                    value={customItem.price} 
-                                                    onChange={e => setCustomItem(p => ({...p, price: e.target.value}))} 
-                                                />
-                                            </label>
-                                        </div>
 
-                                        <div className="form-row">
-                                            <label className="modal-field">
-                                                <span>Количество</span>
-                                                <input 
-                                                    type="number" 
-                                                    value={customItem.quantity} 
-                                                    onChange={e => setCustomItem(p => ({...p, quantity: e.target.value}))} 
-                                                />
-                                            </label>
-                                        </div>
-
-                                        <label className="modal-field" style={{gridColumn: '1/-1', marginTop: '8px'}}>
-                                            <span>Описание / примечание</span>
-                                            <textarea 
-                                                value={customItem.description} 
-                                                onChange={e => setCustomItem(p => ({...p, description: e.target.value}))} 
-                                                placeholder="Дополнительная информация о позиции..."
+                                {modalType === 'catalog' ? (
+                                    <div className="pao-modal__body pao-modal__body--catalog">
+                                        <div className="pao-modal__search">
+                                            <input
+                                                type="text"
+                                                placeholder="Поиск по названию мебели..."
+                                                value={productSearch}
+                                                onChange={(e) => setProductSearch(e.target.value)}
                                             />
-                                        </label>
+                                            {productSearch && (
+                                                <button
+                                                    type="button"
+                                                    className="pao-modal__search-clear"
+                                                    onClick={() => setProductSearch('')}
+                                                    title="Очистить поиск"
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
+                                        </div>
 
-                                        <button className="modal-save-btn" onClick={savePosition} style={{marginTop: '20px'}}>
-                                            {editingItemId ? 'Сохранить изменения' : 'Добавить в заказ'}
-                                        </button>
+                                        <div className="pao-modal__split">
+                                            <div className="pao-modal__products-pane">
+                                                {filteredProducts.length === 0 ? (
+                                                    <div className="pao-modal__products-empty">Ничего не найдено</div>
+                                                ) : (
+                                                    <div className="pao-modal__products-list">
+                                                        {filteredProducts.map(p => {
+                                                            const isActive = selectedProduct?.id === p.id;
+                                                            const price = p.price ? `${Number(p.price).toLocaleString()} сом` : '';
+                                                            return (
+                                                                <div
+                                                                    key={p.id}
+                                                                    className={`pao-modal__catalog-card${isActive ? ' is-active' : ''}`}
+                                                                    onClick={() => setSelectedProduct(p)}
+                                                                    role="button"
+                                                                    tabIndex={0}
+                                                                    onKeyDown={(e) => e.key === 'Enter' && setSelectedProduct(p)}
+                                                                >
+                                                                    <div className="pao-modal__catalog-card-img">
+                                                                        {p.img ? <img src={p.img} alt={p.title} /> : <div className="pao-modal__catalog-card-placeholder">🪑</div>}
+                                                                    </div>
+                                                                    <div className="pao-modal__catalog-card-info">
+                                                                        <div className="pao-modal__catalog-card-title">{p.title}</div>
+                                                                        {price && <div className="pao-modal__catalog-card-price">{price}</div>}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="pao-modal__config-pane">
+                                                {selectedProduct ? (
+                                                    <div className="pao-modal__config-content">
+                                                        <div className="pao-modal__config-header">
+                                                            <h4>{selectedProduct.title}</h4>
+                                                            {selectedProduct.price && (
+                                                                <div className="pao-modal__config-price">{Number(selectedProduct.price).toLocaleString()} сом / шт</div>
+                                                            )}
+                                                        </div>
+
+                                                        {(selectedProduct.variables || []).length > 0 && (
+                                                            <div className="pao-modal__config-section">
+                                                                <div className="pao-modal__section-label">Параметры</div>
+                                                                <div className="pao-modal__inputs">
+                                                                    {(selectedProduct.variables || []).map(v => (
+                                                                        <label key={v.name} className="pao-modal__field">
+                                                                            <span>{v.label}</span>
+                                                                            <input
+                                                                                type="number"
+                                                                                value={inputs[v.name] ?? ''}
+                                                                                onChange={e => setInputs(prev => ({ ...prev, [v.name]: e.target.value }))}
+                                                                            />
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {(selectedProduct.conditions || []).some(c => c.type === 'flag') && (
+                                                            <div className="pao-modal__config-section">
+                                                                <div className="pao-modal__section-label">Опции</div>
+                                                                <div className="pao-modal__checkboxes">
+                                                                    {(selectedProduct.conditions || []).map(c => c.type === 'flag' && (
+                                                                        <label key={c.name} className="pao-modal__checkbox">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={!!inputs[c.name]}
+                                                                                onChange={() => setInputs(prev => ({ ...prev, [c.name]: !prev[c.name] }))}
+                                                                            />
+                                                                            {c.label}
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="pao-modal__config-section">
+                                                            <div className="pao-modal__section-label">Цвета</div>
+                                                            <div className="pao-modal__colors-row">
+                                                                <label className="pao-modal__field">
+                                                                    <span>Цвет корпуса</span>
+                                                                    <input
+                                                                        value={bodyColor}
+                                                                        onChange={e => setBodyColor(e.target.value)}
+                                                                        placeholder="Дуб Сонома, Венге..."
+                                                                    />
+                                                                </label>
+                                                                <label className="pao-modal__field">
+                                                                    <span>Цвет фасадов</span>
+                                                                    <input
+                                                                        value={facadeColor}
+                                                                        onChange={e => setFacadeColor(e.target.value)}
+                                                                        placeholder="Белый, ЛДСП..."
+                                                                    />
+                                                                </label>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="pao-modal__config-section">
+                                                            <label className="pao-modal__field">
+                                                                <span>Описание позиции / примечание</span>
+                                                                <textarea
+                                                                    value={customDesc}
+                                                                    onChange={e => setCustomDesc(e.target.value)}
+                                                                    placeholder="Дополнительные пожелания..."
+                                                                />
+                                                            </label>
+                                                        </div>
+
+                                                        <div className="pao-modal__config-actions">
+                                                            {editingItemId && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="pao-modal__delete-btn"
+                                                                    onClick={async () => {
+                                                                        const confirmed = await confirm({
+                                                                            message: 'Удалить эту позицию из заказа?',
+                                                                            confirmLabel: 'Удалить',
+                                                                            danger: true,
+                                                                        });
+                                                                        if (!confirmed) return;
+                                                                        await removePosition(editingItemId);
+                                                                        closeModal();
+                                                                    }}
+                                                                >
+                                                                    Удалить позицию
+                                                                </button>
+                                                            )}
+
+                                                            <button type="button" className="pao-modal__save-btn" onClick={savePosition}>
+                                                                {editingItemId ? 'Сохранить изменения' : 'Добавить в заказ'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="pao-modal__config-placeholder">
+                                                        <div className="pao-modal__placeholder-icon">🛠️</div>
+                                                        <p>Выберите позицию слева</p>
+                                                        <small>Настройте размеры, цвета и описание выбранной мебели</small>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="pao-modal__body">
+                                        <div className="pao-modal__form">
+                                            <div className="pao-modal__form-row">
+                                                <label className="pao-modal__field">
+                                                    <span>Название позиции *</span>
+                                                    <input
+                                                        value={customItem.title}
+                                                        onChange={e => setCustomItem(p => ({ ...p, title: e.target.value }))}
+                                                        placeholder="Например: Стол обеденный"
+                                                    />
+                                                </label>
+                                                <label className="pao-modal__field">
+                                                    <span>Цена за единицу (сом) *</span>
+                                                    <input
+                                                        type="number"
+                                                        value={customItem.price}
+                                                        onChange={e => setCustomItem(p => ({ ...p, price: e.target.value }))}
+                                                    />
+                                                </label>
+                                            </div>
+
+                                            <div className="pao-modal__form-row">
+                                                <label className="pao-modal__field">
+                                                    <span>Количество</span>
+                                                    <input
+                                                        type="number"
+                                                        value={customItem.quantity}
+                                                        onChange={e => setCustomItem(p => ({ ...p, quantity: e.target.value }))}
+                                                    />
+                                                </label>
+                                            </div>
+
+                                            <label className="pao-modal__field pao-modal__field--full">
+                                                <span>Описание / примечание</span>
+                                                <textarea
+                                                    value={customItem.description}
+                                                    onChange={e => setCustomItem(p => ({ ...p, description: e.target.value }))}
+                                                    placeholder="Дополнительная информация о позиции..."
+                                                />
+                                            </label>
+
+                                            <button type="button" className="pao-modal__save-btn pao-modal__save-btn--spaced" onClick={savePosition}>
+                                                {editingItemId ? 'Сохранить изменения' : 'Добавить в заказ'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
 
                 {/* Список позиций */}
@@ -773,7 +788,7 @@ const PlacingAnOrder = () => {
                     <h3>Состав заказа ({order.positions.length})</h3>
                     <div className="total-line">
                         {discountPercent > 0 && (
-                            <span style={{ marginRight: '14px', color: '#64748b' }}>
+                            <span className="placing_an_order__discount-note">
                                 Без скидки: {getSubtotal().toLocaleString()} сом (−{discountPercent}%)
                             </span>
                         )}
