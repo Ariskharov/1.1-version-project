@@ -334,24 +334,6 @@ const Admin = () => {
         };
     };
 
-    const openUserForm = (user = null) => {
-        setSelectedUser(user);
-        setIsUserModalOpen(true);
-        if (user) {
-            setValue('fullName', user.fullName);
-            setValue('login', user.login);
-            setValue('phone', user.phone || '');
-            setValue('position', user.position || '');
-            setValue('badgeId', user.badgeId || '');
-            setValue('role', user.role || 'user');
-            setValue('description', user.description || '');
-            setValue('avatar', user.avatar || null);
-        } else {
-            reset();
-            setValue('role', 'user');
-        }
-    };
-
     const focusEmployee = (userId) => {
         setEmployeeFilter(userId);
         setActivePreset('all');
