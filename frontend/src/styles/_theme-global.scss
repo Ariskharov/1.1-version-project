@@ -1,0 +1,33 @@
+// =============================================================================
+// ГЛОБАЛЬНЫЕ СТИЛИ ТЕМ — фон body, selection, scrollbar
+// =============================================================================
+
+@import './theme-tokens-dark';
+@import './theme-tokens-light';
+
+$theme-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+html[data-catalog-theme='dark'] {
+  body,
+  .main {
+    background-color: $dt-bg-base;
+    background-image: $dt-bg-gradient;
+    transition: background-color 0.45s $theme-ease, background-image 0.45s $theme-ease;
+  }
+}
+
+html[data-catalog-theme='light'] {
+  body,
+  .main {
+    background-color: $lt-bg-base;
+    background-image: $lt-bg-gradient;
+    transition: background-color 0.45s $theme-ease, background-image 0.45s $theme-ease;
+  }
+
+  ::selection {
+    background: rgba(184, 149, 74, 0.28);
+    color: $lt-text;
+  }
+
+  scrollbar-color: $lt-scrollbar $lt-scrollbar-track;
+}

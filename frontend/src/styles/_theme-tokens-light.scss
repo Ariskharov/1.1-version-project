@@ -1,0 +1,95 @@
+// =============================================================================
+// СВЕТЛАЯ ТЕМА — SCSS-токены ($lt-*)
+// Редактировать здесь, если нужно изменить светлую палитру глобально.
+// =============================================================================
+
+$lt-bg-base: #f0e9dc;
+$lt-bg-gradient:
+  radial-gradient(ellipse 100% 75% at 50% -18%, rgba(255, 250, 240, 0.98) 0%, transparent 52%),
+  radial-gradient(ellipse 58% 42% at 94% 6%, rgba(212, 175, 120, 0.24) 0%, transparent 58%),
+  radial-gradient(ellipse 48% 38% at 6% 22%, rgba(232, 201, 146, 0.2) 0%, transparent 52%),
+  radial-gradient(ellipse 35% 28% at 72% 92%, rgba(184, 149, 74, 0.1) 0%, transparent 55%),
+  linear-gradient(168deg, #ebe4d6 0%, #faf5ec 30%, #fff9f2 55%, #f5efe4 80%, #e8dfd0 100%);
+
+$lt-surface: rgba(255, 252, 247, 0.93);
+$lt-surface-2: #f5f0e6;
+$lt-surface-glass: rgba(255, 251, 245, 0.86);
+
+$lt-border: rgba(154, 118, 40, 0.28);
+$lt-border-soft: rgba(184, 149, 74, 0.15);
+
+$lt-gold: #9a7628;
+$lt-gold-light: #b8954a;
+$lt-gold-dim: rgba(154, 118, 40, 0.5);
+$lt-gold-subtle: rgba(184, 149, 74, 0.14);
+$lt-gold-hover: rgba(184, 149, 74, 0.2);
+
+$lt-text: #1a1612;
+$lt-muted: #6b5d4f;
+
+$lt-title-gradient: linear-gradient(135deg, #1a1612 0%, #7a5c18 42%, #c49a3c 100%);
+
+$lt-shadow: 0 10px 36px rgba(92, 69, 24, 0.1);
+$lt-shadow-sm: 0 3px 14px rgba(92, 69, 24, 0.07);
+$lt-shadow-card: 0 4px 8px rgba(92, 69, 24, 0.04), 0 14px 32px rgba(92, 69, 24, 0.08);
+$lt-shadow-card-hover:
+  0 8px 16px rgba(92, 69, 24, 0.06),
+  0 24px 48px rgba(184, 149, 74, 0.16),
+  0 0 0 1px rgba(184, 149, 74, 0.2);
+$lt-toolbar-shadow: 0 6px 28px rgba(92, 69, 24, 0.08), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+
+$lt-modal-overlay: rgba(240, 233, 220, 0.88);
+$lt-modal-bg: linear-gradient(168deg, #fffdf9 0%, #faf4ea 45%, #f0e8da 100%);
+$lt-lightbox-bg: rgba(255, 252, 247, 0.97);
+
+$lt-image-bg: linear-gradient(165deg, #faf6ef 0%, #ebe2d0 100%);
+$lt-card-overlay: linear-gradient(to top, rgba(26, 22, 18, 0.42) 0%, transparent 62%);
+$lt-card-shine: rgba(255, 255, 255, 0.8);
+
+$lt-orb-1: rgba(255, 245, 225, 0.95);
+$lt-orb-2: rgba(201, 168, 76, 0.22);
+$lt-grain-opacity: 0.022;
+
+$lt-shadow-gold: rgba(184, 149, 74, 0.32);
+$lt-hover-border: rgba(154, 118, 40, 0.45);
+$lt-result-bg: rgba(184, 149, 74, 0.1);
+$lt-zoom-hint-bg: rgba(26, 22, 18, 0.58);
+$lt-close-bg: rgba(255, 252, 247, 0.97);
+$lt-btn-on-gold: #fffdf9;
+
+$lt-highlight-bg: linear-gradient(135deg, #faf4ea 0%, #f0e6d4 100%);
+$lt-highlight-border: rgba(154, 118, 40, 0.38);
+$lt-header-bg: rgba(184, 149, 74, 0.1);
+$lt-row-hover: rgba(184, 149, 74, 0.08);
+$lt-avatar-bg: linear-gradient(135deg, #f5efe4 0%, #e5d8c4 100%);
+$lt-chart-grid: rgba(184, 149, 74, 0.14);
+
+$lt-success-bg: rgba(22, 163, 74, 0.12);
+$lt-success-text: #15803d;
+$lt-info-bg: rgba(37, 99, 235, 0.1);
+$lt-info-text: #1d4ed8;
+$lt-danger-bg: rgba(220, 38, 38, 0.1);
+$lt-danger-text: #b91c1c;
+$lt-warning-bg: rgba(202, 138, 4, 0.12);
+$lt-warning-text: #a16207;
+
+$lt-input-bg: #fffdf9;
+$lt-scrollbar: rgba(184, 149, 74, 0.45);
+$lt-scrollbar-track: rgba(245, 240, 230, 0.85);
+
+$lt-error: #dc2626;
+$lt-success: #16a34a;
+
+// Header-specific
+$lt-hdr-top-bg: rgba(255, 251, 245, 0.84);
+$lt-hdr-side-bg: rgba(250, 246, 238, 0.92);
+$lt-hdr-border: rgba(154, 118, 40, 0.22);
+$lt-hdr-border-soft: rgba(184, 149, 74, 0.14);
+$lt-hdr-btn-bg: rgba(255, 252, 247, 0.96);
+$lt-hdr-btn-hover: #faf4ea;
+$lt-hdr-shadow: 0 4px 28px rgba(92, 69, 24, 0.09), 0 1px 0 rgba(255, 255, 255, 0.85) inset;
+$lt-hdr-side-shadow: 1px 0 0 $lt-hdr-border-soft, 4px 0 28px rgba(92, 69, 24, 0.07);
+$lt-hdr-active-bg: linear-gradient(135deg, rgba(245, 220, 168, 0.48) 0%, rgba(212, 175, 120, 0.3) 100%);
+$lt-hdr-active-text: #5c4518;
+$lt-hdr-active-border: rgba(154, 118, 40, 0.38);
+$lt-hdr-avatar-ring: rgba(184, 149, 74, 0.42);

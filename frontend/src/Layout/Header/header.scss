@@ -1,95 +1,34 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=DM+Sans:wght@400;500;600&display=swap');
+
+@import '../../styles/theme';
 
 $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+// =============================================================================
+// ТЕМЫ
+// =============================================================================
 
 .header {
   --hdr-font: 'DM Sans', 'Roboto', sans-serif;
   --hdr-serif: 'Cormorant Garamond', Georgia, serif;
 
-  /* Светлая (по умолчанию) */
-  --hdr-top-bg: rgba(255, 255, 255, 0.78);
-  --hdr-side-bg: rgba(250, 249, 246, 0.88);
-  --hdr-border: rgba(184, 149, 74, 0.16);
-  --hdr-border-soft: rgba(222, 225, 230, 0.9);
-  --hdr-text: #171a1f;
-  --hdr-muted: #5a6372;
-  --hdr-gold: #b8954a;
-  --hdr-gold-light: #c9a84c;
-  --hdr-gold-subtle: rgba(184, 149, 74, 0.1);
-  --hdr-gold-hover: rgba(184, 149, 74, 0.14);
-  --hdr-active-bg: linear-gradient(135deg, rgba(232, 201, 146, 0.35) 0%, rgba(184, 149, 74, 0.22) 100%);
-  --hdr-active-text: #5c4518;
-  --hdr-active-border: rgba(184, 149, 74, 0.35);
-  --hdr-btn-bg: #ffffff;
-  --hdr-btn-hover: #faf8f4;
-  --hdr-shadow: 0 4px 24px rgba(23, 26, 31, 0.06);
-  --hdr-side-shadow: 1px 0 0 var(--hdr-border-soft), 4px 0 24px rgba(23, 26, 31, 0.04);
-  --hdr-avatar-ring: rgba(184, 149, 74, 0.35);
-
+  @include theme-header-light;
   font-family: var(--hdr-font);
 
   @media (prefers-color-scheme: dark) {
-    --hdr-top-bg: rgba(18, 16, 14, 0.9);
-    --hdr-side-bg: rgba(16, 14, 12, 0.94);
-    --hdr-border: rgba(212, 175, 120, 0.14);
-    --hdr-border-soft: rgba(212, 175, 120, 0.08);
-    --hdr-text: #f5f0e8;
-    --hdr-muted: #9a9188;
-    --hdr-gold: #d4af78;
-    --hdr-gold-light: #e8c992;
-    --hdr-gold-subtle: rgba(212, 175, 120, 0.08);
-    --hdr-gold-hover: rgba(212, 175, 120, 0.16);
-    --hdr-active-bg: linear-gradient(135deg, rgba(212, 175, 120, 0.22) 0%, rgba(184, 149, 74, 0.12) 100%);
-    --hdr-active-text: #e8c992;
-    --hdr-active-border: rgba(212, 175, 120, 0.3);
-    --hdr-btn-bg: rgba(30, 27, 24, 0.9);
-    --hdr-btn-hover: rgba(40, 36, 32, 0.95);
-    --hdr-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
-    --hdr-side-shadow: 1px 0 0 var(--hdr-border-soft), 4px 0 32px rgba(0, 0, 0, 0.2);
-    --hdr-avatar-ring: rgba(212, 175, 120, 0.4);
+    @include theme-header-dark;
   }
 
   html[data-catalog-theme='light'] & {
-    --hdr-top-bg: rgba(255, 255, 255, 0.78);
-    --hdr-side-bg: rgba(250, 249, 246, 0.88);
-    --hdr-border: rgba(184, 149, 74, 0.16);
-    --hdr-border-soft: rgba(222, 225, 230, 0.9);
-    --hdr-text: #171a1f;
-    --hdr-muted: #5a6372;
-    --hdr-gold: #b8954a;
-    --hdr-gold-light: #c9a84c;
-    --hdr-gold-subtle: rgba(184, 149, 74, 0.1);
-    --hdr-gold-hover: rgba(184, 149, 74, 0.14);
-    --hdr-active-bg: linear-gradient(135deg, rgba(232, 201, 146, 0.35) 0%, rgba(184, 149, 74, 0.22) 100%);
-    --hdr-active-text: #5c4518;
-    --hdr-active-border: rgba(184, 149, 74, 0.35);
-    --hdr-btn-bg: #ffffff;
-    --hdr-btn-hover: #faf8f4;
-    --hdr-shadow: 0 4px 24px rgba(23, 26, 31, 0.06);
-    --hdr-side-shadow: 1px 0 0 var(--hdr-border-soft), 4px 0 24px rgba(23, 26, 31, 0.04);
-    --hdr-avatar-ring: rgba(184, 149, 74, 0.35);
+    @include theme-header-light;
   }
 
   html[data-catalog-theme='dark'] & {
-    --hdr-top-bg: rgba(18, 16, 14, 0.9);
-    --hdr-side-bg: rgba(16, 14, 12, 0.94);
-    --hdr-border: rgba(212, 175, 120, 0.14);
-    --hdr-border-soft: rgba(212, 175, 120, 0.08);
-    --hdr-text: #f5f0e8;
-    --hdr-muted: #9a9188;
-    --hdr-gold: #d4af78;
-    --hdr-gold-light: #e8c992;
-    --hdr-gold-subtle: rgba(212, 175, 120, 0.08);
-    --hdr-gold-hover: rgba(212, 175, 120, 0.16);
-    --hdr-active-bg: linear-gradient(135deg, rgba(212, 175, 120, 0.22) 0%, rgba(184, 149, 74, 0.12) 100%);
-    --hdr-active-text: #e8c992;
-    --hdr-active-border: rgba(212, 175, 120, 0.3);
-    --hdr-btn-bg: rgba(30, 27, 24, 0.9);
-    --hdr-btn-hover: rgba(40, 36, 32, 0.95);
-    --hdr-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
-    --hdr-side-shadow: 1px 0 0 var(--hdr-border-soft), 4px 0 32px rgba(0, 0, 0, 0.2);
-    --hdr-avatar-ring: rgba(212, 175, 120, 0.4);
+    @include theme-header-dark;
   }
+
+// =============================================================================
+// КОМПОНЕНТЫ
+// =============================================================================
 
   &__top {
     position: fixed;

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
+import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { createPortal } from 'react-dom';
 import { Link, useParams } from 'react-router-dom';
 import './order.scss';
@@ -11,7 +12,7 @@ import {
     downloadSpecification,
 } from '../../../utils/contractDocuments';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_BASE = 'http://localhost:8080';
 
 const getQty = (item) => Number(item.quantity || item.userInputs?.coll || 1) || 1;
 
@@ -49,16 +50,10 @@ const Order = () => {
     const ordModalClassName = () =>
         ['ord-modal', `ord-modal--theme-${resolvedTheme}`].join(' ');
 
-    const closeDetailsModal = () => setDetailsItem(null);
+    const detailsModalRef = useRef(null);
+    const closeDetailsModal = useCallback(() => setDetailsItem(null), []);
 
-    useEffect(() => {
-        if (!detailsItem) return undefined;
-        const onKeyDown = (e) => {
-            if (e.key === 'Escape') closeDetailsModal();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [detailsItem]);
+    useDialogA11y(Boolean(detailsItem), closeDetailsModal, detailsModalRef);
 
     useEffect(() => {
         fetch(`${API_BASE}/order/${id}`)
@@ -371,9 +366,17 @@ const Order = () => {
                 </section>
 
                 {detailsItem && createPortal(
-                    <div className={ordModalClassName()} role="dialog" aria-modal="true" aria-labelledby="order-details-title">
+                    <div className={ordModalClassName()} role="presentation">
                         <div className="ord-modal__overlay" onClick={closeDetailsModal}>
-                            <div className="ord-modal__dialog" onClick={(e) => e.stopPropagation()}>
+                            <div
+                                ref={detailsModalRef}
+                                className="ord-modal__dialog"
+                                onClick={(e) => e.stopPropagation()}
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="order-details-title"
+                                tabIndex={-1}
+                            >
                                 <div className="ord-modal__header">
                                     <div>
                                         <h3 id="order-details-title">{detailsItem.title}</h3>
@@ -397,7 +400,7 @@ const Order = () => {
                                         {getItemImageSrc(detailsItem) ? (
                                             <img src={getItemImageSrc(detailsItem)} alt={detailsItem.title} />
                                         ) : (
-                                            <div className="ord-modal__photo-empty">🪑</div>
+                                            <div className="ord-modal__photo-empty" aria-hidden="true">🪑</div>
                                         )}
                                     </div>
 

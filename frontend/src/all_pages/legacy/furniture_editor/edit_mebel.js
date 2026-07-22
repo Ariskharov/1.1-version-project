@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useRef, useCallback } from 'react';
 import './edit_mebel.scss';
 import { CustomContext } from '../../../Context';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
+import { useDialogA11y } from '../../../hooks/useDialogA11y';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-const API_URL = `${API_BASE}/product`;
-const UPLOAD_URL = `${API_BASE}/upload`;
+const API_URL = 'http://localhost:8080/product';
+const UPLOAD_URL = 'http://localhost:8080/upload';
 
 function FurnitureEditor() {
     const { resolvedTheme } = useCatalogTheme();
@@ -297,20 +297,12 @@ function FurnitureEditor() {
     });
   };
 
-  const closeDrawer = () => {
+  const drawerRef = useRef(null);
+  const closeDrawer = useCallback(() => {
     setSelected(null);
-  };
+  }, []);
 
-  // Закрытие по Escape
-  React.useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape' && selected) {
-        closeDrawer();
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [selected]);
+  useDialogA11y(Boolean(selected), closeDrawer, drawerRef);
 
   const filteredProducts = products.filter(p =>
     p.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -371,11 +363,12 @@ function FurnitureEditor() {
             <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
           <input
-            type="text"
+            type="search"
             className="editor-search__input"
             placeholder="Поиск по названию..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Поиск по названию в редакторе"
           />
           {searchTerm && (
             <button
@@ -411,6 +404,15 @@ function FurnitureEditor() {
               className="product-card"
               style={{ '--card-delay': `${idx * 45}ms` }}
               onClick={() => openDrawer(p)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  openDrawer(p);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-labelledby={`editor-card-title-${p.id}`}
             >
               <span className="product-card__shine" aria-hidden="true" />
 
@@ -438,8 +440,8 @@ function FurnitureEditor() {
                 </div>
               </div>
 
-              <div className="product-card-content">
-                <div className="product-card-title">{p.title}</div>
+                <div className="product-card-content">
+                <div id={`editor-card-title-${p.id}`} className="product-card-title">{p.title}</div>
                 <div className="product-card-meta">
                   {p.price ? (
                     <span className="product-card-price">{p.price} сом</span>
@@ -455,6 +457,7 @@ function FurnitureEditor() {
 
               <div className="product-card-actions">
                 <button
+                  type="button"
                   className="btn-delete"
                   disabled={isPending(`delete-${p.id}`)}
                   onClick={(e) => { 
@@ -462,6 +465,7 @@ function FurnitureEditor() {
                     withLoading(`delete-${p.id}`, () => deleteProduct(p.id)); 
                   }}
                   title="Удалить"
+                  aria-label={`Удалить: ${p.title}`}
                 >
                   {isPending(`delete-${p.id}`) ? '...' : '×'}
                 </button>
@@ -482,27 +486,37 @@ function FurnitureEditor() {
       {/* DRAWER — редактор */}
       {selected && (
         <>
-          <div 
-            className={`drawer-backdrop ${selected ? 'open' : ''}`} 
-            onClick={closeDrawer} 
+          <div
+            className={`drawer-backdrop ${selected ? 'open' : ''}`}
+            onClick={closeDrawer}
+            role="presentation"
           />
-          
-          <div className={`drawer ${selected ? 'open' : ''}`}>
+
+          <div
+            ref={drawerRef}
+            className={`drawer ${selected ? 'open' : ''}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="editor-drawer-title"
+            tabIndex={-1}
+          >
             {/* Шапка drawer */}
             <div className="drawer-header">
               <div className="mini-photo">
                 {selected.img ? (
                   <img src={selected.img} alt="" />
                 ) : (
-                  <div className="no-photo">📷</div>
+                  <div className="no-photo" aria-hidden="true">📷</div>
                 )}
               </div>
 
               <div className="title-area">
                 <input
+                  id="editor-drawer-title"
                   value={selected.title}
                   onChange={e => update(['title'], e.target.value)}
                   placeholder="Название мебели"
+                  aria-label="Название мебели"
                 />
               </div>
 

@@ -8,6 +8,8 @@ const authRoutes = require('./src/routes/authRoutes');
 const qrCheckinRoutes = require('./src/routes/qrCheckin');
 const collectionRoutes = require('./src/routes/collectionRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
+const pushRoutes = require('./src/routes/pushRoutes');
+const { ensureTable: ensurePushTable, ensureConfigured: ensurePushConfigured } = require('./src/services/pushService');
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -45,6 +47,9 @@ app.use('/utilse', express.static(path.join(__dirname, '../uploads')));
 // Upload route MUST come before collection routes (otherwise /:collection intercepts /upload)
 app.use('/upload', uploadRoutes);
 
+// Web Push
+app.use('/', pushRoutes);
+
 // Auth and collection routes
 app.use('/', authRoutes);
 app.use('/', qrCheckinRoutes);
@@ -53,6 +58,10 @@ app.use('/', collectionRoutes);
 if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => {
         console.log(`Backend server started on http://localhost:${port}`);
+        ensurePushConfigured();
+        ensurePushTable()
+            .then(() => console.log('[push] subscriptions table ready'))
+            .catch((err) => console.error('[push] table init failed:', err.message));
     });
 }
 

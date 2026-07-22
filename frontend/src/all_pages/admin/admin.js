@@ -1,17 +1,51 @@
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { useForm } from "react-hook-form";
 import './admin.scss';
 import { CustomContext } from '../../Context';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import LoadingSpinner, { LoadingPage } from '../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../context/CatalogThemeContext';
-import { uploadPhoto } from '../../utils/uploadService';
 import { parseISO, differenceInMinutes, addDays, format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import {
+    ANNOUNCEMENT_TYPES,
+    fetchAnnouncements,
+    createAnnouncement,
+    updateAnnouncement,
+    deleteAnnouncement,
+    formatExpiryLabel,
+    isAnnouncementActive,
+} from '../../utils/announcements';
+import PhotoUploadSlot from '../../components/ui/PhotoUploadSlot';
+import { uploadPhoto } from '../../utils/uploadService';
 
 const resolveImageUrl = (img) => {
-  if (!img || typeof img !== 'string') return null;
-  if (img.startsWith('http')) return img;
-  const file = img.split('/').pop();
-  return `/utilse/${file}`;
+    if (!img || typeof img !== 'string') return null;
+    if (img.startsWith('http')) return img;
+    const file = img.split('/').pop();
+    return `/utilse/${file}`;
+};
+
+const EMPTY_ANN_FORM = {
+    title: '',
+    message: '',
+    type: 'urgent',
+    expiresAt: '',
+    isActive: true,
+    image: '',
+};
+
+const toDatetimeLocal = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const toIsoOrNull = (localValue) => {
+    if (!localValue) return null;
+    const d = new Date(localValue);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
 };
 
 // ==================== PURE UTILITIES ====================
@@ -119,6 +153,7 @@ const Admin = () => {
         deleteUser,
         showToast,
         confirm,
+        dataLoaded,
     } = useContext(CustomContext);
 
     // ==================== СОСТОЯНИЯ ====================
@@ -143,7 +178,156 @@ const Admin = () => {
     const [isSavingShift, setIsSavingShift] = useState(false); // для модалки редактирования смены
     const [isSavingUser, setIsSavingUser] = useState(false);   // для модалки пользователя
 
+    // ==================== ОБЪЯВЛЕНИЯ ====================
+    const [announcements, setAnnouncements] = useState([]);
+    const [annForm, setAnnForm] = useState(EMPTY_ANN_FORM);
+    const [editingAnnId, setEditingAnnId] = useState(null);
+    const [annLoading, setAnnLoading] = useState(false);
+    const [annSaving, setAnnSaving] = useState(false);
+    const [annBusyId, setAnnBusyId] = useState(null); // id объявления при toggle/delete
+    const [annPanelOpen, setAnnPanelOpen] = useState(true);
+
     const { register, handleSubmit, reset, setValue, watch } = useForm();
+
+    const userModalRef = useRef(null);
+    const viewModalRef = useRef(null);
+    const editSessionModalRef = useRef(null);
+
+    const closeUserModal = useCallback(() => setIsUserModalOpen(false), []);
+    const closeViewModal = useCallback(() => setIsViewModalOpen(false), []);
+    const closeEditSessionModal = useCallback(() => {
+        setIsEditSessionModalOpen(false);
+        setEditingSession(null);
+    }, []);
+
+    useDialogA11y(isUserModalOpen, closeUserModal, userModalRef);
+    useDialogA11y(isViewModalOpen, closeViewModal, viewModalRef);
+    useDialogA11y(isEditSessionModalOpen, closeEditSessionModal, editSessionModalRef);
+
+    // ==================== ОБЪЯВЛЕНИЯ: загрузка и CRUD ====================
+    const loadAnnouncements = useCallback(() => {
+        setAnnLoading(true);
+        fetchAnnouncements()
+            .then((list) => setAnnouncements(Array.isArray(list) ? list : []))
+            .catch(() => {
+                setAnnouncements([]);
+                showToast('error', 'Не удалось загрузить объявления');
+            })
+            .finally(() => setAnnLoading(false));
+    }, [showToast]);
+
+    useEffect(() => {
+        if (currentUser?.role === 'admin') {
+            loadAnnouncements();
+        }
+    }, [currentUser?.role, loadAnnouncements]);
+
+    const resetAnnForm = () => {
+        setAnnForm(EMPTY_ANN_FORM);
+        setEditingAnnId(null);
+    };
+
+    const handleAnnFormChange = (field, value) => {
+        setAnnForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleAnnPlus24h = () => {
+        const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        setAnnForm((prev) => ({ ...prev, expiresAt: toDatetimeLocal(d.toISOString()) }));
+    };
+
+    const handleEditAnnouncement = (item) => {
+        setEditingAnnId(item.id);
+        setAnnForm({
+            title: item.title || '',
+            message: item.message || '',
+            type: item.type === 'persistent' ? 'persistent' : 'urgent',
+            expiresAt: toDatetimeLocal(item.expiresAt || item.expiresat),
+            isActive: item.isActive !== false && item.isactive !== false,
+        });
+        setAnnPanelOpen(true);
+    };
+
+    const handleSaveAnnouncement = async (e) => {
+        e.preventDefault();
+        const message = (annForm.message || '').trim();
+        if (!message) {
+            showToast('error', 'Введите текст объявления');
+            return;
+        }
+        if (annSaving) return;
+
+        const payload = {
+            title: (annForm.title || '').trim().slice(0, 200),
+            message,
+            type: annForm.type === 'persistent' ? 'persistent' : 'urgent',
+            expiresAt: toIsoOrNull(annForm.expiresAt),
+            isActive: !!annForm.isActive,
+        };
+
+        setAnnSaving(true);
+        try {
+            if (editingAnnId != null) {
+                await updateAnnouncement(editingAnnId, payload);
+                showToast('success', 'Объявление обновлено');
+            } else {
+                await createAnnouncement({
+                    ...payload,
+                    createdBy: currentUser?.id ?? null,
+                });
+                showToast(
+                    'success',
+                    payload.isActive
+                        ? 'Объявление создано. Push отправлен подписчикам.'
+                        : 'Объявление создано (выключено — push не отправлялся).'
+                );
+            }
+            resetAnnForm();
+            loadAnnouncements();
+        } catch (err) {
+            showToast('error', err.message || 'Ошибка сохранения объявления');
+        } finally {
+            setAnnSaving(false);
+        }
+    };
+
+    const handleToggleAnnouncement = async (item) => {
+        if (annBusyId != null || annSaving) return;
+        const nextActive = !(item.isActive !== false && item.isactive !== false);
+        setAnnBusyId(item.id);
+        try {
+            await updateAnnouncement(item.id, { isActive: nextActive });
+            showToast('success', nextActive ? 'Объявление включено' : 'Объявление выключено');
+            loadAnnouncements();
+        } catch (err) {
+            showToast('error', err.message || 'Не удалось изменить статус');
+        } finally {
+            setAnnBusyId(null);
+        }
+    };
+
+    const handleDeleteAnnouncement = async (item) => {
+        if (annBusyId != null || annSaving) return;
+        const preview = String(item.title || item.message || 'Без текста').slice(0, 160);
+        const ok = await confirm({
+            message: `Удалить объявление?\n\n${preview}`,
+            confirmLabel: 'Удалить',
+            cancelLabel: 'Отмена',
+            danger: true,
+        });
+        if (!ok) return;
+        setAnnBusyId(item.id);
+        try {
+            await deleteAnnouncement(item.id);
+            if (Number(editingAnnId) === Number(item.id)) resetAnnForm();
+            showToast('success', 'Объявление удалено');
+            loadAnnouncements();
+        } catch (err) {
+            showToast('error', err.message || 'Не удалось удалить');
+        } finally {
+            setAnnBusyId(null);
+        }
+    };
 
     // ==================== LOADING HELPERS ====================
     const withLoading = (setLoading, id, fn) => {
@@ -376,13 +560,12 @@ const Admin = () => {
                 description: user.description || '',
                 badgeId: user.badgeId || '',
                 role: user.role || 'user',
-                avatar: user.avatar || null,
             });
         } else {
             setSelectedUser(null);
             reset({
                 fullName: '', login: '', password: '', phone: '', position: '',
-                description: '', badgeId: '', role: 'user', avatar: null,
+                description: '', badgeId: '', role: 'user'
             });
         }
         setIsUserModalOpen(true);
@@ -407,8 +590,8 @@ const Admin = () => {
                 // Создание нового
                 const newUserData = {
                     ...data,
-                    email: null,
-                    avatar: data.avatar || null
+                    email: null,           // если нужно
+                    avatar: null
                 };
                 await addUser(newUserData);
                 showToast('success', 'Новый сотрудник успешно создан!');
@@ -532,6 +715,10 @@ const Admin = () => {
         }
     };
 
+    if (!dataLoaded) {
+        return <LoadingPage message="Загрузка панели администратора..." />;
+    }
+
     return (
         <div className={adminClassName()}>
             <div className="admin-ambient" aria-hidden="true">
@@ -561,6 +748,326 @@ const Admin = () => {
                 </div>
             </header>
 
+            <section className="admin-announcements" aria-labelledby="admin-announcements-title">
+                <div className="admin-announcements__head">
+                    <div className="admin-announcements__head-text">
+                        <h2 id="admin-announcements-title" className="admin-announcements__title">
+                            Объявления для сотрудников
+                        </h2>
+                        <div className="admin-announcements__stats">
+                            <span className="admin-announcements__stat">
+                                Всего <strong>{announcements.length}</strong>
+                            </span>
+                            <span className="admin-announcements__stat admin-announcements__stat--on">
+                                Активных{' '}
+                                <strong>
+                                    {announcements.filter((a) => isAnnouncementActive(a)).length}
+                                </strong>
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        className="admin-announcements__toggle"
+                        onClick={() => setAnnPanelOpen((v) => !v)}
+                        aria-expanded={annPanelOpen}
+                        aria-controls="admin-announcements-body"
+                    >
+                        {annPanelOpen ? 'Свернуть' : 'Развернуть'}
+                    </button>
+                </div>
+
+                {annPanelOpen && (
+                    <div id="admin-announcements-body" className="admin-announcements__body">
+                        <form
+                            className={`admin-announcements__form${
+                                editingAnnId != null ? ' admin-announcements__form--editing' : ''
+                            }`}
+                            onSubmit={handleSaveAnnouncement}
+                        >
+                            <div className="admin-announcements__panel-head">
+                                <h3 className="admin-announcements__panel-title">
+                                    {editingAnnId != null ? 'Редактирование' : 'Новое объявление'}
+                                </h3>
+                                <p className="admin-announcements__hint">
+                                    {ANNOUNCEMENT_TYPES[annForm.type]?.hint}
+                                </p>
+                            </div>
+
+                            <div className="admin-announcements__form-grid">
+                                <label className="admin-announcements__field admin-announcements__field--title">
+                                    <span>Заголовок</span>
+                                    <input
+                                        type="text"
+                                        maxLength={200}
+                                        value={annForm.title}
+                                        onChange={(e) => handleAnnFormChange('title', e.target.value)}
+                                        placeholder="Необязательно"
+                                    />
+                                </label>
+                                <label className="admin-announcements__field admin-announcements__field--type">
+                                    <span>Тип</span>
+                                    <select
+                                        value={annForm.type}
+                                        onChange={(e) => handleAnnFormChange('type', e.target.value)}
+                                    >
+                                        {Object.values(ANNOUNCEMENT_TYPES).map((t) => (
+                                            <option key={t.key} value={t.key}>
+                                                {t.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="admin-announcements__field admin-announcements__field--message">
+                                    <span>Текст *</span>
+                                    <textarea
+                                        rows={3}
+                                        required
+                                        value={annForm.message}
+                                        onChange={(e) => handleAnnFormChange('message', e.target.value)}
+                                        placeholder="Текст объявления для сотрудников"
+                                    />
+                                </label>
+
+                                {/* UI под фото к новости — логику upload подключит отдельный разработчик */}
+                                <div className="admin-announcements__field admin-announcements__field--photo">
+                                    <PhotoUploadSlot
+                                        inputId="admin-announcement-photo"
+                                        label="Фото к объявлению"
+                                        hint="Картинка к новости/объявлению"
+                                        variant="banner"
+                                        className="admin-announcements__photo-slot"
+                                        previewUrl={annForm.image ? resolveImageUrl(annForm.image) : ''}
+                                        onFileChange={async (e) => {
+                                            const file = e.target.files[0];
+                                            if (!file) return;
+                                            try {
+                                                const path = await uploadPhoto(file);
+                                                handleAnnFormChange('image', path);
+                                                showToast('success', 'Фото объявления загружено');
+                                            } catch (err) {
+                                                showToast('error', 'Ошибка загрузки фото: ' + err.message);
+                                            }
+                                        }}
+                                        onRemove={() => handleAnnFormChange('image', '')}
+                                    />
+                                </div>
+
+                                <label className="admin-announcements__field admin-announcements__field--expires">
+                                    <span>Дата окончания</span>
+                                    <input
+                                        type="datetime-local"
+                                        value={annForm.expiresAt}
+                                        onChange={(e) => handleAnnFormChange('expiresAt', e.target.value)}
+                                    />
+                                </label>
+
+                                <div className="admin-announcements__toolbar">
+                                    <div className="admin-announcements__toolbar-left">
+                                        <button
+                                            type="button"
+                                            className="admin-ann-btn admin-ann-btn--ghost"
+                                            onClick={handleAnnPlus24h}
+                                        >
+                                            +24 часа
+                                        </button>
+                                        {annForm.expiresAt ? (
+                                            <button
+                                                type="button"
+                                                className="admin-ann-btn admin-ann-btn--ghost"
+                                                onClick={() => handleAnnFormChange('expiresAt', '')}
+                                            >
+                                                Без срока
+                                            </button>
+                                        ) : null}
+                                        <label className="admin-announcements__check">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!annForm.isActive}
+                                                onChange={(e) =>
+                                                    handleAnnFormChange('isActive', e.target.checked)
+                                                }
+                                            />
+                                            <span>Активно</span>
+                                        </label>
+                                    </div>
+                                    <div className="admin-announcements__toolbar-right">
+                                        {editingAnnId != null && (
+                                            <button
+                                                type="button"
+                                                className="admin-ann-btn admin-ann-btn--ghost"
+                                                onClick={resetAnnForm}
+                                                disabled={annSaving}
+                                            >
+                                                Отмена
+                                            </button>
+                                        )}
+                                        <button
+                                            type="submit"
+                                            className="admin-ann-btn admin-ann-btn--primary"
+                                            disabled={annSaving}
+                                        >
+                                            {annSaving
+                                                ? 'Сохранение…'
+                                                : editingAnnId != null
+                                                  ? 'Сохранить'
+                                                  : 'Создать'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+
+                        <div className="admin-announcements__list-wrap">
+                            <div className="admin-announcements__panel-head">
+                                <h3 className="admin-announcements__panel-title">Все объявления</h3>
+                                <span className="admin-announcements__list-meta">
+                                    {annLoading
+                                        ? 'Загрузка…'
+                                        : announcements.length === 0
+                                          ? 'пусто'
+                                          : `${announcements.length} шт.`}
+                                </span>
+                            </div>
+
+                            <div className="admin-announcements__list" role="list">
+                                {annLoading && (
+                                    <p className="admin-announcements__empty">Загрузка объявлений…</p>
+                                )}
+                                {!annLoading && announcements.length === 0 && (
+                                    <p className="admin-announcements__empty">
+                                        Пока нет объявлений — создайте первое слева
+                                    </p>
+                                )}
+                                {!annLoading &&
+                                    [...announcements]
+                                        .sort((a, b) => {
+                                            const da = new Date(
+                                                a.createdAt || a.createdat || 0
+                                            ).getTime();
+                                            const db = new Date(
+                                                b.createdAt || b.createdat || 0
+                                            ).getTime();
+                                            return db - da;
+                                        })
+                                        .map((item) => {
+                                            const active = isAnnouncementActive(item);
+                                            const typeLabel =
+                                                ANNOUNCEMENT_TYPES[item.type]?.label ||
+                                                item.type ||
+                                                '—';
+                                            const expires = item.expiresAt || item.expiresat;
+                                            const itemBusy =
+                                                Number(annBusyId) === Number(item.id);
+                                            const isEditing =
+                                                Number(editingAnnId) === Number(item.id);
+                                            return (
+                                                <article
+                                                    key={item.id}
+                                                    className={[
+                                                        'admin-announcements__item',
+                                                        item.type === 'persistent'
+                                                            ? 'admin-announcements__item--persistent'
+                                                            : 'admin-announcements__item--urgent',
+                                                        active
+                                                            ? ''
+                                                            : 'admin-announcements__item--inactive',
+                                                        isEditing
+                                                            ? 'admin-announcements__item--editing'
+                                                            : '',
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' ')}
+                                                    role="listitem"
+                                                >
+                                                    <div className="admin-announcements__item-main">
+                                                        <div className="admin-announcements__item-meta">
+                                                            <span
+                                                                className={`admin-ann-badge admin-ann-badge--${
+                                                                    item.type === 'persistent'
+                                                                        ? 'persistent'
+                                                                        : 'urgent'
+                                                                }`}
+                                                            >
+                                                                {typeLabel}
+                                                            </span>
+                                                            <span
+                                                                className={`admin-ann-badge ${
+                                                                    active
+                                                                        ? 'admin-ann-badge--on'
+                                                                        : 'admin-ann-badge--off'
+                                                                }`}
+                                                            >
+                                                                {active
+                                                                    ? 'Активно'
+                                                                    : 'Не показывается'}
+                                                            </span>
+                                                            <span className="admin-announcements__expiry">
+                                                                {formatExpiryLabel(expires)}
+                                                            </span>
+                                                        </div>
+                                                        {item.title ? (
+                                                            <strong className="admin-announcements__item-title">
+                                                                {item.title}
+                                                            </strong>
+                                                        ) : null}
+                                                        <p className="admin-announcements__item-text">
+                                                            {item.message}
+                                                        </p>
+                                                    </div>
+                                                    <div className="admin-announcements__item-actions">
+                                                        <button
+                                                            type="button"
+                                                            className="admin-ann-btn admin-ann-btn--ghost"
+                                                            onClick={() =>
+                                                                handleEditAnnouncement(item)
+                                                            }
+                                                            disabled={
+                                                                annSaving || annBusyId != null
+                                                            }
+                                                        >
+                                                            Изменить
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="admin-ann-btn admin-ann-btn--ghost"
+                                                            onClick={() =>
+                                                                handleToggleAnnouncement(item)
+                                                            }
+                                                            disabled={
+                                                                annSaving || annBusyId != null
+                                                            }
+                                                        >
+                                                            {itemBusy
+                                                                ? '…'
+                                                                : item.isActive !== false &&
+                                                                    item.isactive !== false
+                                                                  ? 'Выкл'
+                                                                  : 'Вкл'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="admin-ann-btn admin-ann-btn--danger"
+                                                            onClick={() =>
+                                                                handleDeleteAnnouncement(item)
+                                                            }
+                                                            disabled={
+                                                                annSaving || annBusyId != null
+                                                            }
+                                                        >
+                                                            {itemBusy ? '…' : 'Удалить'}
+                                                        </button>
+                                                    </div>
+                                                </article>
+                                            );
+                                        })}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </section>
+
             <div className="admin__top">
                 <div className="admin__top__left">
                     <div className="admin__filters">
@@ -569,12 +1076,14 @@ const Admin = () => {
                             <span className="admin__filters__period">{getPeriodLabel(activePreset, dateRange)}</span>
                         </div>
                         {/* Быстрые пресеты периодов */}
-                        <div className="admin__filters__presets">
+                        <div className="admin__filters__presets" role="group" aria-label="Период">
                             {PERIOD_PRESETS.map(preset => (
                                 <button
                                     key={preset.key}
+                                    type="button"
                                     className={`preset-btn ${activePreset === preset.key ? 'active' : ''}`}
                                     onClick={() => setActivePreset(preset.key)}
+                                    aria-pressed={activePreset === preset.key}
                                 >
                                     {preset.label}
                                 </button>
@@ -603,6 +1112,7 @@ const Admin = () => {
                         {/* Компактная панель фильтров */}
                         <div className="admin__filters__toolbar">
                             <select
+                                aria-label="Фильтр по сотруднику"
                                 value={employeeFilter}
                                 onChange={(e) => {
                                     const val = e.target.value;
@@ -626,6 +1136,7 @@ const Admin = () => {
                             </select>
 
                             <select
+                                aria-label="Фильтр по статусу смены"
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
                                 title="Фильтр по статусу смены"
@@ -636,6 +1147,7 @@ const Admin = () => {
                             </select>
 
                             <select
+                                aria-label="Сортировка смен"
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
                                 title="Сортировка"
@@ -686,8 +1198,8 @@ const Admin = () => {
                         </div>
                     </div>
 
-                    <div className="admin__table">
-                        <div className="admin__table__header">
+                    <div className="admin__table" role="region" aria-label="Журнал смен по сотрудникам">
+                        <div className="admin__table__header" aria-hidden="true">
                             <span></span>
                             <span>Период</span>
                             <span>Приход</span>
@@ -712,6 +1224,7 @@ const Admin = () => {
                                                 className="btn-focus"
                                                 onClick={() => focusEmployee(user.id)}
                                                 title="Показать все смены этого сотрудника"
+                                                aria-label={`Показать все смены: ${user.fullName}`}
                                             >
                                                 Фокус
                                             </button>
@@ -753,20 +1266,24 @@ const Admin = () => {
                                                         </button>
                                                     )}
                                                     <button
+                                                        type="button"
                                                         onClick={() => openEditSessionModal(session)}
                                                         className="btn-edit"
                                                         title="Редактировать смену"
+                                                        aria-label={`Редактировать смену ${formatShiftPeriod(session)}`}
                                                         disabled={isShiftActionPending(session.id)}
                                                     >
-                                                        ✎
+                                                        <span aria-hidden="true">✎</span>
                                                     </button>
                                                     <button
+                                                        type="button"
                                                         onClick={() => handleDeleteShift(session.id)}
                                                         className="btn-delete"
                                                         title="Удалить смену"
+                                                        aria-label={`Удалить смену ${formatShiftPeriod(session)}`}
                                                         disabled={isShiftActionPending(session.id)}
                                                     >
-                                                        {isShiftActionPending(session.id) ? '⏳' : '🗑'}
+                                                        <span aria-hidden="true">{isShiftActionPending(session.id) ? '⏳' : '🗑'}</span>
                                                     </button>
                                                 </span>
                                             </div>
@@ -807,11 +1324,12 @@ const Admin = () => {
                             <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                         </svg>
                         <input
-                            type="text"
+                            type="search"
                             className="admin-search__input"
                             placeholder="Поиск сотрудника..."
                             value={employeeSearch}
                             onChange={(e) => setEmployeeSearch(e.target.value)}
+                            aria-label="Поиск сотрудника"
                         />
                         {employeeSearch && (
                             <button
@@ -839,8 +1357,8 @@ const Admin = () => {
                             >
                                 <div className="user-item__head">
                                     <span className="user-item__avatar" aria-hidden="true">
-                                        {resolveImageUrl(user.avatar) ? (
-                                            <img src={resolveImageUrl(user.avatar)} alt={user.fullName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                        {user.avatar ? (
+                                            <img src={resolveImageUrl(user.avatar)} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                                         ) : (
                                             getInitials(user.fullName)
                                         )}
@@ -872,9 +1390,15 @@ const Admin = () => {
                                     >
                                         Фокус
                                     </button>
-                                    <button onClick={() => openViewModal(user)} className="btn-view">👁 Просмотреть</button>
-                                    <button onClick={() => openUserForm(user)} className="btn-edit">✎ Редактировать</button>
-                                    <button onClick={() => handleDeleteUser(user)} className="btn-delete">🗑 Удалить</button>
+                                    <button type="button" onClick={() => openViewModal(user)} className="btn-view" aria-label={`Просмотреть профиль: ${user.fullName}`}>
+                                        <span aria-hidden="true">👁</span> Просмотреть
+                                    </button>
+                                    <button type="button" onClick={() => openUserForm(user)} className="btn-edit" aria-label={`Редактировать: ${user.fullName}`}>
+                                        <span aria-hidden="true">✎</span> Редактировать
+                                    </button>
+                                    <button type="button" onClick={() => handleDeleteUser(user)} className="btn-delete" aria-label={`Удалить сотрудника: ${user.fullName}`}>
+                                        <span aria-hidden="true">🗑</span> Удалить
+                                    </button>
                                 </div>
                             </div>
                         );
@@ -885,48 +1409,52 @@ const Admin = () => {
 
             {/* Модалка создания / редактирования */}
             {isUserModalOpen && (
-                <div className="modal" onClick={() => !isSavingUser && setIsUserModalOpen(false)}>
-                    <div className="modal__content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal" onClick={() => !isSavingUser && setIsUserModalOpen(false)} role="presentation">
+                    <div
+                        ref={userModalRef}
+                        className="modal__content"
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="admin-user-modal-title"
+                        tabIndex={-1}
+                    >
                         <button type="button" className="modal__close" onClick={() => setIsUserModalOpen(false)} aria-label="Закрыть">✕</button>
-                        <h2>{selectedUser ? 'Редактирование сотрудника' : 'Новый сотрудник'}</h2>
+                        <h2 id="admin-user-modal-title">{selectedUser ? 'Редактирование сотрудника' : 'Новый сотрудник'}</h2>
                         <form onSubmit={handleSubmit(onSubmitUser)}>
-                            <input {...register('fullName', { required: true })} placeholder="ФИО *" />
-                            <input {...register('login', { required: true })} placeholder="Логин *" />
-                            <input {...register('password')} type="password" placeholder="Пароль" />
-                            <input {...register('phone')} placeholder="Телефон" />
-                            <input {...register('position')} placeholder="Должность" />
-                            <input {...register('badgeId')} placeholder="ID Бейджика" />
-                            <select {...register('role')}>
+                            {/* UI аватара — логику upload подключит отдельный разработчик */}
+                            <PhotoUploadSlot
+                                inputId="admin-user-avatar"
+                                label="Аватар"
+                                hint="Фото профиля"
+                                variant="avatar"
+                                className="modal__avatar-slot"
+                                previewUrl={watch('avatar') ? resolveImageUrl(watch('avatar')) : ''}
+                                onFileChange={async (e) => {
+                                    const file = e.target.files[0];
+                                    if (!file) return;
+                                    try {
+                                        const path = await uploadPhoto(file);
+                                        setValue('avatar', path);
+                                        showToast('success', 'Аватар сотрудника загружен');
+                                    } catch (err) {
+                                        showToast('error', 'Ошибка загрузки аватара: ' + err.message);
+                                    }
+                                }}
+                                onRemove={() => setValue('avatar', null)}
+                            />
+                            <input {...register('fullName', { required: true })} placeholder="ФИО *" aria-label="ФИО" />
+                            <input {...register('login', { required: true })} placeholder="Логин *" aria-label="Логин" />
+                            <input {...register('password')} type="password" placeholder="Пароль" aria-label="Пароль" />
+                            <input {...register('phone')} placeholder="Телефон" aria-label="Телефон" />
+                            <input {...register('position')} placeholder="Должность" aria-label="Должность" />
+                            <input {...register('badgeId')} placeholder="ID Бейджика" aria-label="ID бейджа" />
+                            <select {...register('role')} aria-label="Роль">
                                 <option value="user">Сотрудник</option>
                                 <option value="manager">Менеджер</option>
                                 <option value="admin">Администратор</option>
                             </select>
-                            <textarea {...register('description')} placeholder="Описание" rows={3} />
-
-                            <div style={{ margin: '12px 0' }}>
-                                <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', color: '#94a3b8' }}>Аватар сотрудника</label>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={async (e) => {
-                                        const file = e.target.files[0];
-                                        if (!file) return;
-                                        try {
-                                            const path = await uploadPhoto(file);
-                                            setValue('avatar', path);
-                                            showToast('success', 'Аватар загружен');
-                                        } catch (err) {
-                                            showToast('error', 'Ошибка загрузки аватара: ' + err.message);
-                                        }
-                                    }}
-                                />
-                                {watch('avatar') && (
-                                    <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <img src={resolveImageUrl(watch('avatar'))} alt="Preview" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
-                                        <small style={{ color: '#4ade80' }}>✓ Аватар загружен</small>
-                                    </div>
-                                )}
-                            </div>
+                            <textarea {...register('description')} placeholder="Описание" rows={3} aria-label="Описание" />
 
                             <div className="modal__actions">
                                 <button type="submit" disabled={isSavingUser}>
@@ -947,15 +1475,23 @@ const Admin = () => {
 
             {/* Остальные модалки (просмотр и редактирование смены) */}
             {isViewModalOpen && selectedUser && (
-                <div className="modal" onClick={() => setIsViewModalOpen(false)}>
-                    <div className="modal__content modal__content--large" onClick={(e) => e.stopPropagation()}>
-                        <h2>Профиль — {selectedUser.fullName}</h2>
+                <div className="modal" onClick={() => setIsViewModalOpen(false)} role="presentation">
+                    <div
+                        ref={viewModalRef}
+                        className="modal__content modal__content--large"
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="admin-view-modal-title"
+                        tabIndex={-1}
+                    >
+                        <h2 id="admin-view-modal-title">Профиль — {selectedUser.fullName}</h2>
                         <button type="button" className="modal__close" onClick={() => setIsViewModalOpen(false)} aria-label="Закрыть">✕</button>
 
                         <div className="user-info">
                             <div className="user-info__avatar" aria-hidden="true">
-                                {resolveImageUrl(selectedUser.avatar) ? (
-                                    <img src={resolveImageUrl(selectedUser.avatar)} alt={selectedUser.fullName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                {selectedUser.avatar ? (
+                                    <img src={resolveImageUrl(selectedUser.avatar)} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                                 ) : (
                                     getInitials(selectedUser.fullName)
                                 )}
@@ -983,20 +1519,24 @@ const Admin = () => {
                                         <div className="history-time">{formatTime(session.startTime)} — {formatTime(session.endTime)}</div>
                                         <div className="history-duration">{formatDuration(session)}</div>
                                         <div className="history-item__actions">
-                                            <button 
-                                                onClick={() => openEditSessionModal(session)} 
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditSessionModal(session)}
                                                 className="btn-edit-small"
+                                                aria-label={`Редактировать смену ${formatShiftPeriod(session)}`}
                                                 disabled={isShiftActionPending(session.id)}
                                             >
-                                                ✎
+                                                <span aria-hidden="true">✎</span>
                                             </button>
-                                            <button 
-                                                onClick={() => handleDeleteShift(session.id)} 
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteShift(session.id)}
                                                 className="btn-delete btn-delete--compact"
                                                 title="Удалить смену"
+                                                aria-label={`Удалить смену ${formatShiftPeriod(session)}`}
                                                 disabled={isShiftActionPending(session.id)}
                                             >
-                                                {isShiftActionPending(session.id) ? '⏳' : '🗑'}
+                                                <span aria-hidden="true">{isShiftActionPending(session.id) ? '⏳' : '🗑'}</span>
                                             </button>
                                         </div>
                                     </div>
@@ -1008,8 +1548,16 @@ const Admin = () => {
             )}
 
             {isEditSessionModalOpen && editingSession && (
-                <div className="modal" onClick={() => !isSavingShift && setIsEditSessionModalOpen(false)}>
-                    <div className="modal__content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal" onClick={() => !isSavingShift && setIsEditSessionModalOpen(false)} role="presentation">
+                    <div
+                        ref={editSessionModalRef}
+                        className="modal__content"
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="admin-edit-session-title"
+                        tabIndex={-1}
+                    >
                         <button
                             type="button"
                             className="modal__close"
@@ -1018,7 +1566,7 @@ const Admin = () => {
                         >
                             ✕
                         </button>
-                        <h2>Редактирование смены</h2>
+                        <h2 id="admin-edit-session-title">Редактирование смены</h2>
                         <p className="modal__subtitle">
                             <strong>{users.find(u => Number(u.id) === Number(editingSession.userId))?.fullName || 'Сотрудник'}</strong>
                             {' — '}{formatShiftPeriod(editingSession)}

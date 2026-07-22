@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, memo } from 'react';
 import { useFurnitureCalculator } from './useFurnitureCalculator';
 import './catalog.scss';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
+import { useDialogA11y } from '../../../hooks/useDialogA11y';
 
 const SORT_OPTIONS = [
     { value: 'name-asc', label: 'По названию А–Я' },
@@ -10,6 +11,42 @@ const SORT_OPTIONS = [
     { value: 'price-asc', label: 'Сначала дешевле' },
     { value: 'price-desc', label: 'Сначала дороже' },
 ];
+
+const CatalogCard = memo(({ product, index, onOpen }) => (
+    <li>
+        <button
+            type="button"
+            className="catalog-card"
+            style={{ '--card-delay': `${Math.min(index, 12) * 50}ms` }}
+            onClick={() => onOpen(product)}
+            aria-labelledby={`catalog-card-title-${product.id}`}
+            aria-describedby={product.price ? `catalog-card-price-${product.id}` : undefined}
+        >
+            <div className="catalog-card__shine" aria-hidden="true" />
+            <div className="catalog-card__image-wrap" aria-hidden="true">
+                <img
+                    src={product.img}
+                    alt=""
+                    className="catalog-card__image"
+                    loading="lazy"
+                    decoding="async"
+                />
+                <div className="catalog-card__overlay">
+                    <span className="catalog-card__cta">Рассчитать</span>
+                </div>
+            </div>
+            <div className="catalog-card__body">
+                <span id={`catalog-card-title-${product.id}`} className="catalog-card__title">{product.title}</span>
+                {product.price && (
+                    <div id={`catalog-card-price-${product.id}`} className="catalog-card__price">
+                        <span className="catalog-card__price-value">{product.price}</span>
+                        <span className="catalog-card__price-currency">сом</span>
+                    </div>
+                )}
+            </div>
+        </button>
+    </li>
+));
 
 const parsePrice = (price) => {
     if (price == null || price === '') return null;
@@ -39,6 +76,8 @@ const Catalog = () => {
     const [copiedResults, setCopiedResults] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const { resolvedTheme } = useCatalogTheme();
+    const modalRef = useRef(null);
+    const lightboxRef = useRef(null);
 
     const catalogClassName = (extra = '') =>
         ['catalog', `catalog--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
@@ -62,16 +101,17 @@ const Catalog = () => {
         }
     }, [selectedProduct]);
 
-    useEffect(() => {
-        const onKey = (e) => {
-            if (e.key === 'Escape') {
-                if (isImageViewerOpen) setIsImageViewerOpen(false);
-                else if (selectedProduct) closeModal();
-            }
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [selectedProduct, isImageViewerOpen, closeModal]);
+    useDialogA11y(
+        Boolean(selectedProduct && modalVisible && !isImageViewerOpen),
+        closeModal,
+        modalRef,
+    );
+    useDialogA11y(
+        isImageViewerOpen,
+        () => setIsImageViewerOpen(false),
+        lightboxRef,
+        { hideBackground: false },
+    );
 
     const filteredProducts = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
@@ -129,7 +169,7 @@ const Catalog = () => {
         return (
             <div className={catalogClassName('catalog--state')}>
                 <div className="catalog-state-card catalog-state-card--error">
-                    <span className="catalog-state-icon">!</span>
+                    <span className="catalog-state-icon" aria-hidden="true">!</span>
                     <h2>Не удалось загрузить каталог</h2>
                     <p>{error}</p>
                 </div>
@@ -141,7 +181,7 @@ const Catalog = () => {
         return (
             <div className={catalogClassName('catalog--state')}>
                 <div className="catalog-state-card">
-                    <span className="catalog-state-icon">◇</span>
+                    <span className="catalog-state-icon" aria-hidden="true">◇</span>
                     <h2>Каталог пуст</h2>
                     <p>Добавьте изделия в панели администратора</p>
                 </div>
@@ -157,32 +197,34 @@ const Catalog = () => {
                 <div className="catalog-ambient__grain" />
             </div>
 
-            <header className="catalog-hero">
-                <div className="catalog-hero__badge">Коллекция мебели</div>
-                <h1 className="catalog-hero__title">Расчёт мебели</h1>
+            <header className="catalog-hero" aria-labelledby="catalog-hero-title">
+                <p className="catalog-hero__badge">Коллекция мебели</p>
+                <h1 id="catalog-hero-title" className="catalog-hero__title">Расчёт мебели</h1>
                 <p className="catalog-hero__subtitle">
                     Выберите изделие, задайте параметры и получите точный расчёт материалов
                 </p>
-                <div className="catalog-hero__stats">
-                    <div className="catalog-stat">
+                <div className="catalog-hero__stats" role="status" aria-live="polite">
+                    <p className="catalog-stat">
                         <span className="catalog-stat__value">{products.length}</span>
-                        <span className="catalog-stat__label">позиций</span>
-                    </div>
+                        <span className="catalog-stat__label">позиций в каталоге</span>
+                    </p>
                 </div>
             </header>
 
-            <div className="catalog-toolbar">
-                <div className="catalog-search">
+            <div className="catalog-toolbar" role="region" aria-label="Поиск и сортировка каталога">
+                <div className="catalog-search" role="search">
                     <svg className="catalog-search__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
                         <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                     </svg>
                     <input
-                        type="text"
+                        id="catalog-search-input"
+                        type="search"
                         placeholder="Поиск по названию..."
                         className="catalog-search__input"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        aria-label="Поиск по названию в каталоге"
                     />
                     {searchTerm && (
                         <button
@@ -197,12 +239,14 @@ const Catalog = () => {
                 </div>
 
                 <div className="catalog-toolbar__actions">
-                    <label className="catalog-sort">
+                    <label className="catalog-sort" htmlFor="catalog-sort-select">
                         <span className="catalog-sort__label">Сортировка</span>
                         <select
+                            id="catalog-sort-select"
                             className="catalog-sort__select"
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value)}
+                            aria-label="Сортировка списка изделий"
                         >
                             {SORT_OPTIONS.map((opt) => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -216,24 +260,26 @@ const Catalog = () => {
                             className={`catalog-view-toggle__btn ${viewMode === 'grid' ? 'is-active' : ''}`}
                             onClick={() => setViewMode('grid')}
                             aria-pressed={viewMode === 'grid'}
+                            aria-label="Сетка"
                             title="Сетка"
                         >
-                            <svg viewBox="0 0 20 20" fill="currentColor"><rect x="1" y="1" width="7" height="7" rx="1.5" /><rect x="12" y="1" width="7" height="7" rx="1.5" /><rect x="1" y="12" width="7" height="7" rx="1.5" /><rect x="12" y="12" width="7" height="7" rx="1.5" /></svg>
+                            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="7" height="7" rx="1.5" /><rect x="12" y="1" width="7" height="7" rx="1.5" /><rect x="1" y="12" width="7" height="7" rx="1.5" /><rect x="12" y="12" width="7" height="7" rx="1.5" /></svg>
                         </button>
                         <button
                             type="button"
                             className={`catalog-view-toggle__btn ${viewMode === 'list' ? 'is-active' : ''}`}
                             onClick={() => setViewMode('list')}
                             aria-pressed={viewMode === 'list'}
+                            aria-label="Список"
                             title="Список"
                         >
-                            <svg viewBox="0 0 20 20" fill="currentColor"><rect x="1" y="3" width="18" height="3" rx="1" /><rect x="1" y="8.5" width="18" height="3" rx="1" /><rect x="1" y="14" width="18" height="3" rx="1" /></svg>
+                            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><rect x="1" y="3" width="18" height="3" rx="1" /><rect x="1" y="8.5" width="18" height="3" rx="1" /><rect x="1" y="14" width="18" height="3" rx="1" /></svg>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <section className="catalog-products">
+            <section className="catalog-products" aria-label="Список изделий">
                 {filteredProducts.length === 0 ? (
                     <div className="catalog-empty">
                         <p>По запросу «{searchTerm}» ничего не найдено</p>
@@ -242,46 +288,16 @@ const Catalog = () => {
                         </button>
                     </div>
                 ) : (
-                    <div className={`catalog-grid catalog-grid--${viewMode}`}>
+                    <ul className={`catalog-grid catalog-grid--${viewMode}`}>
                         {filteredProducts.map((product, index) => (
-                            <article
+                            <CatalogCard
                                 key={product.id}
-                                className="catalog-card"
-                                style={{ '--card-delay': `${Math.min(index, 12) * 50}ms` }}
-                                onClick={() => openProduct(product)}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        openProduct(product);
-                                    }
-                                }}
-                            >
-                                <div className="catalog-card__shine" aria-hidden="true" />
-                                <div className="catalog-card__image-wrap">
-                                    <img
-                                        src={product.img}
-                                        alt={product.title}
-                                        className="catalog-card__image"
-                                        loading="lazy"
-                                    />
-                                    <div className="catalog-card__overlay">
-                                        <span className="catalog-card__cta">Рассчитать</span>
-                                    </div>
-                                </div>
-                                <div className="catalog-card__body">
-                                    <h3 className="catalog-card__title">{product.title}</h3>
-                                    {product.price && (
-                                        <div className="catalog-card__price">
-                                            <span className="catalog-card__price-value">{product.price}</span>
-                                            <span className="catalog-card__price-currency">сом</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </article>
+                                product={product}
+                                index={index}
+                                onOpen={openProduct}
+                            />
                         ))}
-                    </div>
+                    </ul>
                 )}
             </section>
 
@@ -290,13 +306,17 @@ const Catalog = () => {
                 <div
                     className={`catalog-modal-overlay ${modalVisible ? 'is-visible' : ''}`}
                     onClick={closeModal}
+                    role="presentation"
                 >
                     <div
+                        ref={modalRef}
                         className={`catalog-modal ${modalVisible ? 'is-visible' : ''}`}
                         onClick={(e) => e.stopPropagation()}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="catalog-modal-title"
+                        aria-describedby="catalog-modal-desc"
+                        tabIndex={-1}
                     >
                         <button
                             type="button"
@@ -315,7 +335,13 @@ const Catalog = () => {
                                         onClick={() => setIsImageViewerOpen(true)}
                                         role="button"
                                         tabIndex={0}
-                                        onKeyDown={(e) => e.key === 'Enter' && setIsImageViewerOpen(true)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setIsImageViewerOpen(true);
+                                            }
+                                        }}
+                                        aria-label={`Увеличить изображение: ${selectedProduct.title}`}
                                     >
                                         <img
                                             src={selectedProduct.img}
@@ -329,6 +355,9 @@ const Catalog = () => {
                                     <h2 id="catalog-modal-title" className="catalog-modal__title">
                                         {selectedProduct.title}
                                     </h2>
+                                    <p id="catalog-modal-desc" className="visually-hidden">
+                                        Задайте параметры изделия и нажмите «Рассчитать» для получения результата.
+                                    </p>
                                     {selectedProduct.price && (
                                         <div className="catalog-modal__price">
                                             {selectedProduct.price} <span>сом</span>
@@ -343,20 +372,23 @@ const Catalog = () => {
                                     onSubmit={(e) => { e.preventDefault(); calculate(); }}
                                 >
                                     <div className="catalog-form-section">
-                                        <h4 className="catalog-form-section__title">Параметры</h4>
+                                        <h3 className="catalog-form-section__title">Параметры</h3>
                                         <div className="catalog-inputs-grid">
                                             {(selectedProduct.variables || []).map((v) => (
                                                 <div key={v.name} className="catalog-input-group">
-                                                    <label>{v.label}</label>
+                                                    <label htmlFor={`catalog-input-${v.name}`}>{v.label}</label>
                                                     <input
+                                                        id={`catalog-input-${v.name}`}
                                                         type="number"
                                                         placeholder={v.label}
                                                         value={inputs[v.name] ?? ''}
                                                         onChange={(e) => handleInputChange(v.name, e.target.value)}
                                                         className={validationErrors[v.name] ? 'has-error' : ''}
+                                                        aria-invalid={validationErrors[v.name] ? 'true' : undefined}
+                                                        aria-describedby={validationErrors[v.name] ? `catalog-error-${v.name}` : undefined}
                                                     />
                                                     {validationErrors[v.name] && (
-                                                        <span className="catalog-input-error">{validationErrors[v.name]}</span>
+                                                        <span id={`catalog-error-${v.name}`} className="catalog-input-error" role="alert">{validationErrors[v.name]}</span>
                                                     )}
                                                 </div>
                                             ))}
@@ -365,7 +397,7 @@ const Catalog = () => {
 
                                     {(selectedProduct.conditions || []).some((c) => c.type === 'flag') && (
                                         <div className="catalog-form-section">
-                                            <h4 className="catalog-form-section__title">Дополнительные опции</h4>
+                                            <h3 className="catalog-form-section__title">Дополнительные опции</h3>
                                             <div className="catalog-checkbox-grid">
                                                 {(selectedProduct.conditions || []).map((c) => (
                                                     c.type === 'flag' && (
@@ -393,13 +425,14 @@ const Catalog = () => {
                                 </form>
 
                                 {resultsArray.length > 0 && (
-                                    <div className="catalog-results">
+                                    <div className="catalog-results" role="region" aria-label="Результаты расчёта" aria-live="polite">
                                         <div className="catalog-results__head">
-                                            <h4 className="catalog-form-section__title">Результат расчёта</h4>
+                                            <h3 className="catalog-form-section__title">Результат расчёта</h3>
                                             <button
                                                 type="button"
                                                 className={`catalog-results__copy ${copiedResults ? 'is-copied' : ''}`}
                                                 onClick={handleCopyResults}
+                                                aria-label={copiedResults ? 'Результаты скопированы' : 'Копировать результаты расчёта'}
                                             >
                                                 {copiedResults ? 'Скопировано' : 'Копировать'}
                                             </button>
@@ -427,8 +460,18 @@ const Catalog = () => {
                 <div
                     className="catalog-lightbox"
                     onClick={() => setIsImageViewerOpen(false)}
+                    role="presentation"
                 >
-                    <div className="catalog-lightbox__inner" onClick={(e) => e.stopPropagation()}>
+                    <div
+                        ref={lightboxRef}
+                        className="catalog-lightbox__inner"
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={`Просмотр изображения: ${selectedProduct.title}`}
+                        aria-describedby="catalog-lightbox-hint"
+                        tabIndex={-1}
+                    >
                         <button
                             type="button"
                             className="catalog-lightbox__close"
@@ -442,7 +485,7 @@ const Catalog = () => {
                             alt={selectedProduct.title}
                             className="catalog-lightbox__img"
                         />
-                        <p className="catalog-lightbox__hint">Кликните в любом месте, чтобы закрыть</p>
+                        <p id="catalog-lightbox-hint" className="catalog-lightbox__hint">Нажмите Escape или кнопку закрытия, чтобы вернуться к расчёту</p>
                     </div>
                 </div>
             )}

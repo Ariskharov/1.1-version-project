@@ -6,6 +6,8 @@ import './order_editor.scss';
 import { CustomContext } from '../../../Context';
 import LoadingSpinner, { LoadingPage } from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
+import { useDialogA11y } from '../../../hooks/useDialogA11y';
+import PhotoUploadSlot from '../../../components/ui/PhotoUploadSlot';
 import {
     downloadCommercialProposal,
     downloadFullContract,
@@ -126,6 +128,7 @@ const OrderEditor = () => {
     const [isDirty, setIsDirty] = useState(false);
     const [isDocLoading, setIsDocLoading] = useState(null);
     const skipDirtyRef = useRef(true);
+    const addModalRef = useRef(null);
 
     const closeModal = useCallback(() => {
         setModalOpen(false);
@@ -201,7 +204,6 @@ const OrderEditor = () => {
 
         fetchOrder();
         fetchProducts();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     useEffect(() => {
@@ -223,14 +225,7 @@ const OrderEditor = () => {
         return () => window.removeEventListener('beforeunload', onBeforeUnload);
     }, [isDirty]);
 
-    useEffect(() => {
-        if (!modalOpen) return undefined;
-        const onKeyDown = (e) => {
-            if (e.key === 'Escape') closeModal();
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [modalOpen, closeModal]);
+    useDialogA11y(modalOpen, closeModal, addModalRef);
 
     const selectedProduct = order?.product_order?.find(p => p.id === selectedProductId);
 
@@ -691,38 +686,25 @@ const OrderEditor = () => {
                                         </div>
 
                                         <div className="size-input size-input--full">
-                                            <label>Фотография позиции</label>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                                                {selectedProduct.img && (
-                                                    <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)', flexShrink: 0 }}>
-                                                        <img src={resolveImageUrl(selectedProduct.img)} alt="Фото" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                    </div>
-                                                )}
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={async (e) => {
-                                                        const file = e.target.files[0];
-                                                        if (!file) return;
-                                                        try {
-                                                            const path = await uploadPhoto(file);
-                                                            updateProduct(p => ({ ...p, img: path }));
-                                                            showToast('success', 'Фото позиции загружено');
-                                                        } catch (err) {
-                                                            showToast('error', 'Ошибка загрузки: ' + err.message);
-                                                        }
-                                                    }}
-                                                />
-                                                {selectedProduct.img && (
-                                                    <button
-                                                        type="button"
-                                                        style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}
-                                                        onClick={() => updateProduct(p => ({ ...p, img: null }))}
-                                                    >
-                                                        Удалить
-                                                    </button>
-                                                )}
-                                            </div>
+                                            <PhotoUploadSlot
+                                                inputId="order-editor-position-photo"
+                                                label="Фотография позиции"
+                                                hint="Загрузите изображение изделия"
+                                                variant="card"
+                                                previewUrl={selectedProduct.img ? resolveImageUrl(selectedProduct.img) : ''}
+                                                onFileChange={async (e) => {
+                                                    const file = e.target.files[0];
+                                                    if (!file) return;
+                                                    try {
+                                                        const path = await uploadPhoto(file);
+                                                        updateProduct(p => ({ ...p, img: path }));
+                                                        showToast('success', 'Фото позиции обновлено');
+                                                    } catch (err) {
+                                                        showToast('error', 'Ошибка загрузки фото: ' + err.message);
+                                                    }
+                                                }}
+                                                onRemove={() => updateProduct(p => ({ ...p, img: null }))}
+                                            />
                                         </div>
 
                                         {!selectedProduct.isCustom && (
@@ -929,11 +911,19 @@ const OrderEditor = () => {
             </div>
 
             {modalOpen && createPortal(
-                <div className={oedModalClassName()} role="dialog" aria-modal="true">
+                <div className={oedModalClassName()} role="presentation">
                     <div className="oed-modal__overlay" onClick={closeModal}>
-                        <div className="oed-modal__dialog" onClick={e => e.stopPropagation()}>
+                        <div
+                            ref={addModalRef}
+                            className="oed-modal__dialog"
+                            onClick={e => e.stopPropagation()}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="oed-add-modal-title"
+                            tabIndex={-1}
+                        >
                             <div className="oed-modal__header">
-                                <h3>
+                                <h3 id="oed-add-modal-title">
                                     {modalMode === 'catalog' ? 'Добавить мебель из каталога' : 'Добавить произвольную позицию'}
                                 </h3>
                                 <button type="button" className="oed-modal__close" onClick={closeModal} aria-label="Закрыть">×</button>
@@ -943,13 +933,14 @@ const OrderEditor = () => {
                                 <div className="oed-modal__body oed-modal__body--catalog">
                                     <div className="oed-modal__search">
                                         <input
-                                            type="text"
+                                            type="search"
                                             placeholder="Поиск по названию мебели..."
                                             value={productSearch}
                                             onChange={(e) => setProductSearch(e.target.value)}
+                                            aria-label="Поиск мебели в каталоге"
                                         />
                                         {productSearch && (
-                                            <button type="button" className="oed-modal__search-clear" onClick={() => setProductSearch('')} title="Очистить поиск">×</button>
+                                            <button type="button" className="oed-modal__search-clear" onClick={() => setProductSearch('')} title="Очистить поиск" aria-label="Очистить поиск">×</button>
                                         )}
                                     </div>
 
@@ -1083,6 +1074,26 @@ const OrderEditor = () => {
                             ) : (
                                 <div className="oed-modal__body">
                                     <div className="oed-modal__form">
+                                        <PhotoUploadSlot
+                                            inputId="oed-custom-position-photo"
+                                            label="Фото позиции"
+                                            hint="Изображение для произвольного изделия"
+                                            variant="card"
+                                            className="oed-modal__photo-slot"
+                                            previewUrl={customItem.img ? resolveImageUrl(customItem.img) : ''}
+                                            onFileChange={async (e) => {
+                                                const file = e.target.files[0];
+                                                if (!file) return;
+                                                try {
+                                                    const path = await uploadPhoto(file);
+                                                    setCustomItem(p => ({ ...p, img: path }));
+                                                    showToast('success', 'Фото позиции загружено');
+                                                } catch (err) {
+                                                    showToast('error', 'Ошибка загрузки фото: ' + err.message);
+                                                }
+                                            }}
+                                            onRemove={() => setCustomItem(p => ({ ...p, img: '' }))}
+                                        />
                                         <div className="oed-modal__form-row">
                                             <label className="oed-modal__field">
                                                 <span>Название позиции *</span>
@@ -1102,25 +1113,6 @@ const OrderEditor = () => {
                                         <label className="oed-modal__field oed-modal__field--full">
                                             <span>Описание / примечание</span>
                                             <textarea value={customItem.description} onChange={e => setCustomItem(p => ({ ...p, description: e.target.value }))} placeholder="Дополнительная информация о позиции..." />
-                                        </label>
-                                        <label className="oed-modal__field oed-modal__field--full">
-                                            <span>Фотография позиции</span>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={async (e) => {
-                                                    const file = e.target.files[0];
-                                                    if (!file) return;
-                                                    try {
-                                                        const path = await uploadPhoto(file);
-                                                        setCustomItem(p => ({ ...p, img: path }));
-                                                        showToast('success', 'Фото загружено');
-                                                    } catch (err) {
-                                                        showToast('error', 'Ошибка загрузки фото: ' + err.message);
-                                                    }
-                                                }}
-                                            />
-                                            {customItem.img && <small style={{ color: '#4ade80' }}>✓ Фото прикреплено ({customItem.img})</small>}
                                         </label>
                                         <button type="button" className="oed-modal__save-btn oed-modal__save-btn--spaced" onClick={savePosition}>Добавить в заказ</button>
                                     </div>

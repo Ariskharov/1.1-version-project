@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+@import '../../styles/theme';
 
 /* =============================================
    ЛИЧНЫЙ КАБИНЕТ — премиальный редизайн
@@ -23,46 +24,23 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
   50% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
 }
 
+// =============================================================================
+// ТЕМЫ
+// =============================================================================
+
 .cabinet {
   --cab-font: 'DM Sans', 'Roboto', sans-serif;
   --cab-serif: 'Cormorant Garamond', Georgia, serif;
 
-  --cab-surface: rgba(22, 20, 18, 0.88);
-  --cab-surface-2: #1e1b18;
-  --cab-surface-glass: rgba(22, 20, 18, 0.82);
-  --cab-border: rgba(212, 175, 120, 0.14);
-  --cab-border-soft: rgba(212, 175, 120, 0.08);
-  --cab-gold: #d4af78;
-  --cab-gold-light: #e8c992;
-  --cab-gold-subtle: rgba(212, 175, 120, 0.1);
-  --cab-gold-hover: rgba(212, 175, 120, 0.18);
-  --cab-text: #f5f0e8;
-  --cab-muted: #9a9188;
-  --cab-title-gradient: linear-gradient(135deg, #f5f0e8 0%, #e8c992 100%);
-  --cab-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
-  --cab-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.18);
-  --cab-success: #4ade80;
-  --cab-success-bg: rgba(74, 222, 128, 0.12);
-  --cab-success-text: #86efac;
-  --cab-info: #60a5fa;
-  --cab-info-bg: rgba(96, 165, 250, 0.12);
-  --cab-input-bg: rgba(30, 27, 24, 0.9);
-  --cab-scrollbar: rgba(212, 175, 120, 0.35);
-  --cab-scrollbar-track: rgba(22, 20, 18, 0.5);
-  --cab-orb-1: rgba(212, 175, 120, 0.22);
-  --cab-orb-2: rgba(120, 90, 60, 0.18);
-  --cab-grain-opacity: 0.035;
-  --cab-row-hover: rgba(212, 175, 120, 0.05);
-  --cab-header-bg: rgba(212, 175, 120, 0.06);
-  --cab-highlight-bg: linear-gradient(135deg, #2a2418 0%, #1a1816 100%);
-  --cab-highlight-border: rgba(212, 175, 120, 0.3);
-  --cab-chart-grid: rgba(212, 175, 120, 0.08);
-  --cab-avatar-bg: linear-gradient(135deg, #3d3428 0%, #2a2418 100%);
+  @include theme-cabinet-dark(cab);
 
   position: relative;
+  width: 100%;
   max-width: 1440px;
   margin: 0 auto;
   padding: 14px 24px 48px;
+  box-sizing: border-box;
+  overflow-x: clip;
   font-family: var(--cab-font);
   color: var(--cab-text);
   background: transparent;
@@ -70,39 +48,14 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
   transition: color 0.4s $cab-ease;
 
   &--theme-light {
-    --cab-surface: rgba(255, 255, 255, 0.9);
-    --cab-surface-2: #faf9f7;
-    --cab-surface-glass: rgba(255, 255, 255, 0.84);
-    --cab-border: rgba(184, 149, 74, 0.2);
-    --cab-border-soft: rgba(184, 149, 74, 0.1);
-    --cab-gold: #b8954a;
-    --cab-gold-light: #c9a84c;
-    --cab-gold-subtle: rgba(184, 149, 74, 0.1);
-    --cab-gold-hover: rgba(184, 149, 74, 0.14);
-    --cab-text: #171a1f;
-    --cab-muted: #5a6372;
-    --cab-title-gradient: linear-gradient(135deg, #171a1f 0%, #8b6914 50%, #c9a84c 100%);
-    --cab-shadow: 0 8px 32px rgba(23, 26, 31, 0.08);
-    --cab-shadow-sm: 0 2px 10px rgba(23, 26, 31, 0.05);
-    --cab-success-bg: rgba(22, 163, 74, 0.1);
-    --cab-success-text: #15803d;
-    --cab-info-bg: rgba(37, 99, 235, 0.08);
-    --cab-input-bg: #ffffff;
-    --cab-scrollbar: rgba(184, 149, 74, 0.4);
-    --cab-scrollbar-track: rgba(250, 249, 246, 0.8);
-    --cab-orb-1: rgba(255, 250, 240, 0.85);
-    --cab-orb-2: rgba(201, 168, 76, 0.14);
-    --cab-grain-opacity: 0.012;
-    --cab-row-hover: rgba(184, 149, 74, 0.06);
-    --cab-header-bg: rgba(184, 149, 74, 0.08);
-    --cab-highlight-bg: linear-gradient(135deg, #faf8f4 0%, #f3ede4 100%);
-    --cab-highlight-border: rgba(184, 149, 74, 0.35);
-    --cab-chart-grid: rgba(184, 149, 74, 0.12);
-    --cab-avatar-bg: linear-gradient(135deg, #f3ede4 0%, #e8dcc8 100%);
+    @include theme-cabinet-light(cab);
   }
 }
 
-/* Ambient */
+// =============================================================================
+// КОМПОНЕНТЫ
+// =============================================================================
+
 .cabinet-ambient {
   position: fixed;
   inset: 0;
@@ -239,6 +192,111 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .cabinet--theme-light .cabinet-avatar {
   color: var(--cab-gold);
+}
+
+/* ===== PUSH / УВЕДОМЛЕНИЯ ===== */
+.cabinet-push-banner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: var(--cab-gold-subtle);
+  border: 1px solid var(--cab-border);
+  border-radius: $cab-radius-sm;
+  box-shadow: var(--cab-shadow-sm);
+  animation: cab-fade-up 0.5s $cab-ease 0.06s both;
+  overflow: hidden;
+
+  &--soft {
+    background: var(--cab-surface);
+  }
+
+  &__text {
+    min-width: 0;
+    flex: 1 1 220px;
+
+    strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: var(--cab-text);
+      word-break: break-word;
+    }
+
+    p {
+      margin: 0;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: var(--cab-muted);
+      word-break: break-word;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    min-height: 40px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 999px;
+    border: 1px solid var(--cab-border);
+    background: var(--cab-surface);
+    color: var(--cab-text);
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: border-color 0.2s $cab-ease, background 0.2s $cab-ease;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      color: #1a1208;
+      background: var(--cab-gold);
+      border-color: transparent;
+
+      &:hover:not(:disabled) {
+        filter: brightness(1.05);
+      }
+    }
+  }
+}
+
+.cabinet-push-ok {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--cab-success-text, var(--cab-gold));
+  background: var(--cab-success-bg, var(--cab-gold-subtle));
+  border: 1px solid var(--cab-border);
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
 }
 
 /* Quick actions — новый блок */
@@ -938,7 +996,144 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color: var(--cab-muted);
 }
 
+/* ===== СРОЧНЫЕ ОБЪЯВЛЕНИЯ ===== */
+.cabinet-urgent-news {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  animation: cab-fade-up 0.5s $cab-ease 0.08s both;
+
+  &__item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    border-radius: $cab-radius-sm;
+    background: var(--cab-danger-bg, rgba(248, 113, 113, 0.12));
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    box-shadow: var(--cab-shadow-sm);
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  &__badge {
+    flex-shrink: 0;
+    padding: 3px 9px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--cab-danger-text, #fecaca);
+    background: rgba(248, 113, 113, 0.2);
+    border-radius: 999px;
+  }
+
+  &__content {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  &__title {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--cab-text);
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--cab-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  &__until {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--cab-muted);
+  }
+}
+
+/* ===== ДОЛГОСРОЧНЫЕ / АКТУАЛЬНО ===== */
+.cabinet-bulletin {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: var(--cab-surface);
+  border: 1px solid var(--cab-border);
+  border-radius: $cab-radius;
+  box-shadow: var(--cab-shadow-sm);
+  animation: cab-fade-up 0.5s $cab-ease 0.12s both;
+  overflow: hidden;
+
+  &__title {
+    margin: 0 0 12px;
+    font-family: var(--cab-serif);
+    font-size: clamp(16px, 2.5vw, 18px);
+    font-weight: 600;
+    color: var(--cab-text);
+  }
+
+  &__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__item {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--cab-muted);
+    padding: 10px 12px;
+    border-radius: $cab-radius-sm;
+    background: var(--cab-gold-subtle);
+    border: 1px solid var(--cab-border);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+
+    strong {
+      color: var(--cab-text);
+      font-weight: 600;
+    }
+  }
+
+  &__until {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--cab-muted);
+    opacity: 0.9;
+  }
+}
+
 /* ===== RESPONSIVE ===== */
+@media (max-width: 1100px) {
+  .cabinet {
+    padding: 14px 18px 40px;
+  }
+}
+
 @media (max-width: 900px) {
   .status-section {
     grid-template-columns: 1fr;
@@ -957,11 +1152,21 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
       justify-content: flex-start;
     }
   }
+
+  .cabinet-push-banner {
+    align-items: stretch;
+  }
+
+  .shifts-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 600px) {
   .cabinet {
-    padding: 12px 16px 32px;
+    padding: 12px 14px 32px;
   }
 
   .stats-grid,
@@ -993,6 +1198,7 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
     .export-btn {
       flex: 1;
       text-align: center;
+      min-height: 42px;
     }
   }
 
@@ -1002,6 +1208,119 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
     th, td {
       padding: 10px 12px;
     }
+  }
+
+  .cabinet-push-banner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 14px;
+
+    &__actions {
+      width: 100%;
+    }
+
+    &__btn {
+      flex: 1 1 auto;
+      min-height: 44px;
+      width: 100%;
+    }
+  }
+
+  .cabinet-push-ok {
+    width: 100%;
+    border-radius: 12px;
+    text-align: center;
+  }
+
+  .cabinet-urgent-news__item {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .cabinet-urgent-news__badge {
+    align-self: flex-start;
+  }
+
+  .cabinet-bulletin {
+    padding: 14px;
+  }
+
+  .cabinet-quick-actions {
+    gap: 8px;
+  }
+
+  .cabinet-quick-actions__link {
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+
+  .shifts-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    margin-inline: 0;
+  }
+}
+
+@media (max-width: 400px) {
+  .cabinet {
+    padding: 10px 12px 28px;
+  }
+
+  .cabinet-push-banner__actions {
+    flex-direction: column;
+  }
+}
+
+// =============================================================================
+// СВЕТЛАЯ ТЕМА — доп. полировка
+// =============================================================================
+
+.cabinet--theme-light {
+  .cabinet-ambient__orb {
+    opacity: 0.78;
+    filter: blur(88px);
+  }
+
+  .status-card,
+  .employee-card,
+  .stat-card,
+  .cabinet-insight,
+  .weekly-chart-section,
+  .filters-section,
+  .shifts-table-wrapper,
+  .user-badge,
+  .cabinet-push-banner,
+  .cabinet-bulletin {
+    background: linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(250, 244, 234, 0.92));
+    box-shadow: var(--cab-shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  }
+
+  .cabinet-header__badge,
+  .cabinet-quick-actions__link {
+    box-shadow: 0 2px 10px rgba(184, 149, 74, 0.1);
+  }
+
+  .preset-chip.active,
+  .export-btn:not(.export-btn--secondary) {
+    background: linear-gradient(135deg, #e8c992 0%, #b8954a 55%, #9a7628 100%);
+    box-shadow: 0 6px 18px rgba(184, 149, 74, 0.28);
+  }
+
+  .cabinet-urgent-news__item {
+    background: rgba(254, 226, 226, 0.55);
+    border-color: rgba(248, 113, 113, 0.35);
+  }
+
+  .cabinet-urgent-news__badge {
+    color: #991b1b;
+    background: rgba(254, 202, 202, 0.8);
+  }
+
+  .cabinet-urgent-news__title,
+  .cabinet-urgent-news__text {
+    color: #1a1612;
   }
 }
 
@@ -1015,7 +1334,10 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
   .filters-section,
   .shifts-table-wrapper,
   .cabinet-insights,
-  .cabinet-quick-actions {
+  .cabinet-quick-actions,
+  .cabinet-urgent-news,
+  .cabinet-bulletin,
+  .cabinet-push-banner {
     animation: none;
   }
 }

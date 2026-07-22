@@ -31,6 +31,9 @@
   }
   .main {
     padding: 64px 0 0 0;
+    padding-left: 0;
+    overflow-x: clip;
+    max-width: 100vw;
   }
   .header_Phon {
     display: block;
@@ -38,6 +41,9 @@
   .input-row {
     display: flex;
     flex-wrap: wrap;
+  }
+  body {
+    overflow-x: clip;
   }
 }
 

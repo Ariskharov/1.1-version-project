@@ -1,0 +1,133 @@
+// =============================================================================
+// ТЁМНАЯ ТЕМА — SCSS-токены ($dt-*)
+// Редактировать здесь, если нужно изменить тёмную палитру глобально.
+// =============================================================================
+
+$dt-bg-base: #0c0b0a;
+$dt-bg-mid: #100e0c;
+$dt-bg-gradient: linear-gradient(180deg, #0c0b0a 0%, #100e0c 40%, #0c0b0a 100%);
+
+$dt-surface: rgba(22, 20, 18, 0.88);
+$dt-surface-2: #1e1b18;
+$dt-surface-glass: rgba(22, 20, 18, 0.82);
+$dt-surface-solid: #161412;
+
+$dt-border: rgba(212, 175, 120, 0.14);
+$dt-border-soft: rgba(212, 175, 120, 0.08);
+
+$dt-gold: #d4af78;
+$dt-gold-light: #e8c992;
+$dt-gold-dim: rgba(212, 175, 120, 0.35);
+$dt-gold-subtle: rgba(212, 175, 120, 0.1);
+$dt-gold-hover: rgba(212, 175, 120, 0.18);
+
+$dt-text: #f5f0e8;
+$dt-muted: #9a9188;
+$dt-title-gradient: linear-gradient(135deg, #f5f0e8 0%, #e8c992 100%);
+$dt-btn-on-gold: #0c0b0a;
+
+$dt-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+$dt-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.18);
+$dt-shadow-card: 0 12px 36px rgba(0, 0, 0, 0.25);
+$dt-shadow-color: rgba(0, 0, 0, 0.35);
+$dt-shadow-gold: rgba(212, 175, 120, 0.3);
+
+$dt-modal-overlay: rgba(8, 7, 6, 0.78);
+$dt-modal-bg: linear-gradient(160deg, #1a1816 0%, #12100e 100%);
+$dt-lightbox-bg: rgba(4, 3, 2, 0.94);
+$dt-drawer-overlay: rgba(8, 7, 6, 0.72);
+
+$dt-image-bg: #0a0908;
+$dt-card-overlay: linear-gradient(to top, rgba(12, 11, 10, 0.75) 0%, transparent 55%);
+$dt-card-shine: rgba(255, 255, 255, 0.06);
+$dt-card-shadow: none;
+$dt-card-shadow-hover: 0 20px 40px $dt-shadow-color, 0 0 0 1px rgba(212, 175, 120, 0.1);
+$dt-hover-border: rgba(212, 175, 120, 0.35);
+$dt-toolbar-shadow: none;
+$dt-close-bg: rgba(22, 20, 18, 0.95);
+
+$dt-orb-1: rgba(212, 175, 120, 0.22);
+$dt-orb-2: rgba(120, 90, 60, 0.18);
+$dt-grain-opacity: 0.035;
+
+$dt-result-bg: rgba(212, 175, 120, 0.05);
+$dt-zoom-hint-bg: rgba(12, 11, 10, 0.8);
+$dt-row-hover: rgba(212, 175, 120, 0.05);
+$dt-row-bg: rgba(212, 175, 120, 0.05);
+$dt-header-bg: rgba(212, 175, 120, 0.06);
+
+$dt-highlight-bg: linear-gradient(135deg, #2a2418 0%, #1a1816 100%);
+$dt-highlight-border: rgba(212, 175, 120, 0.3);
+$dt-chart-grid: rgba(212, 175, 120, 0.08);
+$dt-avatar-bg: linear-gradient(135deg, #3d3428 0%, #2a2418 100%);
+$dt-summary-bg: linear-gradient(135deg, #1a1816 0%, #12100e 100%);
+$dt-summary-border: rgba(212, 175, 120, 0.2);
+
+$dt-table-head-bg: #1a1816;
+$dt-table-body-bg: #141210;
+
+$dt-input-bg: rgba(30, 27, 24, 0.9);
+$dt-scrollbar: rgba(212, 175, 120, 0.35);
+$dt-scrollbar-track: rgba(22, 20, 18, 0.5);
+$dt-focus-ring: rgba(212, 175, 120, 0.2);
+
+$dt-success: #4ade80;
+$dt-success-dark: #22c55e;
+$dt-success-bg: rgba(74, 222, 128, 0.12);
+$dt-success-text: #86efac;
+
+$dt-info: #60a5fa;
+$dt-info-bg: rgba(96, 165, 250, 0.12);
+$dt-info-text: #93c5fd;
+
+$dt-danger: #f87171;
+$dt-danger-dark: #ef4444;
+$dt-danger-bg: rgba(248, 113, 113, 0.12);
+$dt-danger-text: #fca5a5;
+
+$dt-warning: #fbbf24;
+$dt-warning-bg: rgba(250, 204, 21, 0.12);
+$dt-warning-text: #fde047;
+
+$dt-error: #f87171;
+
+// Header
+$dt-hdr-top-bg: rgba(18, 16, 14, 0.9);
+$dt-hdr-side-bg: rgba(16, 14, 12, 0.94);
+$dt-hdr-border: rgba(212, 175, 120, 0.14);
+$dt-hdr-border-soft: rgba(212, 175, 120, 0.08);
+$dt-hdr-btn-bg: rgba(30, 27, 24, 0.9);
+$dt-hdr-btn-hover: rgba(40, 36, 32, 0.95);
+$dt-hdr-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+$dt-hdr-side-shadow: 1px 0 0 $dt-hdr-border-soft, 4px 0 32px rgba(0, 0, 0, 0.2);
+$dt-hdr-active-bg: linear-gradient(135deg, rgba(212, 175, 120, 0.22) 0%, rgba(184, 149, 74, 0.12) 100%);
+$dt-hdr-active-text: #e8c992;
+$dt-hdr-active-border: rgba(212, 175, 120, 0.3);
+$dt-hdr-avatar-ring: rgba(212, 175, 120, 0.4);
+
+// Admin
+$dt-user-header-bg: linear-gradient(90deg, rgba(212, 175, 120, 0.08), transparent);
+
+// Editor (мебель)
+$dt-ed-card-bg: linear-gradient(155deg, #1e1b18 0%, #161412 48%, #1a1714 100%);
+$dt-ed-card-body-bg: linear-gradient(180deg, rgba(22, 20, 18, 0.6) 0%, #161412 100%);
+$dt-ed-card-border: rgba(212, 175, 120, 0.18);
+$dt-ed-card-hover-border: rgba(212, 175, 120, 0.42);
+$dt-ed-card-shadow: 0 4px 18px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(212, 175, 120, 0.08);
+$dt-ed-card-shadow-hover: 0 22px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 120, 0.15);
+$dt-ed-card-overlay: linear-gradient(to top, rgba(8, 7, 6, 0.88) 0%, rgba(8, 7, 6, 0.2) 45%, transparent 70%);
+$dt-ed-image-frame: linear-gradient(180deg, #12100e 0%, #080706 100%);
+$dt-ed-tag-bg: rgba(212, 175, 120, 0.12);
+$dt-ed-tag-text: #c4b8a8;
+$dt-ed-id-badge-bg: rgba(12, 11, 10, 0.82);
+$dt-ed-spinner-track: rgba(255, 255, 255, 0.25);
+
+// Order form
+$dt-pao-accent: $dt-gold;
+$dt-pao-accent-dark: #b8954a;
+$dt-pao-summary-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+$dt-pao-summary-shadow-pulse: 0 8px 28px rgba(212, 175, 120, 0.15);
+
+// Order editor summary inputs
+$dt-oed-summary-input-bg: rgba(255, 255, 255, 0.08);
+$dt-oed-summary-input-border: rgba(255, 255, 255, 0.18);

@@ -1,0 +1,429 @@
+// =============================================================================
+// МИКСИНЫ ТЕМ — применяют токены как CSS-переменные с нужным префиксом
+// Использование: @include theme-catalog-dark(cat);
+// =============================================================================
+
+@import './theme-tokens-dark';
+@import './theme-tokens-light';
+
+// --- Header -------------------------------------------------------------------
+
+@mixin theme-header-dark {
+  --hdr-top-bg: #{$dt-hdr-top-bg};
+  --hdr-side-bg: #{$dt-hdr-side-bg};
+  --hdr-border: #{$dt-hdr-border};
+  --hdr-border-soft: #{$dt-hdr-border-soft};
+  --hdr-text: #{$dt-text};
+  --hdr-muted: #{$dt-muted};
+  --hdr-gold: #{$dt-gold};
+  --hdr-gold-light: #{$dt-gold-light};
+  --hdr-gold-subtle: #{$dt-gold-subtle};
+  --hdr-gold-hover: #{$dt-gold-hover};
+  --hdr-active-bg: #{$dt-hdr-active-bg};
+  --hdr-active-text: #{$dt-hdr-active-text};
+  --hdr-active-border: #{$dt-hdr-active-border};
+  --hdr-btn-bg: #{$dt-hdr-btn-bg};
+  --hdr-btn-hover: #{$dt-hdr-btn-hover};
+  --hdr-shadow: #{$dt-hdr-shadow};
+  --hdr-side-shadow: #{$dt-hdr-side-shadow};
+  --hdr-avatar-ring: #{$dt-hdr-avatar-ring};
+}
+
+@mixin theme-header-light {
+  --hdr-top-bg: #{$lt-hdr-top-bg};
+  --hdr-side-bg: #{$lt-hdr-side-bg};
+  --hdr-border: #{$lt-hdr-border};
+  --hdr-border-soft: #{$lt-hdr-border-soft};
+  --hdr-text: #{$lt-text};
+  --hdr-muted: #{$lt-muted};
+  --hdr-gold: #{$lt-gold-light};
+  --hdr-gold-light: #c9a84c;
+  --hdr-gold-subtle: #{$lt-gold-subtle};
+  --hdr-gold-hover: #{$lt-gold-hover};
+  --hdr-active-bg: #{$lt-hdr-active-bg};
+  --hdr-active-text: #{$lt-hdr-active-text};
+  --hdr-active-border: #{$lt-hdr-active-border};
+  --hdr-btn-bg: #{$lt-hdr-btn-bg};
+  --hdr-btn-hover: #{$lt-hdr-btn-hover};
+  --hdr-shadow: #{$lt-hdr-shadow};
+  --hdr-side-shadow: #{$lt-hdr-side-shadow};
+  --hdr-avatar-ring: #{$lt-hdr-avatar-ring};
+}
+
+// --- Базовый набор (кабинет, админка) ---------------------------------------
+
+@mixin theme-panel-dark($p) {
+  --#{$p}-surface: #{$dt-surface};
+  --#{$p}-surface-2: #{$dt-surface-2};
+  --#{$p}-surface-glass: #{$dt-surface-glass};
+  --#{$p}-border: #{$dt-border};
+  --#{$p}-border-soft: #{$dt-border-soft};
+  --#{$p}-gold: #{$dt-gold};
+  --#{$p}-gold-light: #{$dt-gold-light};
+  --#{$p}-gold-subtle: #{$dt-gold-subtle};
+  --#{$p}-gold-hover: #{$dt-gold-hover};
+  --#{$p}-text: #{$dt-text};
+  --#{$p}-muted: #{$dt-muted};
+  --#{$p}-title-gradient: #{$dt-title-gradient};
+  --#{$p}-shadow: #{$dt-shadow};
+  --#{$p}-shadow-sm: #{$dt-shadow-sm};
+  --#{$p}-orb-1: #{$dt-orb-1};
+  --#{$p}-orb-2: #{$dt-orb-2};
+  --#{$p}-grain-opacity: #{$dt-grain-opacity};
+  --#{$p}-input-bg: #{$dt-input-bg};
+  --#{$p}-scrollbar: #{$dt-scrollbar};
+  --#{$p}-scrollbar-track: #{$dt-scrollbar-track};
+  --#{$p}-row-hover: #{$dt-row-hover};
+  --#{$p}-header-bg: #{$dt-header-bg};
+}
+
+@mixin theme-panel-light($p) {
+  --#{$p}-surface: #{$lt-surface};
+  --#{$p}-surface-2: #{$lt-surface-2};
+  --#{$p}-surface-glass: #{$lt-surface-glass};
+  --#{$p}-border: #{$lt-border};
+  --#{$p}-border-soft: #{$lt-border-soft};
+  --#{$p}-gold: #{$lt-gold};
+  --#{$p}-gold-light: #{$lt-gold-light};
+  --#{$p}-gold-subtle: #{$lt-gold-subtle};
+  --#{$p}-gold-hover: #{$lt-gold-hover};
+  --#{$p}-text: #{$lt-text};
+  --#{$p}-muted: #{$lt-muted};
+  --#{$p}-title-gradient: #{$lt-title-gradient};
+  --#{$p}-shadow: #{$lt-shadow};
+  --#{$p}-shadow-sm: #{$lt-shadow-sm};
+  --#{$p}-orb-1: #{$lt-orb-1};
+  --#{$p}-orb-2: #{$lt-orb-2};
+  --#{$p}-grain-opacity: #{$lt-grain-opacity};
+  --#{$p}-input-bg: #{$lt-input-bg};
+  --#{$p}-scrollbar: #{$lt-scrollbar};
+  --#{$p}-scrollbar-track: #{$lt-scrollbar-track};
+  --#{$p}-row-hover: #{$lt-row-hover};
+  --#{$p}-header-bg: #{$lt-header-bg};
+}
+
+@mixin theme-cabinet-dark($p) {
+  @include theme-panel-dark($p);
+  --#{$p}-success: #{$dt-success};
+  --#{$p}-success-bg: #{$dt-success-bg};
+  --#{$p}-success-text: #{$dt-success-text};
+  --#{$p}-info: #{$dt-info};
+  --#{$p}-info-bg: #{$dt-info-bg};
+  --#{$p}-highlight-bg: #{$dt-highlight-bg};
+  --#{$p}-highlight-border: #{$dt-highlight-border};
+  --#{$p}-chart-grid: #{$dt-chart-grid};
+  --#{$p}-avatar-bg: #{$dt-avatar-bg};
+}
+
+@mixin theme-cabinet-light($p) {
+  @include theme-panel-light($p);
+  --#{$p}-success-bg: #{$lt-success-bg};
+  --#{$p}-success-text: #{$lt-success-text};
+  --#{$p}-info-bg: #{$lt-info-bg};
+  --#{$p}-highlight-bg: #{$lt-highlight-bg};
+  --#{$p}-highlight-border: #{$lt-highlight-border};
+  --#{$p}-chart-grid: #{$lt-chart-grid};
+  --#{$p}-avatar-bg: #{$lt-avatar-bg};
+}
+
+@mixin theme-admin-dark($p) {
+  @include theme-panel-dark($p);
+  --#{$p}-modal-overlay: #{$dt-modal-overlay};
+  --#{$p}-modal-bg: #{$dt-modal-bg};
+  --#{$p}-success: #{$dt-success};
+  --#{$p}-success-bg: #{$dt-success-bg};
+  --#{$p}-success-text: #{$dt-success-text};
+  --#{$p}-info: #{$dt-info};
+  --#{$p}-info-bg: #{$dt-info-bg};
+  --#{$p}-info-text: #{$dt-info-text};
+  --#{$p}-danger: #{$dt-danger};
+  --#{$p}-danger-bg: #{$dt-danger-bg};
+  --#{$p}-danger-text: #{$dt-danger-text};
+  --#{$p}-warning-bg: #{$dt-warning-bg};
+  --#{$p}-warning-text: #{$dt-warning-text};
+  --#{$p}-user-header-bg: #{$dt-user-header-bg};
+}
+
+@mixin theme-admin-light($p) {
+  @include theme-panel-light($p);
+  --#{$p}-modal-overlay: #{$lt-modal-overlay};
+  --#{$p}-modal-bg: #{$lt-modal-bg};
+  --#{$p}-success-bg: #{$lt-success-bg};
+  --#{$p}-success-text: #{$lt-success-text};
+  --#{$p}-info-bg: #{$lt-info-bg};
+  --#{$p}-info-text: #{$lt-info-text};
+  --#{$p}-danger-bg: #{$lt-danger-bg};
+  --#{$p}-danger-text: #{$lt-danger-text};
+  --#{$p}-warning-bg: #{$lt-warning-bg};
+  --#{$p}-warning-text: #{$lt-warning-text};
+  --#{$p}-user-header-bg: linear-gradient(90deg, rgba(232, 201, 146, 0.28), transparent);
+}
+
+// --- Каталог ------------------------------------------------------------------
+
+@mixin theme-catalog-dark($p) {
+  --#{$p}-bg: #{$dt-bg-base};
+  --#{$p}-bg-mid: #{$dt-bg-mid};
+  --#{$p}-bg-gradient: #{$dt-bg-gradient};
+  --#{$p}-surface: #{$dt-surface-solid};
+  --#{$p}-surface-2: #{$dt-surface-2};
+  --#{$p}-surface-glass: #{$dt-surface-glass};
+  --#{$p}-border: #{$dt-border};
+  --#{$p}-gold: #{$dt-gold};
+  --#{$p}-gold-light: #{$dt-gold-light};
+  --#{$p}-gold-dim: #{$dt-gold-dim};
+  --#{$p}-gold-subtle: rgba(212, 175, 120, 0.06);
+  --#{$p}-gold-hover: #{$dt-gold-hover};
+  --#{$p}-text: #{$dt-text};
+  --#{$p}-muted: #{$dt-muted};
+  --#{$p}-image-bg: #{$dt-image-bg};
+  --#{$p}-title-gradient: #{$dt-title-gradient};
+  --#{$p}-btn-on-gold: #{$dt-btn-on-gold};
+  --#{$p}-modal-bg: #{$dt-modal-bg};
+  --#{$p}-modal-overlay: rgba(8, 7, 6, 0.75);
+  --#{$p}-lightbox-bg: #{$dt-lightbox-bg};
+  --#{$p}-card-overlay: #{$dt-card-overlay};
+  --#{$p}-card-shine: #{$dt-card-shine};
+  --#{$p}-orb-1: rgba(212, 175, 120, 0.25);
+  --#{$p}-orb-2: rgba(120, 90, 60, 0.2);
+  --#{$p}-grain-opacity: 0.04;
+  --#{$p}-shadow: #{$dt-shadow-color};
+  --#{$p}-shadow-gold: #{$dt-shadow-gold};
+  --#{$p}-result-bg: #{$dt-result-bg};
+  --#{$p}-zoom-hint-bg: #{$dt-zoom-hint-bg};
+  --#{$p}-error: #{$dt-error};
+  --#{$p}-success: #{$dt-success};
+  --#{$p}-card-shadow: #{$dt-card-shadow};
+  --#{$p}-card-shadow-hover: #{$dt-card-shadow-hover};
+  --#{$p}-hover-border: #{$dt-hover-border};
+  --#{$p}-toolbar-shadow: #{$dt-toolbar-shadow};
+  --#{$p}-close-bg: #{$dt-close-bg};
+}
+
+@mixin theme-catalog-light($p) {
+  --#{$p}-bg: #{$lt-bg-base};
+  --#{$p}-bg-mid: #faf5ec;
+  --#{$p}-bg-gradient: #{$lt-bg-gradient};
+  --#{$p}-surface: #{$lt-surface};
+  --#{$p}-surface-2: #{$lt-surface-2};
+  --#{$p}-surface-glass: #{$lt-surface-glass};
+  --#{$p}-border: #{$lt-border};
+  --#{$p}-gold: #{$lt-gold};
+  --#{$p}-gold-light: #{$lt-gold-light};
+  --#{$p}-gold-dim: #{$lt-gold-dim};
+  --#{$p}-gold-subtle: #{$lt-gold-subtle};
+  --#{$p}-gold-hover: #{$lt-gold-hover};
+  --#{$p}-text: #{$lt-text};
+  --#{$p}-muted: #{$lt-muted};
+  --#{$p}-image-bg: #{$lt-image-bg};
+  --#{$p}-title-gradient: #{$lt-title-gradient};
+  --#{$p}-btn-on-gold: #{$lt-btn-on-gold};
+  --#{$p}-modal-bg: #{$lt-modal-bg};
+  --#{$p}-modal-overlay: #{$lt-modal-overlay};
+  --#{$p}-lightbox-bg: #{$lt-lightbox-bg};
+  --#{$p}-card-overlay: #{$lt-card-overlay};
+  --#{$p}-card-shine: #{$lt-card-shine};
+  --#{$p}-orb-1: #{$lt-orb-1};
+  --#{$p}-orb-2: #{$lt-orb-2};
+  --#{$p}-grain-opacity: #{$lt-grain-opacity};
+  --#{$p}-shadow: rgba(92, 69, 24, 0.1);
+  --#{$p}-shadow-gold: #{$lt-shadow-gold};
+  --#{$p}-card-shadow: #{$lt-shadow-card};
+  --#{$p}-card-shadow-hover: #{$lt-shadow-card-hover};
+  --#{$p}-hover-border: #{$lt-hover-border};
+  --#{$p}-toolbar-shadow: #{$lt-toolbar-shadow};
+  --#{$p}-result-bg: #{$lt-result-bg};
+  --#{$p}-zoom-hint-bg: #{$lt-zoom-hint-bg};
+  --#{$p}-close-bg: #{$lt-close-bg};
+  --#{$p}-error: #{$lt-error};
+  --#{$p}-success: #{$lt-success};
+}
+
+// --- Заказы (просмотр / редактор / оформление) --------------------------------
+
+@mixin theme-order-dark($p) {
+  --#{$p}-surface: #{$dt-surface};
+  --#{$p}-surface-2: #{$dt-surface-2};
+  --#{$p}-surface-glass: #{$dt-surface-glass};
+  --#{$p}-border: #{$dt-border};
+  --#{$p}-border-soft: #{$dt-border-soft};
+  --#{$p}-gold: #{$dt-gold};
+  --#{$p}-gold-light: #{$dt-gold-light};
+  --#{$p}-gold-subtle: #{$dt-gold-subtle};
+  --#{$p}-gold-hover: #{$dt-gold-hover};
+  --#{$p}-text: #{$dt-text};
+  --#{$p}-muted: #{$dt-muted};
+  --#{$p}-title-gradient: #{$dt-title-gradient};
+  --#{$p}-shadow: #{$dt-shadow};
+  --#{$p}-shadow-sm: #{$dt-shadow-sm};
+  --#{$p}-image-bg: #{$dt-image-bg};
+  --#{$p}-row-bg: #{$dt-row-bg};
+  --#{$p}-table-head-bg: #{$dt-table-head-bg};
+  --#{$p}-table-body-bg: #{$dt-table-body-bg};
+  --#{$p}-modal-overlay: #{$dt-modal-overlay};
+  --#{$p}-modal-bg: #{$dt-modal-bg};
+  --#{$p}-orb-1: #{$dt-orb-1};
+  --#{$p}-orb-2: #{$dt-orb-2};
+  --#{$p}-grain-opacity: #{$dt-grain-opacity};
+  --#{$p}-summary-bg: #{$dt-summary-bg};
+  --#{$p}-summary-border: #{$dt-summary-border};
+  --#{$p}-success: #{$dt-success};
+  --#{$p}-danger: #{$dt-danger};
+  --#{$p}-warning: #{$dt-warning};
+  --#{$p}-info: #{$dt-info};
+}
+
+@mixin theme-order-light($p) {
+  --#{$p}-surface: #{$lt-surface};
+  --#{$p}-surface-2: #{$lt-surface-2};
+  --#{$p}-surface-glass: #{$lt-surface-glass};
+  --#{$p}-border: #{$lt-border};
+  --#{$p}-border-soft: #{$lt-border-soft};
+  --#{$p}-gold: #{$lt-gold};
+  --#{$p}-gold-light: #{$lt-gold-light};
+  --#{$p}-gold-subtle: #{$lt-gold-subtle};
+  --#{$p}-gold-hover: #{$lt-gold-hover};
+  --#{$p}-text: #{$lt-text};
+  --#{$p}-muted: #{$lt-muted};
+  --#{$p}-title-gradient: #{$lt-title-gradient};
+  --#{$p}-shadow: #{$lt-shadow};
+  --#{$p}-shadow-sm: #{$lt-shadow-sm};
+  --#{$p}-image-bg: #{$lt-image-bg};
+  --#{$p}-row-bg: #{$lt-row-hover};
+  --#{$p}-table-head-bg: #faf4ea;
+  --#{$p}-table-body-bg: #fffdf9;
+  --#{$p}-modal-overlay: #{$lt-modal-overlay};
+  --#{$p}-modal-bg: #{$lt-modal-bg};
+  --#{$p}-orb-1: #{$lt-orb-1};
+  --#{$p}-orb-2: #{$lt-orb-2};
+  --#{$p}-grain-opacity: #{$lt-grain-opacity};
+  --#{$p}-summary-bg: #{$lt-highlight-bg};
+  --#{$p}-summary-border: #{$lt-highlight-border};
+}
+
+@mixin theme-order-form-dark($p) {
+  @include theme-order-dark($p);
+  --#{$p}-input-bg: #{$dt-input-bg};
+  --#{$p}-accent: #{$dt-pao-accent};
+  --#{$p}-accent-dark: #{$dt-pao-accent-dark};
+  --#{$p}-success-dark: #{$dt-success-dark};
+  --#{$p}-summary-shadow: #{$dt-pao-summary-shadow};
+  --#{$p}-summary-shadow-pulse: #{$dt-pao-summary-shadow-pulse};
+  --#{$p}-focus-ring: #{$dt-focus-ring};
+}
+
+@mixin theme-order-form-light($p) {
+  @include theme-order-light($p);
+  --#{$p}-input-bg: #{$lt-input-bg};
+  --#{$p}-accent: #{$lt-gold-light};
+  --#{$p}-accent-dark: #{$lt-gold};
+  --#{$p}-success-dark: #{$lt-success};
+  --#{$p}-summary-shadow: 0 6px 22px rgba(92, 69, 24, 0.08);
+  --#{$p}-summary-shadow-pulse: 0 12px 32px rgba(184, 149, 74, 0.18);
+  --#{$p}-focus-ring: rgba(184, 149, 74, 0.22);
+}
+
+@mixin theme-order-editor-dark($p) {
+  @include theme-order-dark($p);
+  --#{$p}-input-bg: #{$dt-input-bg};
+  --#{$p}-focus-ring: #{$dt-focus-ring};
+  --#{$p}-summary-input-bg: #{$dt-oed-summary-input-bg};
+  --#{$p}-summary-input-border: #{$dt-oed-summary-input-border};
+}
+
+@mixin theme-order-editor-light($p) {
+  @include theme-order-light($p);
+  --#{$p}-input-bg: #{$lt-input-bg};
+  --#{$p}-focus-ring: rgba(184, 149, 74, 0.22);
+  --#{$p}-summary-input-bg: rgba(255, 253, 249, 0.75);
+  --#{$p}-summary-input-border: #{$lt-border};
+}
+
+// --- Редактор мебели ----------------------------------------------------------
+
+@mixin theme-editor-dark($p) {
+  --#{$p}-surface: #{$dt-surface};
+  --#{$p}-surface-2: #{$dt-surface-2};
+  --#{$p}-surface-glass: #{$dt-surface-glass};
+  --#{$p}-border: #{$dt-border};
+  --#{$p}-border-soft: #{$dt-border-soft};
+  --#{$p}-gold: #{$dt-gold};
+  --#{$p}-gold-light: #{$dt-gold-light};
+  --#{$p}-gold-subtle: #{$dt-gold-subtle};
+  --#{$p}-gold-hover: #{$dt-gold-hover};
+  --#{$p}-text: #{$dt-text};
+  --#{$p}-muted: #{$dt-muted};
+  --#{$p}-title-gradient: #{$dt-title-gradient};
+  --#{$p}-shadow: #{$dt-shadow};
+  --#{$p}-shadow-sm: #{$dt-shadow-sm};
+  --#{$p}-shadow-card: #{$dt-shadow-card};
+  --#{$p}-drawer-overlay: #{$dt-drawer-overlay};
+  --#{$p}-drawer-bg: #{$dt-modal-bg};
+  --#{$p}-success: #{$dt-success};
+  --#{$p}-success-dark: #{$dt-success-dark};
+  --#{$p}-danger: #{$dt-danger};
+  --#{$p}-danger-dark: #{$dt-danger-dark};
+  --#{$p}-info: #{$dt-info};
+  --#{$p}-input-bg: #{$dt-input-bg};
+  --#{$p}-image-bg: #{$dt-image-bg};
+  --#{$p}-scrollbar: #{$dt-scrollbar};
+  --#{$p}-scrollbar-track: #{$dt-scrollbar-track};
+  --#{$p}-orb-1: #{$dt-orb-1};
+  --#{$p}-orb-2: #{$dt-orb-2};
+  --#{$p}-grain-opacity: #{$dt-grain-opacity};
+  --#{$p}-row-bg: rgba(212, 175, 120, 0.04);
+  --#{$p}-spinner-track: #{$dt-ed-spinner-track};
+  --#{$p}-card-bg: #{$dt-ed-card-bg};
+  --#{$p}-card-body-bg: #{$dt-ed-card-body-bg};
+  --#{$p}-card-border: #{$dt-ed-card-border};
+  --#{$p}-card-hover-border: #{$dt-ed-card-hover-border};
+  --#{$p}-card-shadow: #{$dt-ed-card-shadow};
+  --#{$p}-card-shadow-hover: #{$dt-ed-card-shadow-hover};
+  --#{$p}-card-shine: #{$dt-card-shine};
+  --#{$p}-card-overlay: #{$dt-ed-card-overlay};
+  --#{$p}-image-frame: #{$dt-ed-image-frame};
+  --#{$p}-tag-bg: #{$dt-ed-tag-bg};
+  --#{$p}-tag-text: #{$dt-ed-tag-text};
+  --#{$p}-id-badge-bg: #{$dt-ed-id-badge-bg};
+}
+
+@mixin theme-editor-light($p) {
+  --#{$p}-surface: #{$lt-surface};
+  --#{$p}-surface-2: #{$lt-surface-2};
+  --#{$p}-surface-glass: #{$lt-surface-glass};
+  --#{$p}-border: #{$lt-border};
+  --#{$p}-border-soft: #{$lt-border-soft};
+  --#{$p}-gold: #{$lt-gold};
+  --#{$p}-gold-light: #{$lt-gold-light};
+  --#{$p}-gold-subtle: #{$lt-gold-subtle};
+  --#{$p}-gold-hover: #{$lt-gold-hover};
+  --#{$p}-text: #{$lt-text};
+  --#{$p}-muted: #{$lt-muted};
+  --#{$p}-title-gradient: #{$lt-title-gradient};
+  --#{$p}-shadow: #{$lt-shadow};
+  --#{$p}-shadow-sm: #{$lt-shadow-sm};
+  --#{$p}-shadow-card: #{$lt-shadow-card};
+  --#{$p}-drawer-overlay: #{$lt-modal-overlay};
+  --#{$p}-drawer-bg: #{$lt-modal-bg};
+  --#{$p}-input-bg: #{$lt-input-bg};
+  --#{$p}-image-bg: #{$lt-image-bg};
+  --#{$p}-scrollbar: #{$lt-scrollbar};
+  --#{$p}-scrollbar-track: #{$lt-scrollbar-track};
+  --#{$p}-orb-1: #{$lt-orb-1};
+  --#{$p}-orb-2: #{$lt-orb-2};
+  --#{$p}-grain-opacity: #{$lt-grain-opacity};
+  --#{$p}-row-bg: #{$lt-row-hover};
+  --#{$p}-spinner-track: rgba(92, 69, 24, 0.12);
+  --#{$p}-card-bg: linear-gradient(180deg, #fffdf9 0%, #f5efe4 100%);
+  --#{$p}-card-body-bg: linear-gradient(180deg, #fffdf9 0%, #faf4ea 100%);
+  --#{$p}-card-border: #{$lt-border};
+  --#{$p}-card-hover-border: #{$lt-hover-border};
+  --#{$p}-card-shadow: #{$lt-shadow-card};
+  --#{$p}-card-shadow-hover: #{$lt-shadow-card-hover};
+  --#{$p}-card-shine: #{$lt-card-shine};
+  --#{$p}-card-overlay: #{$lt-card-overlay};
+  --#{$p}-image-frame: #{$lt-image-bg};
+  --#{$p}-tag-bg: #{$lt-gold-subtle};
+  --#{$p}-tag-text: #{$lt-muted};
+  --#{$p}-id-badge-bg: rgba(255, 252, 247, 0.94);
+}

@@ -1,19 +1,21 @@
-import React, {Component} from 'react';
-import Header from './Header/header.js'
-import {Outlet} from "react-router-dom";
-import { CatalogThemeProvider } from '../context/CatalogThemeContext';
+import React, { Component } from 'react';
+import Header from './Header/header.js';
+import { Outlet } from 'react-router-dom';
 
 class Layout extends Component {
     render() {
         return (
-            <CatalogThemeProvider>
-                <Header/>
-                <main className='main'>
-                    <Outlet/>
+            <>
+                <a href="#main-content" className="skip-link">
+                    Перейти к содержимому
+                </a>
+                <Header />
+                <main id="main-content" className="main" tabIndex={-1}>
+                    <Outlet />
                 </main>
-            </CatalogThemeProvider>
+            </>
         );
-    };
-};
+    }
+}
 
 export default Layout;

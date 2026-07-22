@@ -1,15 +1,23 @@
+// =============================================================================
+// UI-КОМПОНЕНТЫ (тосты, оверлеи, модалки)
+// Светлая тема — в конце блока .app-ui-confirm и .app-ui-overlay
+// =============================================================================
+
 .app-ui-toast {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  left: auto;
   z-index: 10000;
-  max-width: 420px;
+  max-width: min(420px, calc(100vw - 24px));
   padding: 14px 20px;
   border-radius: 12px;
   font-weight: 600;
   font-size: 15px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   animation: app-ui-toast-in 0.25s ease;
+  box-sizing: border-box;
+  word-break: break-word;
 
   &--success {
     background: #ecfdf5;
@@ -49,8 +57,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: max(12px, env(safe-area-inset-top, 0px))
+    max(12px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px))
+    max(12px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   animation: app-ui-fade-in 0.2s ease;
+
+  html[data-catalog-theme='light'] & {
+    background: rgba(240, 233, 220, 0.78);
+    backdrop-filter: blur(4px);
+  }
 }
 
 @keyframes app-ui-fade-in {
@@ -75,7 +94,26 @@
   padding: 24px;
   width: 100%;
   max-width: 420px;
+  max-height: min(88vh, 88dvh);
+  overflow-y: auto;
+  box-sizing: border-box;
   box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15);
+  -webkit-overflow-scrolling: touch;
+
+  html[data-catalog-theme='light'] & {
+    background: linear-gradient(168deg, #fffdf9 0%, #faf4ea 100%);
+    border: 1px solid rgba(184, 149, 74, 0.2);
+    box-shadow: 0 24px 48px rgba(92, 69, 24, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+    p {
+      color: #1a1612;
+    }
+
+    .app-ui-confirm__btn--primary {
+      background: linear-gradient(135deg, #e8c992 0%, #b8954a 55%, #9a7628 100%);
+      border-color: #b8954a;
+    }
+  }
   animation: app-ui-confirm-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 
   p {
@@ -84,16 +122,19 @@
     margin: 0 0 22px;
     color: #1f2937;
     white-space: pre-line;
+    word-break: break-word;
   }
 
   &__actions {
     display: flex;
     gap: 10px;
     justify-content: flex-end;
+    flex-wrap: wrap;
   }
 
   &__btn {
-    padding: 9px 18px;
+    padding: 10px 18px;
+    min-height: 44px;
     border-radius: 9px;
     font-size: 14px;
     font-weight: 600;
@@ -101,6 +142,7 @@
     border: 1px solid #cbd5e1;
     background: white;
     color: #334155;
+    box-sizing: border-box;
 
     &:hover {
       background: #f8fafc;
@@ -125,5 +167,39 @@
         background: #dc2626;
       }
     }
+  }
+}
+
+/* Мобильные confirm / toast */
+@media (max-width: 640px) {
+  .app-ui-overlay {
+    align-items: flex-end;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .app-ui-confirm {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 18px 18px 0 0;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    max-height: min(90vh, 90dvh);
+  }
+
+  .app-ui-confirm__actions {
+    flex-direction: column-reverse;
+  }
+
+  .app-ui-confirm__btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .app-ui-toast {
+    top: auto;
+    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    left: 12px;
+    max-width: none;
   }
 }

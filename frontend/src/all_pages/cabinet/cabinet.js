@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState, useEffect } from 'react';
+import React, { useContext, useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -14,9 +14,23 @@ import './cabinet.scss';
 import { CustomContext } from '../../Context';
 import { LoadingPage } from '../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../context/CatalogThemeContext';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+
 import { format, subDays, startOfMonth, endOfMonth, subMonths, parseISO, differenceInMinutes } from 'date-fns';
+import {
+  fetchAnnouncements,
+  filterActiveAnnouncements,
+  formatExpiryLabel,
+} from '../../utils/announcements';
+import {
+  isPushSupported,
+  getNotificationPermission,
+  wasPromptDismissed,
+  dismissPrompt,
+  enablePushNotifications,
+  getPushStatus,
+  markAnnouncementsSeen,
+  notifyNewAnnouncementsLocally,
+} from '../../utils/pushNotifications';
 
 // Регистрируем Chart.js один раз
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -101,7 +115,7 @@ const PERIOD_PRESETS = [
 ];
 
 const PersonalCabinet = () => {
-  const { currentUser, workSessions, showToast } = useContext(CustomContext);
+  const { currentUser, workSessions, showToast, dataLoaded } = useContext(CustomContext);
   const { resolvedTheme } = useCatalogTheme();
 
   const [liveNow, setLiveNow] = useState(Date.now());
@@ -119,6 +133,99 @@ const PersonalCabinet = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
+
+  const [announcements, setAnnouncements] = useState([]);
+  const [pushStatus, setPushStatus] = useState({
+    supported: isPushSupported(),
+    permission: getNotificationPermission(),
+    subscribed: false,
+  });
+  const [pushBusy, setPushBusy] = useState(false);
+  const [showPushBanner, setShowPushBanner] = useState(false);
+  const announcementsSeededRef = useRef(false);
+
+  const refreshPushStatus = useCallback(async () => {
+    const status = await getPushStatus();
+    setPushStatus(status);
+    const needBanner =
+      status.supported &&
+      status.permission !== 'granted' &&
+      !wasPromptDismissed();
+    setShowPushBanner(needBanner);
+    return status;
+  }, []);
+
+  useEffect(() => {
+    refreshPushStatus();
+  }, [refreshPushStatus]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async ({ notifyNew } = { notifyNew: false }) => {
+      try {
+        const list = await fetchAnnouncements();
+        if (cancelled) return;
+        const arr = Array.isArray(list) ? list : [];
+        setAnnouncements(arr);
+
+        if (!announcementsSeededRef.current) {
+          markAnnouncementsSeen(filterActiveAnnouncements(arr));
+          announcementsSeededRef.current = true;
+        } else if (notifyNew) {
+          notifyNewAnnouncementsLocally(filterActiveAnnouncements(arr));
+        }
+      } catch {
+        /* кабинет работает без объявлений */
+      }
+    };
+
+    load({ notifyNew: false });
+    const interval = setInterval(() => load({ notifyNew: true }), 45000);
+    const onFocus = () => load({ notifyNew: true });
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') onFocus();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
+  const handleEnablePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      await enablePushNotifications(currentUser?.id ?? null);
+      await refreshPushStatus();
+      setShowPushBanner(false);
+      showToast('success', 'Уведомления включены. Новые объявления придут на телефон.');
+    } catch (err) {
+      showToast('error', err.message || 'Не удалось включить уведомления');
+      await refreshPushStatus();
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleDismissPushBanner = () => {
+    dismissPrompt();
+    setShowPushBanner(false);
+  };
+
+  const urgentNews = useMemo(
+    () => filterActiveAnnouncements(announcements, 'urgent'),
+    [announcements]
+  );
+  const bulletinNews = useMemo(
+    () => filterActiveAnnouncements(announcements, 'persistent'),
+    [announcements]
+  );
 
   // ==================== ПОЛУЧЕНИЕ ДИАПАЗОНА ДАТ ====================
   const dateRange = useMemo(() => {
@@ -377,11 +484,16 @@ const PersonalCabinet = () => {
   }, [workSessions, currentUser]);
 
   // ==================== ЭКСПОРТ В PDF ====================
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!currentUser || filteredShifts.length === 0) {
       showToast('info', 'Нет данных для экспорта');
       return;
     }
+
+    const [{ default: jsPDF }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
 
     const doc = new jsPDF();
     const periodLabel = PERIOD_PRESETS.find(p => p.key === activePreset)?.label || 'Выбранный период';
@@ -478,7 +590,7 @@ const PersonalCabinet = () => {
   };
 
   // ==================== ЗАЩИТА ====================
-  if (!currentUser) {
+  if (!currentUser || !dataLoaded) {
     return <LoadingPage message="Загрузка личного кабинета..." />;
   }
 
@@ -522,9 +634,88 @@ const PersonalCabinet = () => {
         )}
       </nav>
 
+      {showPushBanner && (
+        <section className="cabinet-push-banner" role="region" aria-label="Уведомления">
+          <div className="cabinet-push-banner__text">
+            <strong>Включите уведомления</strong>
+            <p>
+              Чтобы не писать в WhatsApp: новые объявления будут приходить на телефон
+              (как push). На iPhone добавьте сайт на экран «Домой».
+            </p>
+          </div>
+          <div className="cabinet-push-banner__actions">
+            <button
+              type="button"
+              className="cabinet-push-banner__btn cabinet-push-banner__btn--primary"
+              onClick={handleEnablePush}
+              disabled={pushBusy}
+            >
+              {pushBusy ? 'Подключение…' : 'Разрешить уведомления'}
+            </button>
+            <button
+              type="button"
+              className="cabinet-push-banner__btn"
+              onClick={handleDismissPushBanner}
+              disabled={pushBusy}
+            >
+              Позже
+            </button>
+          </div>
+        </section>
+      )}
+
+      {pushStatus.supported && pushStatus.permission === 'granted' && !pushStatus.subscribed && (
+        <section className="cabinet-push-banner cabinet-push-banner--soft" role="region">
+          <div className="cabinet-push-banner__text">
+            <strong>Разрешение есть, но push не подключён</strong>
+            <p>Нажмите, чтобы получать уведомления даже когда вкладка закрыта.</p>
+          </div>
+          <div className="cabinet-push-banner__actions">
+            <button
+              type="button"
+              className="cabinet-push-banner__btn cabinet-push-banner__btn--primary"
+              onClick={handleEnablePush}
+              disabled={pushBusy}
+            >
+              {pushBusy ? 'Подключение…' : 'Подключить push'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {pushStatus.permission === 'granted' && pushStatus.subscribed && (
+        <div className="cabinet-push-ok" role="status">
+          Уведомления включены — новые объявления придут на устройство
+        </div>
+      )}
+
+      {urgentNews.length > 0 && (
+        <section
+          className="cabinet-urgent-news"
+          role="region"
+          aria-live="polite"
+          aria-label="Срочные объявления"
+        >
+          {urgentNews.map((a) => (
+            <article key={a.id} className="cabinet-urgent-news__item">
+              <div className="cabinet-urgent-news__badge" aria-hidden="true">Срочно</div>
+              <div className="cabinet-urgent-news__content">
+                {a.title ? <strong className="cabinet-urgent-news__title">{a.title}</strong> : null}
+                <p className="cabinet-urgent-news__text">{a.message}</p>
+                {(a.expiresAt || a.expiresat) && (
+                  <small className="cabinet-urgent-news__until">
+                    До {formatExpiryLabel(a.expiresAt || a.expiresat)}
+                  </small>
+                )}
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
       {/* ===== СТАТУС + КАРТОЧКА СОТРУДНИКА ===== */}
       <div className="status-section">
-        <div className={`status-card ${currentActiveShift ? 'active' : 'inactive'}`}>
+        <div className={`status-card ${currentActiveShift ? 'active' : 'inactive'}`} role="status" aria-live="polite">
           <div className="status-indicator" />
           <div>
             <div className="status-title">
@@ -558,6 +749,31 @@ const PersonalCabinet = () => {
         </div>
       </div>
 
+      {bulletinNews.length > 0 && (
+        <section
+          className="cabinet-bulletin"
+          role="region"
+          aria-labelledby="cabinet-bulletin-title"
+        >
+          <h2 id="cabinet-bulletin-title" className="cabinet-bulletin__title">
+            Актуально
+          </h2>
+          <ul className="cabinet-bulletin__list">
+            {bulletinNews.map((a) => (
+              <li key={a.id} className="cabinet-bulletin__item">
+                {a.title ? <strong>{a.title}: </strong> : null}
+                <span>{a.message}</span>
+                {(a.expiresAt || a.expiresat) && (
+                  <small className="cabinet-bulletin__until">
+                    до {formatExpiryLabel(a.expiresAt || a.expiresat)}
+                  </small>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* ===== ИНСАЙТЫ (новый блок) ===== */}
       <div className="cabinet-insights">
         <div className="cabinet-insight">
@@ -586,7 +802,7 @@ const PersonalCabinet = () => {
       </div>
 
       {/* ===== СТАТИСТИКА ===== */}
-      <div className="stats-grid">
+      <div className="stats-grid" role="region" aria-label="Статистика за выбранный период">
         <div className="stat-card">
           <div className="stat-value">{statistics.totalHours}</div>
           <div className="stat-label">Отработано часов</div>
@@ -606,10 +822,10 @@ const PersonalCabinet = () => {
       </div>
 
       {/* ===== ГРАФИК ЗА ПОСЛЕДНИЕ 7 ДНЕЙ ===== */}
-      <div className="weekly-chart-section">
+      <section className="weekly-chart-section" aria-labelledby="cabinet-weekly-chart-title">
         <div className="section-header">
           <div>
-            <h3>Активность за последние 7 дней</h3>
+            <h3 id="cabinet-weekly-chart-title">Активность за последние 7 дней</h3>
             <span className="chart-hint">Независимо от фильтров ниже</span>
           </div>
           <div className="cabinet-chart-summary">
@@ -623,10 +839,10 @@ const PersonalCabinet = () => {
             </div>
           </div>
         </div>
-        <div className="chart-wrapper">
-          <Bar data={weeklyChartData} options={weeklyChartOptions} />
+        <div className="chart-wrapper" role="img" aria-label={`График активности за 7 дней: ${weeklyChartData.totalHours} часов, ${weeklyChartData.daysWorked} рабочих дней`}>
+          <Bar data={weeklyChartData} options={weeklyChartOptions} aria-hidden="true" />
         </div>
-      </div>
+      </section>
 
       {/* ===== ФИЛЬТРЫ (САМОЕ ВАЖНОЕ) ===== */}
       <div className="filters-section">
@@ -636,13 +852,15 @@ const PersonalCabinet = () => {
             <span className="filters-period">{periodLabel}</span>
           </div>
           <div className="filters-export-group">
-            <button className="export-btn" onClick={exportToPDF} disabled={filteredShifts.length === 0}>
+            <button type="button" className="export-btn" onClick={exportToPDF} disabled={filteredShifts.length === 0} aria-label="Экспорт в PDF">
               PDF
             </button>
             <button
+              type="button"
               className="export-btn export-btn--secondary"
               onClick={exportToCSV}
               disabled={filteredShifts.length === 0}
+              aria-label="Экспорт в CSV"
             >
               CSV
             </button>
@@ -650,12 +868,14 @@ const PersonalCabinet = () => {
         </div>
 
         {/* Пресеты периодов */}
-        <div className="preset-chips">
+        <div className="preset-chips" role="group" aria-label="Период">
           {PERIOD_PRESETS.map(preset => (
             <button
               key={preset.key}
+              type="button"
               className={`preset-chip ${activePreset === preset.key ? 'active' : ''}`}
               onClick={() => handlePresetChange(preset.key)}
+              aria-pressed={activePreset === preset.key}
             >
               {preset.label}
             </button>
@@ -666,19 +886,23 @@ const PersonalCabinet = () => {
         {activePreset === 'custom' && (
           <div className="custom-date-range">
             <div className="date-input-group">
-              <label>С</label>
+              <label htmlFor="cabinet-date-from">С</label>
               <input
+                id="cabinet-date-from"
                 type="date"
                 value={customDateFrom}
                 onChange={(e) => setCustomDateFrom(e.target.value)}
+                aria-label="Дата начала периода"
               />
             </div>
             <div className="date-input-group">
-              <label>По</label>
+              <label htmlFor="cabinet-date-to">По</label>
               <input
+                id="cabinet-date-to"
                 type="date"
                 value={customDateTo}
                 onChange={(e) => setCustomDateTo(e.target.value)}
+                aria-label="Дата окончания периода"
               />
             </div>
           </div>
@@ -687,8 +911,8 @@ const PersonalCabinet = () => {
         {/* Дополнительные фильтры */}
         <div className="advanced-filters">
           <div className="filter-group">
-            <label>Статус</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <label htmlFor="cabinet-status-filter">Статус</label>
+            <select id="cabinet-status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="all">Все смены</option>
               <option value="closed">Только закрытые</option>
               <option value="active">Только активные</option>
@@ -696,8 +920,8 @@ const PersonalCabinet = () => {
           </div>
 
           <div className="filter-group">
-            <label>Длительность</label>
-            <select value={durationFilter} onChange={(e) => setDurationFilter(e.target.value)}>
+            <label htmlFor="cabinet-duration-filter">Длительность</label>
+            <select id="cabinet-duration-filter" value={durationFilter} onChange={(e) => setDurationFilter(e.target.value)}>
               <option value="all">Любая</option>
               <option value="short">Менее 8 часов</option>
               <option value="normal">8–12 часов</option>
@@ -707,8 +931,8 @@ const PersonalCabinet = () => {
           </div>
 
           <div className="filter-group">
-            <label>Сортировка</label>
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <label htmlFor="cabinet-sort-filter">Сортировка</label>
+            <select id="cabinet-sort-filter" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
               <option value="date_desc">Сначала новые</option>
               <option value="date_asc">Сначала старые</option>
               <option value="duration_desc">Сначала длинные</option>
@@ -716,7 +940,7 @@ const PersonalCabinet = () => {
           </div>
         </div>
 
-        <div className="results-count">
+        <div className="results-count" role="status" aria-live="polite">
           Найдено смен: <strong>{filteredShifts.length}</strong>
           {isAdmin && <span className="admin-hint"> (режим просмотра)</span>}
         </div>
@@ -731,6 +955,7 @@ const PersonalCabinet = () => {
         ) : (
           <>
             <table className="shifts-table">
+              <caption className="visually-hidden">Список смен за период: {periodLabel}</caption>
               <thead>
                 <tr>
                   <th>Период</th>
@@ -764,16 +989,20 @@ const PersonalCabinet = () => {
             {/* Пагинация */}
             {totalPages > 1 && (
               <div className="pagination">
-                <button 
-                  disabled={currentPage === 1} 
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
                   onClick={() => setCurrentPage(p => p - 1)}
+                  aria-label="Предыдущая страница"
                 >
                   ← Назад
                 </button>
-                <span>Страница {currentPage} из {totalPages}</span>
-                <button 
-                  disabled={currentPage === totalPages} 
+                <span aria-live="polite">Страница {currentPage} из {totalPages}</span>
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(p => p + 1)}
+                  aria-label="Следующая страница"
                 >
                   Вперёд →
                 </button>

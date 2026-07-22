@@ -60,6 +60,7 @@ export const Context = ({ children }) => {
     const [workSessions, setWorkSessions] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [dataLoaded, setDataLoaded] = useState(false);
 
     const [toast, setToast] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState(null);
@@ -113,8 +114,19 @@ export const Context = ({ children }) => {
         }
     };
 
-    // Загрузка данных при старте
+    // Загрузка данных при старте: не блокируем каталог ожиданием всех API
     useEffect(() => {
+        const saved = localStorage.getItem('currentUser');
+        if (saved) {
+            try {
+                const user = JSON.parse(saved);
+                setCurrentUser(user);
+            } catch (e) {
+                localStorage.removeItem('currentUser');
+            }
+        }
+        setLoading(false);
+
         const loadData = async () => {
             try {
                 const [usersRes, sessionsRes, productsRes] = await Promise.all([
@@ -125,20 +137,10 @@ export const Context = ({ children }) => {
                 setUsers(usersRes.data);
                 setWorkSessions(sessionsRes.data);
                 setProducts(productsRes.data);
-
-                const saved = localStorage.getItem('currentUser');
-                if (saved) {
-                    try {
-                        const user = JSON.parse(saved);
-                        setCurrentUser(user);
-                    } catch (e) {
-                        localStorage.removeItem('currentUser');
-                    }
-                }
             } catch (err) {
                 console.error('Ошибка загрузки данных:', err);
             } finally {
-                setLoading(false);
+                setDataLoaded(true);
             }
         };
 
@@ -481,6 +483,7 @@ export const Context = ({ children }) => {
         workSessions,
         products,
         loading,
+        dataLoaded,
         login,
         logout,
         manualStartShift,

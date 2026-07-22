@@ -1,0 +1,371 @@
+/* =============================================================================
+   PhotoUploadSlot — только UI. Логика upload отдельно.
+   Варианты: --card (позиции), --avatar (профиль), --banner (новости)
+   Подхватывает CSS-переменные родителя (adm/pao/oed), если есть.
+   ============================================================================= */
+
+.photo-slot {
+  --ps-radius: 14px;
+  --ps-border: var(--adm-border, var(--pao-border, var(--oed-border, rgba(212, 175, 120, 0.35))));
+  --ps-bg: var(--adm-gold-subtle, var(--pao-gold-subtle, var(--oed-gold-subtle, rgba(212, 175, 120, 0.07))));
+  --ps-bg-hover: var(--adm-gold-hover, rgba(212, 175, 120, 0.14));
+  --ps-muted: var(--adm-muted, var(--pao-muted, var(--oed-muted, #94a3b8)));
+  --ps-text: var(--adm-text, var(--pao-text, var(--oed-text, inherit)));
+  --ps-gold: var(--adm-gold, var(--pao-gold, var(--oed-gold, #d4af78)));
+  --ps-surface: var(--adm-surface, var(--pao-surface, var(--oed-surface, transparent)));
+  --ps-danger-bg: var(--adm-danger, rgba(239, 68, 68, 0.92));
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  color: var(--ps-text);
+
+  &__label {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ps-muted);
+  }
+
+  &__zone {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1.5px dashed var(--ps-border);
+    border-radius: var(--ps-radius);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 40%),
+      var(--ps-bg);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--ps-gold);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 45%),
+        var(--ps-bg-hover);
+      box-shadow: 0 0 0 3px rgba(212, 175, 120, 0.14);
+    }
+
+    &:active {
+      transform: scale(0.995);
+    }
+  }
+
+  &--disabled &__zone {
+    cursor: default;
+
+    &:active {
+      transform: none;
+    }
+  }
+
+  &__input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+    /* hidden for a11y tools that still need the control via zone click */
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 16px 14px;
+    text-align: center;
+    pointer-events: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    font-size: 22px;
+    line-height: 1;
+    background: rgba(212, 175, 120, 0.12);
+    border: 1px solid var(--ps-border);
+    margin-bottom: 2px;
+  }
+
+  &__cta {
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--ps-text);
+  }
+
+  &__hint {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ps-muted);
+    max-width: 240px;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 2px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ps-gold);
+    border: 1px solid var(--ps-border);
+    border-radius: 999px;
+    background: rgba(212, 175, 120, 0.08);
+  }
+
+  &__img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ps-danger-bg);
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &:not(:disabled):hover {
+      filter: brightness(1.08);
+    }
+  }
+
+  /* --- варианты --- */
+
+  &--card &__zone {
+    min-height: 132px;
+    aspect-ratio: 16 / 10;
+    max-height: 180px;
+  }
+
+  &--banner &__zone {
+    min-height: 112px;
+    aspect-ratio: 21 / 9;
+    max-height: 168px;
+  }
+
+  &--avatar {
+    align-items: center;
+    width: auto;
+    max-width: 160px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  &--avatar &__label {
+    text-align: center;
+    width: 100%;
+  }
+
+  &--avatar &__zone {
+    width: 116px;
+    height: 116px;
+    min-height: 116px;
+    max-height: none;
+    border-radius: 50%;
+    aspect-ratio: 1;
+  }
+
+  &--avatar &__empty {
+    padding: 10px 8px;
+    gap: 4px;
+  }
+
+  &--avatar &__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 18px;
+    margin-bottom: 0;
+  }
+
+  &--avatar &__cta {
+    font-size: 11px;
+    max-width: 90px;
+    line-height: 1.25;
+  }
+
+  &--avatar &__hint,
+  &--avatar &__badge {
+    display: none;
+  }
+
+  &--avatar &__remove {
+    top: 4px;
+    right: 4px;
+    width: 32px;
+    height: 32px;
+  }
+
+  &--has-preview &__zone {
+    border-style: solid;
+    padding: 0;
+    background: var(--ps-surface);
+  }
+}
+
+/* --- контекст: модалки заказов --- */
+.oed-modal .photo-slot,
+.pao-modal .photo-slot {
+  margin-bottom: 4px;
+}
+
+.oed-modal .photo-slot--card .photo-slot__zone,
+.pao-modal .photo-slot--card .photo-slot__zone {
+  min-height: 118px;
+  max-height: 152px;
+}
+
+.oed-modal__form .photo-slot,
+.pao-modal__form .photo-slot {
+  grid-column: 1 / -1;
+}
+
+/* --- контекст: админ-новости --- */
+.admin-announcements .photo-slot {
+  grid-column: 1 / -1;
+}
+
+.admin-announcements__field--photo {
+  min-width: 0;
+}
+
+.admin-announcements .photo-slot--banner .photo-slot__zone {
+  min-height: 100px;
+  max-height: 140px;
+}
+
+/* --- контекст: модалка сотрудника --- */
+.modal__content .photo-slot--avatar {
+  margin: 4px auto 16px;
+}
+
+.modal__content .photo-slot__label {
+  opacity: 0.85;
+}
+
+/* Светлая тема админки */
+.admin--theme-light {
+  .photo-slot {
+    --ps-muted: var(--adm-muted, #6b7280);
+    --ps-text: var(--adm-text, #1a1612);
+  }
+
+  .photo-slot__zone {
+    background: rgba(255, 252, 247, 0.9);
+  }
+
+  .photo-slot__icon {
+    background: rgba(184, 149, 74, 0.12);
+  }
+}
+
+/* Светлые темы заказов */
+.pao-modal--theme-light,
+.oed-modal--theme-light {
+  .photo-slot__zone {
+    background: rgba(255, 252, 247, 0.92);
+  }
+
+  .photo-slot__icon {
+    background: rgba(184, 149, 74, 0.12);
+  }
+}
+
+@media (max-width: 820px) {
+  .oed-modal .photo-slot--card .photo-slot__zone,
+  .pao-modal .photo-slot--card .photo-slot__zone {
+    min-height: 108px;
+    max-height: 140px;
+    aspect-ratio: 16 / 10;
+  }
+}
+
+@media (max-width: 640px) {
+  .photo-slot--card .photo-slot__zone {
+    min-height: 104px;
+    max-height: 136px;
+  }
+
+  .photo-slot--banner .photo-slot__zone {
+    min-height: 96px;
+    max-height: 128px;
+    aspect-ratio: 16 / 9;
+  }
+
+  .photo-slot--avatar .photo-slot__zone {
+    width: 104px;
+    height: 104px;
+    min-height: 104px;
+  }
+
+  .photo-slot__remove {
+    width: 40px;
+    height: 40px;
+  }
+
+  .photo-slot__empty {
+    padding: 14px 12px;
+  }
+
+  .photo-slot__hint {
+    max-width: 100%;
+  }
+
+  .modal__content .photo-slot--avatar {
+    margin-bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-slot__zone {
+    transition: none;
+  }
+
+  .photo-slot__zone:active {
+    transform: none;
+  }
+}

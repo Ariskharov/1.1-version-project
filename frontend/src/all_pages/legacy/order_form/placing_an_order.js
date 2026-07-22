@@ -1,14 +1,23 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
+import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { createPortal } from 'react-dom';
 import { evaluate } from 'mathjs';
 import { useNavigate } from 'react-router-dom';
 import './placing_an_order.scss';
 import { CustomContext } from '../../../Context';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
+import PhotoUploadSlot from '../../../components/ui/PhotoUploadSlot';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { uploadPhoto } from '../../../utils/uploadService';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
+const resolveImageUrl = (img) => {
+    if (!img || typeof img !== 'string') return null;
+    if (img.startsWith('http')) return img;
+    const file = img.split('/').pop();
+    return `/utilse/${file}`;
+};
 
 const PlacingAnOrder = () => {
     const navigate = useNavigate();
@@ -109,7 +118,7 @@ const PlacingAnOrder = () => {
 
     // Загрузка каталога
     useEffect(() => {
-        fetch(`${API_BASE}/product`)
+        fetch('http://localhost:8080/product')
             .then(res => res.json())
             .then(data => setProducts(Array.isArray(data) ? data : [data]))
             .catch(err => console.error('Ошибка каталога:', err));
@@ -168,8 +177,7 @@ const PlacingAnOrder = () => {
                     title: itemToEdit.title,
                     price: itemToEdit.price,
                     quantity: itemToEdit.quantity,
-                    description: itemToEdit.description || '',
-                    img: itemToEdit.img || ''
+                    description: itemToEdit.description || ''
                 });
                 // Цвета для произвольных позиций не используются (есть описание)
                 setBodyColor('');
@@ -203,24 +211,28 @@ const PlacingAnOrder = () => {
             setSelectedProduct(null);
             setInputs({});
             setCustomDesc('');
-            setCustomItem({ title: '', price: '', quantity: 1, description: '', img: '' });
+            setCustomItem({ title: '', price: '', quantity: 1, description: '' });
             setBodyColor('');
             setFacadeColor('');
             if (type === 'catalog') setProductSearch('');
         }
     };
 
-    const closeModal = () => {
+    const addModalRef = useRef(null);
+
+    const closeModal = useCallback(() => {
         setModalOpen(false);
         setEditingItemId(null);
         setSelectedProduct(null);
         setInputs({});
         setCustomDesc('');
-        setCustomItem({ title: '', price: '', quantity: 1, description: '', img: '' });
+        setCustomItem({ title: '', price: '', quantity: 1, description: '' });
         setBodyColor('');
         setFacadeColor('');
         setProductSearch('');
-    };
+    }, []);
+
+    useDialogA11y(modalOpen, closeModal, addModalRef);
 
     // Добавление / Обновление позиции
     const savePosition = () => {
@@ -275,7 +287,7 @@ const PlacingAnOrder = () => {
                 price,
                 quantity,
                 totalPrice: price * quantity,
-                img: customItem.img || null
+                img: null
             };
 
             setOrder(prev => ({
@@ -553,11 +565,19 @@ const PlacingAnOrder = () => {
 
                 {/* Модальное окно (portal — избегаем конфликтов глобальных стилей) */}
                 {modalOpen && createPortal(
-                    <div className={paoModalClassName()} role="dialog" aria-modal="true">
+                    <div className={paoModalClassName()} role="presentation">
                         <div className="pao-modal__overlay" onClick={closeModal}>
-                            <div className="pao-modal__dialog" onClick={e => e.stopPropagation()}>
+                            <div
+                                ref={addModalRef}
+                                className="pao-modal__dialog"
+                                onClick={e => e.stopPropagation()}
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="pao-add-modal-title"
+                                tabIndex={-1}
+                            >
                                 <div className="pao-modal__header">
-                                    <h3>
+                                    <h3 id="pao-add-modal-title">
                                         {editingItemId ? 'Редактирование позиции' :
                                             modalType === 'catalog' ? 'Добавить из каталога' : 'Новая произвольная позиция'}
                                     </h3>
@@ -568,10 +588,11 @@ const PlacingAnOrder = () => {
                                     <div className="pao-modal__body pao-modal__body--catalog">
                                         <div className="pao-modal__search">
                                             <input
-                                                type="text"
+                                                type="search"
                                                 placeholder="Поиск по названию мебели..."
                                                 value={productSearch}
                                                 onChange={(e) => setProductSearch(e.target.value)}
+                                                aria-label="Поиск мебели в каталоге"
                                             />
                                             {productSearch && (
                                                 <button
@@ -579,6 +600,7 @@ const PlacingAnOrder = () => {
                                                     className="pao-modal__search-clear"
                                                     onClick={() => setProductSearch('')}
                                                     title="Очистить поиск"
+                                                    aria-label="Очистить поиск"
                                                 >
                                                     ×
                                                 </button>
@@ -734,6 +756,27 @@ const PlacingAnOrder = () => {
                                 ) : (
                                     <div className="pao-modal__body">
                                         <div className="pao-modal__form">
+                                            {/* UI под фото: логику upload подключает отдельный разработчик */}
+                                            <PhotoUploadSlot
+                                                inputId="pao-custom-position-photo"
+                                                label="Фото позиции"
+                                                hint="Загрузите изображение для произвольного изделия"
+                                                variant="card"
+                                                className="pao-modal__photo-slot"
+                                                previewUrl={customItem.img ? resolveImageUrl(customItem.img) : ''}
+                                                onFileChange={async (e) => {
+                                                    const file = e.target.files[0];
+                                                    if (!file) return;
+                                                    try {
+                                                        const path = await uploadPhoto(file);
+                                                        setCustomItem(p => ({ ...p, img: path }));
+                                                        showToast('success', 'Фото позиции загружено');
+                                                    } catch (err) {
+                                                        showToast('error', 'Ошибка загрузки фото: ' + err.message);
+                                                    }
+                                                }}
+                                                onRemove={() => setCustomItem(p => ({ ...p, img: '' }))}
+                                            />
                                             <div className="pao-modal__form-row">
                                                 <label className="pao-modal__field">
                                                     <span>Название позиции *</span>
@@ -771,30 +814,6 @@ const PlacingAnOrder = () => {
                                                     onChange={e => setCustomItem(p => ({ ...p, description: e.target.value }))}
                                                     placeholder="Дополнительная информация о позиции..."
                                                 />
-                                            </label>
-
-                                            <label className="pao-modal__field pao-modal__field--full">
-                                                <span>Фотография позиции</span>
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={async (e) => {
-                                                        const file = e.target.files[0];
-                                                        if (!file) return;
-                                                        try {
-                                                            const path = await uploadPhoto(file);
-                                                            setCustomItem(p => ({ ...p, img: path }));
-                                                            showToast('success', 'Фото позиции загружено');
-                                                        } catch (err) {
-                                                            showToast('error', 'Ошибка загрузки фото: ' + err.message);
-                                                        }
-                                                    }}
-                                                />
-                                                {customItem.img && (
-                                                    <div style={{ marginTop: '8px', color: '#4ade80', fontSize: '13px' }}>
-                                                        ✓ Фото прикреплено ({customItem.img})
-                                                    </div>
-                                                )}
                                             </label>
 
                                             <button type="button" className="pao-modal__save-btn pao-modal__save-btn--spaced" onClick={savePosition}>

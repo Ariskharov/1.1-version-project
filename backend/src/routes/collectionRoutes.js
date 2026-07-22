@@ -10,7 +10,7 @@ const {
 const router = express.Router();
 
 // Supported collections
-const allowedCollections = ['product', 'users', 'workSessions', 'order'];
+const allowedCollections = ['product', 'users', 'workSessions', 'order', 'announcements'];
 
 // Middleware to validate collection
 const validateCollection = (req, res, next) => {

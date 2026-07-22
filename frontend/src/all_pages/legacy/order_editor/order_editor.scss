@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+@import '../../../styles/theme';
 
 @keyframes oed-fade-in {
   from { opacity: 0; }
@@ -49,82 +50,19 @@
 $oed-ease: cubic-bezier(0.22, 1, 0.36, 1);
 $oed-radius: 18px;
 
-@mixin oed-theme-vars {
-  --oed-font: 'DM Sans', 'Roboto', sans-serif;
-  --oed-serif: 'Cormorant Garamond', Georgia, serif;
-  --oed-surface: rgba(22, 20, 18, 0.88);
-  --oed-surface-2: #1e1b18;
-  --oed-surface-glass: rgba(22, 20, 18, 0.82);
-  --oed-border: rgba(212, 175, 120, 0.14);
-  --oed-border-soft: rgba(212, 175, 120, 0.08);
-  --oed-gold: #d4af78;
-  --oed-gold-light: #e8c992;
-  --oed-gold-subtle: rgba(212, 175, 120, 0.1);
-  --oed-gold-hover: rgba(212, 175, 120, 0.18);
-  --oed-text: #f5f0e8;
-  --oed-muted: #9a9188;
-  --oed-title-gradient: linear-gradient(135deg, #f5f0e8 0%, #e8c992 100%);
-  --oed-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
-  --oed-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.18);
-  --oed-input-bg: rgba(30, 27, 24, 0.9);
-  --oed-image-bg: #0a0908;
-  --oed-row-bg: rgba(212, 175, 120, 0.05);
-  --oed-table-head-bg: #1a1816;
-  --oed-table-body-bg: #141210;
-  --oed-modal-overlay: rgba(8, 7, 6, 0.78);
-  --oed-modal-bg: linear-gradient(160deg, #1a1816 0%, #12100e 100%);
-  --oed-success: #4ade80;
-  --oed-danger: #f87171;
-  --oed-warning: #fbbf24;
-  --oed-info: #60a5fa;
-  --oed-orb-1: rgba(212, 175, 120, 0.22);
-  --oed-orb-2: rgba(120, 90, 60, 0.18);
-  --oed-grain-opacity: 0.035;
-  --oed-focus-ring: rgba(212, 175, 120, 0.2);
-  --oed-summary-bg: linear-gradient(135deg, #1a1816 0%, #12100e 100%);
-  --oed-summary-border: rgba(212, 175, 120, 0.2);
-  --oed-summary-input-bg: rgba(255, 255, 255, 0.08);
-  --oed-summary-input-border: rgba(255, 255, 255, 0.18);
-}
-
-@mixin oed-theme-vars-light {
-  --oed-surface: rgba(255, 255, 255, 0.9);
-  --oed-surface-2: #faf9f7;
-  --oed-surface-glass: rgba(255, 255, 255, 0.84);
-  --oed-border: rgba(184, 149, 74, 0.2);
-  --oed-border-soft: rgba(184, 149, 74, 0.1);
-  --oed-gold: #b8954a;
-  --oed-gold-light: #c9a84c;
-  --oed-gold-subtle: rgba(184, 149, 74, 0.1);
-  --oed-gold-hover: rgba(184, 149, 74, 0.14);
-  --oed-text: #171a1f;
-  --oed-muted: #5a6372;
-  --oed-title-gradient: linear-gradient(135deg, #171a1f 0%, #8b6914 50%, #c9a84c 100%);
-  --oed-shadow: 0 8px 32px rgba(23, 26, 31, 0.08);
-  --oed-shadow-sm: 0 2px 10px rgba(23, 26, 31, 0.05);
-  --oed-input-bg: #ffffff;
-  --oed-image-bg: linear-gradient(165deg, #f8f5ef 0%, #ebe5da 100%);
-  --oed-row-bg: rgba(184, 149, 74, 0.05);
-  --oed-table-head-bg: #faf8f4;
-  --oed-table-body-bg: #ffffff;
-  --oed-modal-overlay: rgba(237, 240, 245, 0.82);
-  --oed-modal-bg: linear-gradient(165deg, #ffffff 0%, #faf8f4 48%, #f3ede4 100%);
-  --oed-orb-1: rgba(255, 250, 240, 0.85);
-  --oed-orb-2: rgba(201, 168, 76, 0.14);
-  --oed-grain-opacity: 0.012;
-  --oed-focus-ring: rgba(184, 149, 74, 0.18);
-  --oed-summary-bg: linear-gradient(135deg, #faf8f4 0%, #f3ede4 100%);
-  --oed-summary-border: rgba(184, 149, 74, 0.25);
-  --oed-summary-input-bg: rgba(255, 255, 255, 0.65);
-  --oed-summary-input-border: rgba(184, 149, 74, 0.22);
-}
-
 /* =====================================================
    РЕДАКТОР ЗАКАЗА — премиальный редизайн
    ===================================================== */
 
+// =============================================================================
+// ТЕМЫ
+// =============================================================================
+
 .order_editor {
-  @include oed-theme-vars;
+  --oed-font: 'DM Sans', 'Roboto', sans-serif;
+  --oed-serif: 'Cormorant Garamond', Georgia, serif;
+
+  @include theme-order-editor-dark(oed);
 
   position: relative;
   font-family: var(--oed-font);
@@ -139,7 +77,7 @@ $oed-radius: 18px;
   animation: oed-fade-in 0.4s ease;
 
   &--theme-light {
-    @include oed-theme-vars-light;
+    @include theme-order-editor-light(oed);
   }
 
   &--loading {
@@ -1479,12 +1417,15 @@ $oed-radius: 18px;
    ===================================================== */
 
 .oed-modal {
-  @include oed-theme-vars;
+  --oed-font: 'DM Sans', 'Roboto', sans-serif;
+  --oed-serif: 'Cormorant Garamond', Georgia, serif;
+
+  @include theme-order-editor-dark(oed);
   font-family: var(--oed-font);
   color: var(--oed-text);
 
   &--theme-light {
-    @include oed-theme-vars-light;
+    @include theme-order-editor-light(oed);
   }
 
   &__overlay {
@@ -1496,7 +1437,14 @@ $oed-radius: 18px;
     align-items: center;
     justify-content: center;
     z-index: 1100;
-    padding: 16px;
+    padding: max(10px, env(safe-area-inset-top, 0px))
+      max(10px, env(safe-area-inset-right, 0px))
+      max(10px, env(safe-area-inset-bottom, 0px))
+      max(10px, env(safe-area-inset-left, 0px));
+    box-sizing: border-box;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     animation: oed-overlay-in 0.28s ease;
   }
 
@@ -1506,12 +1454,13 @@ $oed-radius: 18px;
     border-radius: 20px;
     width: 100%;
     max-width: 980px;
-    max-height: 92vh;
+    max-height: min(92vh, 92dvh);
     display: flex;
     flex-direction: column;
     box-shadow: var(--oed-shadow);
     overflow: hidden;
     color: var(--oed-text);
+    box-sizing: border-box;
     animation: oed-scale-in 0.34s $oed-ease;
   }
 
@@ -2041,6 +1990,45 @@ $oed-radius: 18px;
   }
 
   .oed-modal {
+    &__overlay {
+      align-items: flex-end;
+      padding: 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    &__dialog {
+      width: 100%;
+      max-width: 100%;
+      max-height: min(96vh, 96dvh);
+      border-radius: 18px 18px 0 0;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+    }
+
+    &__header {
+      padding: 12px 14px;
+      gap: 8px;
+
+      h3 {
+        font-size: 17px;
+      }
+    }
+
+    &__close {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+    }
+
+    &__body {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      min-height: 0;
+      flex: 1;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
     &__split {
       flex-direction: column;
       min-height: auto;
@@ -2049,11 +2037,11 @@ $oed-radius: 18px;
 
     &__products-pane {
       flex: none;
-      max-height: 340px;
+      max-height: min(38vh, 300px);
     }
 
     &__products-list {
-      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       gap: 6px;
       padding: 4px;
     }
@@ -2072,10 +2060,29 @@ $oed-radius: 18px;
 
     &__config-pane {
       margin-top: 8px;
+      min-width: 0;
+    }
+
+    &__config-content {
+      padding: 12px 14px;
     }
 
     &__form-row {
       grid-template-columns: 1fr;
+    }
+
+    &__field input,
+    &__field select,
+    &__field textarea,
+    &__search input {
+      font-size: 16px;
+      min-height: 44px;
+    }
+
+    &__config-actions .btn,
+    &__save-btn {
+      min-height: 48px;
+      width: 100%;
     }
   }
 }
@@ -2099,6 +2106,7 @@ $oed-radius: 18px;
 
       .btn {
         width: 100%;
+        min-height: 44px;
       }
     }
 
@@ -2108,11 +2116,14 @@ $oed-radius: 18px;
 
       button {
         width: 100%;
+        min-height: 44px;
       }
     }
 
     &__details-table-wrap {
       max-height: 220px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
   }
 

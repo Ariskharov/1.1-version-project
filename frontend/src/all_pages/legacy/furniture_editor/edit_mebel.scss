@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+@import '../../../styles/theme';
 
 /* =============================================
    РЕДАКТОР МЕБЕЛИ — премиальный редизайн
@@ -8,53 +9,15 @@ $ed-radius: 18px;
 $ed-radius-sm: 12px;
 $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
+// =============================================================================
+// ТЕМЫ
+// =============================================================================
+
 .furniture-editor {
   --ed-font: 'DM Sans', 'Roboto', sans-serif;
   --ed-serif: 'Cormorant Garamond', Georgia, serif;
 
-  --ed-surface: rgba(22, 20, 18, 0.88);
-  --ed-surface-2: #1e1b18;
-  --ed-surface-glass: rgba(22, 20, 18, 0.82);
-  --ed-border: rgba(212, 175, 120, 0.14);
-  --ed-border-soft: rgba(212, 175, 120, 0.08);
-  --ed-gold: #d4af78;
-  --ed-gold-light: #e8c992;
-  --ed-gold-subtle: rgba(212, 175, 120, 0.1);
-  --ed-gold-hover: rgba(212, 175, 120, 0.18);
-  --ed-text: #f5f0e8;
-  --ed-muted: #9a9188;
-  --ed-title-gradient: linear-gradient(135deg, #f5f0e8 0%, #e8c992 100%);
-  --ed-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
-  --ed-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.18);
-  --ed-shadow-card: 0 12px 36px rgba(0, 0, 0, 0.25);
-  --ed-drawer-overlay: rgba(8, 7, 6, 0.72);
-  --ed-drawer-bg: linear-gradient(165deg, #1a1816 0%, #12100e 100%);
-  --ed-success: #4ade80;
-  --ed-success-dark: #22c55e;
-  --ed-danger: #f87171;
-  --ed-danger-dark: #ef4444;
-  --ed-info: #60a5fa;
-  --ed-input-bg: rgba(30, 27, 24, 0.9);
-  --ed-image-bg: #0a0908;
-  --ed-scrollbar: rgba(212, 175, 120, 0.35);
-  --ed-scrollbar-track: rgba(22, 20, 18, 0.5);
-  --ed-orb-1: rgba(212, 175, 120, 0.22);
-  --ed-orb-2: rgba(120, 90, 60, 0.18);
-  --ed-grain-opacity: 0.035;
-  --ed-row-bg: rgba(212, 175, 120, 0.04);
-  --ed-spinner-track: rgba(255, 255, 255, 0.25);
-  --ed-card-bg: linear-gradient(155deg, #1e1b18 0%, #161412 48%, #1a1714 100%);
-  --ed-card-body-bg: linear-gradient(180deg, rgba(22, 20, 18, 0.6) 0%, #161412 100%);
-  --ed-card-border: rgba(212, 175, 120, 0.18);
-  --ed-card-hover-border: rgba(212, 175, 120, 0.42);
-  --ed-card-shadow: 0 4px 18px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(212, 175, 120, 0.08);
-  --ed-card-shadow-hover: 0 22px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 120, 0.15);
-  --ed-card-shine: rgba(255, 255, 255, 0.07);
-  --ed-card-overlay: linear-gradient(to top, rgba(8, 7, 6, 0.88) 0%, rgba(8, 7, 6, 0.2) 45%, transparent 70%);
-  --ed-image-frame: linear-gradient(180deg, #12100e 0%, #080706 100%);
-  --ed-tag-bg: rgba(212, 175, 120, 0.12);
-  --ed-tag-text: #c4b8a8;
-  --ed-id-badge-bg: rgba(12, 11, 10, 0.82);
+  @include theme-editor-dark(ed);
 
   position: relative;
   max-width: 1520px;
@@ -67,44 +30,7 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
   transition: color 0.4s $ed-ease;
 
   &--theme-light {
-    --ed-surface: rgba(255, 255, 255, 0.9);
-    --ed-surface-2: #faf9f7;
-    --ed-surface-glass: rgba(255, 255, 255, 0.84);
-    --ed-border: rgba(184, 149, 74, 0.2);
-    --ed-border-soft: rgba(184, 149, 74, 0.1);
-    --ed-gold: #b8954a;
-    --ed-gold-light: #c9a84c;
-    --ed-gold-subtle: rgba(184, 149, 74, 0.1);
-    --ed-gold-hover: rgba(184, 149, 74, 0.14);
-    --ed-text: #171a1f;
-    --ed-muted: #5a6372;
-    --ed-title-gradient: linear-gradient(135deg, #171a1f 0%, #8b6914 50%, #c9a84c 100%);
-    --ed-shadow: 0 8px 32px rgba(23, 26, 31, 0.08);
-    --ed-shadow-sm: 0 2px 10px rgba(23, 26, 31, 0.05);
-    --ed-shadow-card: 0 12px 36px rgba(23, 26, 31, 0.1);
-    --ed-drawer-overlay: rgba(237, 240, 245, 0.82);
-    --ed-drawer-bg: linear-gradient(165deg, #ffffff 0%, #faf8f4 48%, #f3ede4 100%);
-    --ed-input-bg: #ffffff;
-    --ed-image-bg: linear-gradient(165deg, #f8f5ef 0%, #ebe5da 100%);
-    --ed-scrollbar: rgba(184, 149, 74, 0.4);
-    --ed-scrollbar-track: rgba(250, 249, 246, 0.8);
-    --ed-orb-1: rgba(255, 250, 240, 0.85);
-    --ed-orb-2: rgba(201, 168, 76, 0.14);
-    --ed-grain-opacity: 0.012;
-    --ed-row-bg: rgba(184, 149, 74, 0.05);
-    --ed-spinner-track: rgba(23, 26, 31, 0.15);
-    --ed-card-bg: linear-gradient(180deg, #ffffff 0%, #fcfaf7 100%);
-    --ed-card-body-bg: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
-    --ed-card-border: rgba(184, 149, 74, 0.22);
-    --ed-card-hover-border: rgba(184, 149, 74, 0.45);
-    --ed-card-shadow: 0 2px 6px rgba(23, 26, 31, 0.04), 0 8px 24px rgba(23, 26, 31, 0.07);
-    --ed-card-shadow-hover: 0 14px 40px rgba(184, 149, 74, 0.16), 0 0 0 1px rgba(184, 149, 74, 0.2);
-    --ed-card-shine: rgba(255, 255, 255, 0.75);
-    --ed-card-overlay: linear-gradient(to top, rgba(23, 26, 31, 0.5) 0%, transparent 65%);
-    --ed-image-frame: linear-gradient(165deg, #f8f5ef 0%, #ebe5da 100%);
-    --ed-tag-bg: rgba(184, 149, 74, 0.1);
-    --ed-tag-text: #5a6372;
-    --ed-id-badge-bg: rgba(255, 255, 255, 0.92);
+    @include theme-editor-light(ed);
   }
 
   &--loading {
@@ -115,7 +41,10 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
-/* Ambient */
+// =============================================================================
+// КОМПОНЕНТЫ
+// =============================================================================
+
 .editor-ambient {
   position: fixed;
   inset: 0;
@@ -775,7 +704,7 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
   right: 0;
   bottom: 0;
   width: 100%;
-  max-width: 700px;
+  max-width: min(700px, 100vw);
   background: var(--ed-drawer-bg);
   border-left: 1px solid var(--ed-border);
   box-shadow: -12px 0 48px rgba(0, 0, 0, 0.3);
@@ -785,6 +714,10 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
   transform: translateX(100%);
   transition: transform 0.4s $ed-ease;
   color: var(--ed-text);
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 
   &.open {
     transform: translateX(0);
@@ -1148,15 +1081,19 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   .drawer {
     max-width: 100%;
+    width: 100%;
+    border-left: none;
   }
 
   .drawer-body {
     padding: 16px 14px 28px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .drawer-header {
     flex-wrap: wrap;
     padding: 14px 16px;
+    gap: 10px;
 
     .drawer-actions {
       width: 100%;
@@ -1164,8 +1101,34 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
       .btn {
         flex: 1;
+        min-height: 44px;
       }
     }
+
+    .title-area input {
+      font-size: 18px;
+    }
+  }
+
+  .drawer-footer {
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+    flex-direction: column;
+
+    .btn-success,
+    .btn {
+      width: 100%;
+      min-width: 0;
+      min-height: 48px;
+    }
+  }
+
+  .drawer-body input,
+  .drawer-body select,
+  .drawer-body textarea {
+    font-size: 16px;
+    min-height: 44px;
+    box-sizing: border-box;
+    max-width: 100%;
   }
 }
 
@@ -1186,6 +1149,13 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   .product-card-actions {
     opacity: 1;
+  }
+
+  .drawer-header {
+    .mini-photo {
+      width: 44px;
+      height: 44px;
+    }
   }
 }
 
