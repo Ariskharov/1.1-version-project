@@ -635,7 +635,7 @@ const PersonalCabinet = () => {
       </nav>
 
       {showPushBanner && (
-        <section className="cabinet-push-banner" role="region" aria-label="Уведомления">
+        <section className="cabinet-push-banner" aria-label="Уведомления">
           <div className="cabinet-push-banner__text">
             <strong>Включите уведомления</strong>
             <p>
@@ -665,7 +665,7 @@ const PersonalCabinet = () => {
       )}
 
       {pushStatus.supported && pushStatus.permission === 'granted' && !pushStatus.subscribed && (
-        <section className="cabinet-push-banner cabinet-push-banner--soft" role="region">
+        <section className="cabinet-push-banner cabinet-push-banner--soft">
           <div className="cabinet-push-banner__text">
             <strong>Разрешение есть, но push не подключён</strong>
             <p>Нажмите, чтобы получать уведомления даже когда вкладка закрыта.</p>
@@ -692,7 +692,6 @@ const PersonalCabinet = () => {
       {urgentNews.length > 0 && (
         <section
           className="cabinet-urgent-news"
-          role="region"
           aria-live="polite"
           aria-label="Срочные объявления"
         >
@@ -752,7 +751,6 @@ const PersonalCabinet = () => {
       {bulletinNews.length > 0 && (
         <section
           className="cabinet-bulletin"
-          role="region"
           aria-labelledby="cabinet-bulletin-title"
         >
           <h2 id="cabinet-bulletin-title" className="cabinet-bulletin__title">

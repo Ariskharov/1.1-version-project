@@ -47,14 +47,15 @@ function hideBackgroundAround(dialog) {
         hideEl(main);
     } else if (main && main.contains(dialog)) {
         // прячем только «соседей» по пути от dialog → main
-        let el = dialog;
-        while (el && el !== main) {
-            const parent = el.parentElement;
+        let node = dialog;
+        while (node && node !== main) {
+            const parent = node.parentElement;
             if (!parent) break;
+            const currentNode = node;
             Array.from(parent.children).forEach((sibling) => {
-                if (sibling !== el) hideEl(sibling);
+                if (sibling !== currentNode) hideEl(sibling);
             });
-            el = parent;
+            node = parent;
         }
     }
 
