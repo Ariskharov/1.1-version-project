@@ -11,6 +11,7 @@ import {
     downloadFullContract,
     downloadSpecification,
 } from '../../../utils/contractDocuments';
+import { uploadPhoto } from '../../../utils/uploadService';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
@@ -107,7 +108,7 @@ const OrderEditor = () => {
     const [selectedNewProduct, setSelectedNewProduct] = useState(null);
     const [newInputs, setNewInputs] = useState({});
     const [customDesc, setCustomDesc] = useState('');
-    const [customItem, setCustomItem] = useState({ title: '', price: '', quantity: 1, description: '' });
+    const [customItem, setCustomItem] = useState({ title: '', price: '', quantity: 1, description: '', img: '' });
 
     // Цвета для добавления новой позиции (как в новом оформлении заказа)
     const [addBodyColor, setAddBodyColor] = useState('');
@@ -131,7 +132,7 @@ const OrderEditor = () => {
         setSelectedNewProduct(null);
         setNewInputs({});
         setCustomDesc('');
-        setCustomItem({ title: '', price: '', quantity: 1, description: '' });
+        setCustomItem({ title: '', price: '', quantity: 1, description: '', img: '' });
         setAddBodyColor('');
         setAddFacadeColor('');
         setProductSearch('');
@@ -461,6 +462,7 @@ const OrderEditor = () => {
                 description: customItem.description,
                 price: Number(customItem.price),
                 quantity: Number(customItem.quantity) || 1,
+                img: customItem.img || null,
             });
         }
 
@@ -686,6 +688,41 @@ const OrderEditor = () => {
                                         <div className="size-input">
                                             <label>Цена за единицу (сом)</label>
                                             <input type="number" value={selectedProduct.price || ''} onChange={e => handleItemPrice(e.target.value)} />
+                                        </div>
+
+                                        <div className="size-input size-input--full">
+                                            <label>Фотография позиции</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                                                {selectedProduct.img && (
+                                                    <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)', flexShrink: 0 }}>
+                                                        <img src={resolveImageUrl(selectedProduct.img)} alt="Фото" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    </div>
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files[0];
+                                                        if (!file) return;
+                                                        try {
+                                                            const path = await uploadPhoto(file);
+                                                            updateProduct(p => ({ ...p, img: path }));
+                                                            showToast('success', 'Фото позиции загружено');
+                                                        } catch (err) {
+                                                            showToast('error', 'Ошибка загрузки: ' + err.message);
+                                                        }
+                                                    }}
+                                                />
+                                                {selectedProduct.img && (
+                                                    <button
+                                                        type="button"
+                                                        style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}
+                                                        onClick={() => updateProduct(p => ({ ...p, img: null }))}
+                                                    >
+                                                        Удалить
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
 
                                         {!selectedProduct.isCustom && (
@@ -1065,6 +1102,25 @@ const OrderEditor = () => {
                                         <label className="oed-modal__field oed-modal__field--full">
                                             <span>Описание / примечание</span>
                                             <textarea value={customItem.description} onChange={e => setCustomItem(p => ({ ...p, description: e.target.value }))} placeholder="Дополнительная информация о позиции..." />
+                                        </label>
+                                        <label className="oed-modal__field oed-modal__field--full">
+                                            <span>Фотография позиции</span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files[0];
+                                                    if (!file) return;
+                                                    try {
+                                                        const path = await uploadPhoto(file);
+                                                        setCustomItem(p => ({ ...p, img: path }));
+                                                        showToast('success', 'Фото загружено');
+                                                    } catch (err) {
+                                                        showToast('error', 'Ошибка загрузки фото: ' + err.message);
+                                                    }
+                                                }}
+                                            />
+                                            {customItem.img && <small style={{ color: '#4ade80' }}>✓ Фото прикреплено ({customItem.img})</small>}
                                         </label>
                                         <button type="button" className="oed-modal__save-btn oed-modal__save-btn--spaced" onClick={savePosition}>Добавить в заказ</button>
                                     </div>

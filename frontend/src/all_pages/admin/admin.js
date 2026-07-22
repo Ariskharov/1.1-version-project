@@ -4,7 +4,15 @@ import './admin.scss';
 import { CustomContext } from '../../Context';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../context/CatalogThemeContext';
+import { uploadPhoto } from '../../utils/uploadService';
 import { parseISO, differenceInMinutes, addDays, format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+
+const resolveImageUrl = (img) => {
+  if (!img || typeof img !== 'string') return null;
+  if (img.startsWith('http')) return img;
+  const file = img.split('/').pop();
+  return `/utilse/${file}`;
+};
 
 // ==================== PURE UTILITIES ====================
 
@@ -326,6 +334,24 @@ const Admin = () => {
         };
     };
 
+    const openUserForm = (user = null) => {
+        setSelectedUser(user);
+        setIsUserModalOpen(true);
+        if (user) {
+            setValue('fullName', user.fullName);
+            setValue('login', user.login);
+            setValue('phone', user.phone || '');
+            setValue('position', user.position || '');
+            setValue('badgeId', user.badgeId || '');
+            setValue('role', user.role || 'user');
+            setValue('description', user.description || '');
+            setValue('avatar', user.avatar || null);
+        } else {
+            reset();
+            setValue('role', 'user');
+        }
+    };
+
     const focusEmployee = (userId) => {
         setEmployeeFilter(userId);
         setActivePreset('all');
@@ -368,12 +394,13 @@ const Admin = () => {
                 description: user.description || '',
                 badgeId: user.badgeId || '',
                 role: user.role || 'user',
+                avatar: user.avatar || null,
             });
         } else {
             setSelectedUser(null);
             reset({
                 fullName: '', login: '', password: '', phone: '', position: '',
-                description: '', badgeId: '', role: 'user'
+                description: '', badgeId: '', role: 'user', avatar: null,
             });
         }
         setIsUserModalOpen(true);
@@ -398,8 +425,8 @@ const Admin = () => {
                 // Создание нового
                 const newUserData = {
                     ...data,
-                    email: null,           // если нужно
-                    avatar: null
+                    email: null,
+                    avatar: data.avatar || null
                 };
                 await addUser(newUserData);
                 showToast('success', 'Новый сотрудник успешно создан!');
@@ -829,7 +856,13 @@ const Admin = () => {
                                 className={`user-item${Number(employeeFilter) === Number(user.id) ? ' user-item--focused' : ''}`}
                             >
                                 <div className="user-item__head">
-                                    <span className="user-item__avatar" aria-hidden="true">{getInitials(user.fullName)}</span>
+                                    <span className="user-item__avatar" aria-hidden="true">
+                                        {resolveImageUrl(user.avatar) ? (
+                                            <img src={resolveImageUrl(user.avatar)} alt={user.fullName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                        ) : (
+                                            getInitials(user.fullName)
+                                        )}
+                                    </span>
                                     <div className="user-item__info">
                                         <strong>{user.fullName}</strong>
                                         <small>{user.position || '—'} • {user.phone || '—'}</small>
@@ -888,6 +921,31 @@ const Admin = () => {
                             </select>
                             <textarea {...register('description')} placeholder="Описание" rows={3} />
 
+                            <div style={{ margin: '12px 0' }}>
+                                <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', color: '#94a3b8' }}>Аватар сотрудника</label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                        const file = e.target.files[0];
+                                        if (!file) return;
+                                        try {
+                                            const path = await uploadPhoto(file);
+                                            setValue('avatar', path);
+                                            showToast('success', 'Аватар загружен');
+                                        } catch (err) {
+                                            showToast('error', 'Ошибка загрузки аватара: ' + err.message);
+                                        }
+                                    }}
+                                />
+                                {watch('avatar') && (
+                                    <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <img src={resolveImageUrl(watch('avatar'))} alt="Preview" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
+                                        <small style={{ color: '#4ade80' }}>✓ Аватар загружен</small>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="modal__actions">
                                 <button type="submit" disabled={isSavingUser}>
                                     {isSavingUser ? <><LoadingSpinner size="sm" /> Сохранение...</> : (selectedUser ? 'Сохранить изменения' : 'Создать сотрудника')}
@@ -913,7 +971,13 @@ const Admin = () => {
                         <button type="button" className="modal__close" onClick={() => setIsViewModalOpen(false)} aria-label="Закрыть">✕</button>
 
                         <div className="user-info">
-                            <div className="user-info__avatar" aria-hidden="true">{getInitials(selectedUser.fullName)}</div>
+                            <div className="user-info__avatar" aria-hidden="true">
+                                {resolveImageUrl(selectedUser.avatar) ? (
+                                    <img src={resolveImageUrl(selectedUser.avatar)} alt={selectedUser.fullName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                ) : (
+                                    getInitials(selectedUser.fullName)
+                                )}
+                            </div>
                             <div className="user-info__grid">
                                 <p><strong>Логин</strong><span>{selectedUser.login}</span></p>
                                 <p><strong>Телефон</strong><span>{selectedUser.phone || '—'}</span></p>

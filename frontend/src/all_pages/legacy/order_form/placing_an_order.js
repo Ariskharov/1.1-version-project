@@ -6,6 +6,7 @@ import './placing_an_order.scss';
 import { CustomContext } from '../../../Context';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
+import { uploadPhoto } from '../../../utils/uploadService';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
@@ -167,7 +168,8 @@ const PlacingAnOrder = () => {
                     title: itemToEdit.title,
                     price: itemToEdit.price,
                     quantity: itemToEdit.quantity,
-                    description: itemToEdit.description || ''
+                    description: itemToEdit.description || '',
+                    img: itemToEdit.img || ''
                 });
                 // Цвета для произвольных позиций не используются (есть описание)
                 setBodyColor('');
@@ -201,7 +203,7 @@ const PlacingAnOrder = () => {
             setSelectedProduct(null);
             setInputs({});
             setCustomDesc('');
-            setCustomItem({ title: '', price: '', quantity: 1, description: '' });
+            setCustomItem({ title: '', price: '', quantity: 1, description: '', img: '' });
             setBodyColor('');
             setFacadeColor('');
             if (type === 'catalog') setProductSearch('');
@@ -214,7 +216,7 @@ const PlacingAnOrder = () => {
         setSelectedProduct(null);
         setInputs({});
         setCustomDesc('');
-        setCustomItem({ title: '', price: '', quantity: 1, description: '' });
+        setCustomItem({ title: '', price: '', quantity: 1, description: '', img: '' });
         setBodyColor('');
         setFacadeColor('');
         setProductSearch('');
@@ -273,7 +275,7 @@ const PlacingAnOrder = () => {
                 price,
                 quantity,
                 totalPrice: price * quantity,
-                img: null
+                img: customItem.img || null
             };
 
             setOrder(prev => ({
@@ -769,6 +771,30 @@ const PlacingAnOrder = () => {
                                                     onChange={e => setCustomItem(p => ({ ...p, description: e.target.value }))}
                                                     placeholder="Дополнительная информация о позиции..."
                                                 />
+                                            </label>
+
+                                            <label className="pao-modal__field pao-modal__field--full">
+                                                <span>Фотография позиции</span>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files[0];
+                                                        if (!file) return;
+                                                        try {
+                                                            const path = await uploadPhoto(file);
+                                                            setCustomItem(p => ({ ...p, img: path }));
+                                                            showToast('success', 'Фото позиции загружено');
+                                                        } catch (err) {
+                                                            showToast('error', 'Ошибка загрузки фото: ' + err.message);
+                                                        }
+                                                    }}
+                                                />
+                                                {customItem.img && (
+                                                    <div style={{ marginTop: '8px', color: '#4ade80', fontSize: '13px' }}>
+                                                        ✓ Фото прикреплено ({customItem.img})
+                                                    </div>
+                                                )}
                                             </label>
 
                                             <button type="button" className="pao-modal__save-btn pao-modal__save-btn--spaced" onClick={savePosition}>
