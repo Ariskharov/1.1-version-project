@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080';
+import { API_BASE } from '../config/api';
 
 const SEEN_KEY = 'tt_seen_announcement_ids';
 const PROMPT_DISMISS_KEY = 'tt_push_prompt_dismissed';

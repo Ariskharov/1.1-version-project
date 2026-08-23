@@ -5,7 +5,7 @@ import axios from 'axios';
 import { CustomContext } from '../../Context';
 import './scan.scss';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import { API_BASE } from '../../config/api';
 
 const Scan = () => {
     const navigate = useNavigate();

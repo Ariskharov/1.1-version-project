@@ -1,11 +1,18 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
 import './header.scss';
 import logo from '../img_layout/logo.svg';
-import defaultAvatar from '../img_layout/avatar_img.jpg';
 import exitImg from '../img_layout/exit_img.svg';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { CustomContext } from '../../Context';
 import ThemeToggle from '../../components/ui/ThemeToggle';
+import { resolveImageUrl } from '../../config/api';
+
+const getInitials = (name) => {
+    if (!name) return '??';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+};
 
 const Header = () => {
     const location = useLocation();
@@ -165,10 +172,10 @@ const Header = () => {
                         {currentUser ? (
                             <>
                             <div className="header__top__right__user" aria-label={`Пользователь: ${currentUser.fullName}`}>
-                                {currentUser.avatar ? (
-                                    <img src={currentUser.avatar} alt="" className="header__avatar" />
+                                {resolveImageUrl(currentUser.avatar) ? (
+                                    <img src={resolveImageUrl(currentUser.avatar)} alt="" className="header__avatar" />
                                 ) : (
-                                    <img src={defaultAvatar} alt="" className="header__top__right__user__avatar" />
+                                    <div className="header__avatar-initials">{getInitials(currentUser.fullName)}</div>
                                 )}
                                 <span className="header__top__right__user__username">{currentUser.fullName}</span>
                             </div>
@@ -281,17 +288,34 @@ const Header = () => {
                     <div className="header__mobile-top__actions">
                         <ThemeToggle className="theme-toggle--compact" />
                         {currentUser ? (
-                            <button
-                                type="button"
-                                ref={menuButtonRef}
-                                className="header__mobile-menu-btn"
-                                onClick={toggleMobileMenu}
-                                aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
-                                aria-expanded={menuOpen}
-                                aria-controls="mobile-nav"
-                            >
-                                ☰
-                            </button>
+                            <>
+                                <div 
+                                    className="header__mobile-top-user" 
+                                    onClick={toggleMobileMenu} 
+                                    title={currentUser.fullName}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`Профиль: ${currentUser.fullName}`}
+                                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMobileMenu()}
+                                >
+                                    {resolveImageUrl(currentUser.avatar) ? (
+                                        <img src={resolveImageUrl(currentUser.avatar)} alt="" className="header__mobile-top-avatar" />
+                                    ) : (
+                                        <span className="header__mobile-top-initials">{getInitials(currentUser.fullName)}</span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    ref={menuButtonRef}
+                                    className="header__mobile-menu-btn"
+                                    onClick={toggleMobileMenu}
+                                    aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
+                                    aria-expanded={menuOpen}
+                                    aria-controls="mobile-nav"
+                                >
+                                    ☰
+                                </button>
+                            </>
                         ) : (
                             <Link to="/signin" className="header__mobile-login-btn">
                                 Войти
@@ -391,10 +415,10 @@ const Header = () => {
                         {currentUser && (
                             <div className="header__mobile-user">
                                 <div className="header__mobile-user__info">
-                                    {currentUser.avatar ? (
-                                        <img src={currentUser.avatar} alt="" className="header__mobile-avatar" />
+                                    {resolveImageUrl(currentUser.avatar) ? (
+                                        <img src={resolveImageUrl(currentUser.avatar)} alt="" className="header__mobile-avatar" />
                                     ) : (
-                                        <img src={defaultAvatar} alt="" className="header__mobile-avatar" />
+                                        <div className="header__mobile-avatar-initials">{getInitials(currentUser.fullName)}</div>
                                     )}
                                     <span className="header__mobile-username">{currentUser.fullName}</span>
                                 </div>

@@ -15,14 +15,7 @@ import {
 } from '../../../utils/contractDocuments';
 import { uploadPhoto } from '../../../utils/uploadService';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-
-const resolveImageUrl = (img) => {
-    if (!img || typeof img !== 'string') return null;
-    if (img.startsWith('http')) return img;
-    const file = img.split('/').pop();
-    return `/utilse/${file}`;
-};
+import { API_BASE, resolveImageUrl } from '../../../config/api';
 
 const getLineTotal = (item) =>
     Number(item.price || 0) * (Number(item.quantity || item.userInputs?.coll || 1) || 1);

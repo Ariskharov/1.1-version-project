@@ -12,16 +12,13 @@ import {
     downloadSpecification,
 } from '../../../utils/contractDocuments';
 
-const API_BASE = 'http://localhost:8080';
+import { API_BASE, resolveImageUrl } from '../../../config/api';
 
 const getQty = (item) => Number(item.quantity || item.userInputs?.coll || 1) || 1;
 
 const getLineTotal = (item) => Number(item.price || 0) * getQty(item);
 
-const getItemImageSrc = (item) => {
-    if (!item?.img) return null;
-    return item.img.startsWith('http') ? item.img : `/utilse/${item.img.split('/').pop()}`;
-};
+const getItemImageSrc = (item) => resolveImageUrl(item?.img);
 
 const statusClass = (status) => {
     const s = (status || '').toLowerCase();

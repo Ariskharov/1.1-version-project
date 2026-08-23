@@ -1,0 +1,15 @@
+-- Добавление полей договора и реквизитов покупателя в таблицу "order"
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "buyer_rep_title" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "buyer_rep_name" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "buyer_basis" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "buyer_inn" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "delivery_days" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "buyer_bank" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "buyer_bik" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "buyer_account" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "buyer_sign" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "procurement_basis" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "contract_number" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "contract_date" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "phone" TEXT;
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "updatedAt" TEXT;

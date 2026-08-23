@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { evaluate } from 'mathjs';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+import { API_BASE } from '../../../config/api';
 
 export function useFurnitureCalculator() {
     const [products, setProducts] = useState([]);

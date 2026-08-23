@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080';
+import { API_BASE } from '../config/api';
 
 export const ANNOUNCEMENT_TYPES = {
     urgent: { key: 'urgent', label: 'Срочная', hint: 'Показывается баннером сверху в кабинете' },

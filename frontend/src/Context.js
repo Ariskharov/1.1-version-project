@@ -3,10 +3,9 @@ import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import { differenceInMinutes, parseISO, addDays, format } from 'date-fns';
 import AppUi from './components/ui/AppUi';
+import { API_BASE } from './config/api';
 
 export const CustomContext = createContext();
-
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 /**
  * Надёжный расчёт продолжительности смены.

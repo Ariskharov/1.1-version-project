@@ -1015,7 +1015,9 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
   background: var(--cat-lightbox-bg);
   backdrop-filter: blur(12px);
   cursor: zoom-out;
-  animation: catalog-lightbox-in 0.35s $catalog-ease both;
+  animation: catalog-lightbox-in 0.25s $catalog-ease both;
+  transform: translateZ(0);
+  will-change: opacity;
 
   &__inner {
     position: relative;
@@ -1024,6 +1026,7 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
     display: flex;
     flex-direction: column;
     align-items: center;
+    transform: translateZ(0);
   }
 
   &__img {
@@ -1031,8 +1034,10 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
     max-height: 85vh;
     object-fit: contain;
     border-radius: 8px;
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
-    animation: catalog-lightbox-img 0.45s $catalog-ease both;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+    animation: catalog-lightbox-img 0.3s $catalog-ease both;
+    transform: translateZ(0);
+    will-change: transform, opacity;
   }
 
   &__close {
@@ -1357,11 +1362,22 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   .catalog-lightbox {
     padding: 12px;
+    backdrop-filter: none;
+    background: rgba(12, 11, 10, 0.96);
   }
 
   .catalog-lightbox__img {
     max-width: 100%;
     max-height: min(80vh, 80dvh);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .catalog-lightbox__close {
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
   }
 }
 

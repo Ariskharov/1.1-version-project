@@ -188,10 +188,157 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color: var(--cab-gold-light);
   background: var(--cab-avatar-bg);
   border: 2px solid var(--cab-border);
+  overflow: hidden;
+
+  &__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
 }
 
 .cabinet--theme-light .cabinet-avatar {
   color: var(--cab-gold);
+}
+
+/* ===== СРОЧНЫЕ НОВОСТИ ===== */
+.cabinet-urgent-news {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  animation: cab-fade-up 0.5s $cab-ease 0.08s both;
+
+  &__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 18px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: $cab-radius-sm;
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);
+  }
+
+  &__badge {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: #ef4444;
+    border-radius: 6px;
+    margin-top: 2px;
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__img {
+    max-width: 100%;
+    max-height: 240px;
+    border-radius: 8px;
+    object-fit: cover;
+    margin-bottom: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+
+  &__title {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--cab-text);
+    margin-bottom: 4px;
+  }
+
+  &__text {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--cab-text);
+  }
+
+  &__until {
+    display: block;
+    margin-top: 6px;
+    font-size: 11.5px;
+    color: var(--cab-muted);
+  }
+}
+
+/* ===== БЛОК ОБЪЯВЛЕНИЙ / АКТУАЛЬНО ===== */
+.cabinet-bulletin {
+  position: relative;
+  z-index: 1;
+  padding: 18px 22px;
+  margin-bottom: 24px;
+  background: var(--cab-surface);
+  border: 1px solid var(--cab-border);
+  border-radius: $cab-radius;
+  box-shadow: var(--cab-shadow-sm);
+  animation: cab-fade-up 0.5s $cab-ease 0.12s both;
+
+  &__title {
+    margin: 0 0 14px;
+    font-size: 18px;
+    font-weight: 600;
+    font-family: var(--cab-serif);
+    color: var(--cab-text);
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 12px 14px;
+    background: var(--cab-gold-subtle);
+    border: 1px solid var(--cab-border);
+    border-radius: $cab-radius-sm;
+  }
+
+  &__img {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--cab-border);
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--cab-text);
+
+    strong {
+      color: var(--cab-gold);
+    }
+  }
+
+  &__until {
+    display: block;
+    margin-top: 4px;
+    font-size: 11.5px;
+    color: var(--cab-muted);
+  }
 }
 
 /* ===== PUSH / УВЕДОМЛЕНИЯ ===== */
@@ -233,8 +380,8 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
     p {
       margin: 0;
-      font-size: 12.5px;
-      line-height: 1.45;
+      font-size: 12px;
+      line-height: 1.4;
       color: var(--cab-muted);
       word-break: break-word;
     }
@@ -1213,16 +1360,33 @@ $cab-ease: cubic-bezier(0.22, 1, 0.36, 1);
   .cabinet-push-banner {
     flex-direction: column;
     align-items: stretch;
-    padding: 12px 14px;
+    padding: 10px 12px;
+    gap: 8px;
+
+    &__text {
+      strong {
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+      p {
+        font-size: 11.5px;
+        line-height: 1.35;
+      }
+    }
 
     &__actions {
       width: 100%;
+      gap: 6px;
+      display: flex;
+      flex-direction: row;
     }
 
     &__btn {
-      flex: 1 1 auto;
-      min-height: 44px;
-      width: 100%;
+      flex: 1 1 0;
+      min-height: 36px;
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 8px;
     }
   }
 

@@ -21,6 +21,7 @@ import {
   filterActiveAnnouncements,
   formatExpiryLabel,
 } from '../../utils/announcements';
+import { resolveImageUrl } from '../../config/api';
 import {
   isPushSupported,
   getNotificationPermission,
@@ -699,6 +700,9 @@ const PersonalCabinet = () => {
             <article key={a.id} className="cabinet-urgent-news__item">
               <div className="cabinet-urgent-news__badge" aria-hidden="true">Срочно</div>
               <div className="cabinet-urgent-news__content">
+                {(a.image || a.img) && (
+                  <img src={resolveImageUrl(a.image || a.img)} alt="" className="cabinet-urgent-news__img" />
+                )}
                 {a.title ? <strong className="cabinet-urgent-news__title">{a.title}</strong> : null}
                 <p className="cabinet-urgent-news__text">{a.message}</p>
                 {(a.expiresAt || a.expiresat) && (
@@ -735,7 +739,11 @@ const PersonalCabinet = () => {
 
         <div className="employee-card">
           <div className="cabinet-avatar" aria-hidden="true">
-            {getInitials(currentUser.fullName)}
+            {resolveImageUrl(currentUser.avatar) ? (
+              <img src={resolveImageUrl(currentUser.avatar)} alt="" className="cabinet-avatar__img" />
+            ) : (
+              getInitials(currentUser.fullName)
+            )}
           </div>
           <div className="employee-info">
             <div className="name">{currentUser.fullName}</div>
@@ -754,18 +762,23 @@ const PersonalCabinet = () => {
           aria-labelledby="cabinet-bulletin-title"
         >
           <h2 id="cabinet-bulletin-title" className="cabinet-bulletin__title">
-            Актуально
+            📢 Новости и объявления
           </h2>
           <ul className="cabinet-bulletin__list">
             {bulletinNews.map((a) => (
               <li key={a.id} className="cabinet-bulletin__item">
-                {a.title ? <strong>{a.title}: </strong> : null}
-                <span>{a.message}</span>
-                {(a.expiresAt || a.expiresat) && (
-                  <small className="cabinet-bulletin__until">
-                    до {formatExpiryLabel(a.expiresAt || a.expiresat)}
-                  </small>
+                {(a.image || a.img) && (
+                  <img src={resolveImageUrl(a.image || a.img)} alt="" className="cabinet-bulletin__img" />
                 )}
+                <div className="cabinet-bulletin__content">
+                  {a.title ? <strong>{a.title}: </strong> : null}
+                  <span>{a.message}</span>
+                  {(a.expiresAt || a.expiresat) && (
+                    <small className="cabinet-bulletin__until">
+                      до {formatExpiryLabel(a.expiresAt || a.expiresat)}
+                    </small>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

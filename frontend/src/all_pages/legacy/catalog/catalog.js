@@ -4,6 +4,7 @@ import './catalog.scss';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
+import { resolveImageUrl } from '../../../config/api';
 
 const SORT_OPTIONS = [
     { value: 'name-asc', label: 'По названию А–Я' },
@@ -25,7 +26,7 @@ const CatalogCard = memo(({ product, index, onOpen }) => (
             <div className="catalog-card__shine" aria-hidden="true" />
             <div className="catalog-card__image-wrap" aria-hidden="true">
                 <img
-                    src={product.img}
+                    src={resolveImageUrl(product.img)}
                     alt=""
                     className="catalog-card__image"
                     loading="lazy"
@@ -344,7 +345,7 @@ const Catalog = () => {
                                         aria-label={`Увеличить изображение: ${selectedProduct.title}`}
                                     >
                                         <img
-                                            src={selectedProduct.img}
+                                            src={resolveImageUrl(selectedProduct.img)}
                                             alt={selectedProduct.title}
                                             className="catalog-modal__image"
                                         />
@@ -481,7 +482,7 @@ const Catalog = () => {
                             ×
                         </button>
                         <img
-                            src={selectedProduct.img}
+                            src={resolveImageUrl(selectedProduct.img)}
                             alt={selectedProduct.title}
                             className="catalog-lightbox__img"
                         />

@@ -18,12 +18,7 @@ import {
 import PhotoUploadSlot from '../../components/ui/PhotoUploadSlot';
 import { uploadPhoto } from '../../utils/uploadService';
 
-const resolveImageUrl = (img) => {
-    if (!img || typeof img !== 'string') return null;
-    if (img.startsWith('http')) return img;
-    const file = img.split('/').pop();
-    return `/utilse/${file}`;
-};
+import { resolveImageUrl } from '../../config/api';
 
 const EMPTY_ANN_FORM = {
     title: '',

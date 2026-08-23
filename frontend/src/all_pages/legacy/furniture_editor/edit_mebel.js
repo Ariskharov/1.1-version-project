@@ -5,8 +5,10 @@ import { LoadingPage } from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 
-const API_URL = 'http://localhost:8080/product';
-const UPLOAD_URL = 'http://localhost:8080/upload';
+import { API_BASE, resolveImageUrl } from '../../../config/api';
+
+const API_URL = `${API_BASE}/product`;
+const UPLOAD_URL = `${API_BASE}/upload`;
 
 function FurnitureEditor() {
     const { resolvedTheme } = useCatalogTheme();
@@ -420,7 +422,7 @@ function FurnitureEditor() {
                 <span className="product-card-id-badge">#{p.id}</span>
                 {p.img ? (
                   <img
-                    src={p.img}
+                    src={resolveImageUrl(p.img)}
                     alt={p.title}
                     loading="lazy"
                     decoding="async"
@@ -552,7 +554,7 @@ function FurnitureEditor() {
                 >
                   {selected.img ? (
                     <>
-                      <img src={selected.img} alt="Фото мебели" />
+                      <img src={resolveImageUrl(selected.img)} alt="Фото мебели" />
                       <button 
                         onClick={(e) => { 
                           e.stopPropagation(); 

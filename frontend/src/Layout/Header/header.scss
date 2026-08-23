@@ -121,6 +121,22 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
           transition: border-color 0.25s, box-shadow 0.25s;
         }
 
+        .header__avatar-initials {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, var(--hdr-gold-light), var(--hdr-gold));
+          color: #1a1612;
+          font-weight: 700;
+          font-size: 14px;
+          border: 2px solid var(--hdr-avatar-ring);
+          box-shadow: 0 2px 8px rgba(23, 26, 31, 0.08);
+          user-select: none;
+        }
+
         &__username {
           font-size: 14px;
           font-weight: 600;
@@ -269,7 +285,38 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
   .header__mobile-top__actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+  }
+
+  .header__mobile-top-user {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .header__mobile-top-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--hdr-gold);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .header__mobile-top-initials {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--hdr-gold-light), var(--hdr-gold));
+    color: #1a1612;
+    font-weight: 700;
+    font-size: 13px;
+    border: 2px solid var(--hdr-gold);
+    user-select: none;
   }
 
   .header__mobile-menu-btn {
@@ -387,6 +434,21 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid var(--hdr-avatar-ring);
+  }
+
+  .header__mobile-avatar-initials {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--hdr-gold-light), var(--hdr-gold));
+    color: #1a1612;
+    font-weight: 700;
+    font-size: 16px;
+    border: 2px solid var(--hdr-avatar-ring);
+    user-select: none;
   }
 
   .header__mobile-username {

@@ -10,14 +10,7 @@ import PhotoUploadSlot from '../../../components/ui/PhotoUploadSlot';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { uploadPhoto } from '../../../utils/uploadService';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-
-const resolveImageUrl = (img) => {
-    if (!img || typeof img !== 'string') return null;
-    if (img.startsWith('http')) return img;
-    const file = img.split('/').pop();
-    return `/utilse/${file}`;
-};
+import { API_BASE, resolveImageUrl } from '../../../config/api';
 
 const PlacingAnOrder = () => {
     const navigate = useNavigate();
@@ -118,7 +111,7 @@ const PlacingAnOrder = () => {
 
     // Загрузка каталога
     useEffect(() => {
-        fetch('http://localhost:8080/product')
+        fetch(`${API_BASE}/product`)
             .then(res => res.json())
             .then(data => setProducts(Array.isArray(data) ? data : [data]))
             .catch(err => console.error('Ошибка каталога:', err));
@@ -855,9 +848,22 @@ const PlacingAnOrder = () => {
                                 className="placing_an_order__item-card"
                                 style={{ animationDelay: `${Math.min(index * 0.05, 0.35)}s` }}
                             >
-                                {item.img && <img src={item.img} alt={item.title} />}
+                                {item.img ? (
+                                    <img src={resolveImageUrl(item.img)} alt={item.title} />
+                                ) : (
+                                    <div className="placing_an_order__item-no-img" aria-hidden="true">
+                                        🛋️
+                                    </div>
+                                )}
                                 <div className="placing_an_order__item-details">
-                                    <h4>{item.title}</h4>
+                                    <div className="placing_an_order__item-header-row">
+                                        <h4>{item.title}</h4>
+                                        {item.isCustom && (
+                                            <span className={`pao-photo-badge ${item.img ? 'pao-photo-badge--yes' : 'pao-photo-badge--no'}`}>
+                                                {item.img ? '📷 С фото' : 'Без фото'}
+                                            </span>
+                                        )}
+                                    </div>
                                     {item.description && (
                                         <div className="meta"><span>Описание</span> {item.description}</div>
                                     )}
