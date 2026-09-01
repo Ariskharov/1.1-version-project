@@ -264,13 +264,16 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
   box-shadow: var(--ed-card-shadow);
   cursor: pointer;
-  transition: transform 0.4s $ed-ease, box-shadow 0.4s, border-color 0.3s;
-  animation: ed-card-in 0.55s $ed-ease both;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 260px;
+  transform: translateZ(0);
+  transition: transform 0.35s $ed-ease, box-shadow 0.35s, border-color 0.3s;
+  animation: ed-card-in 0.45s $ed-ease both;
   animation-delay: var(--card-delay, 0ms);
 
   &:hover,
   &:focus-within {
-    transform: translateY(-8px);
+    transform: translateY(-6px) translateZ(0);
     box-shadow: var(--ed-card-shadow-hover);
     border-color: var(--ed-card-hover-border);
 
@@ -332,7 +335,8 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
       object-fit: contain;
       object-position: center;
       display: block;
-      transition: transform 0.55s $ed-ease;
+      transition: transform 0.4s $ed-ease;
+      transform: translateZ(0);
     }
 
     .no-image {
@@ -375,7 +379,6 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
     background: var(--ed-id-badge-bg);
     border: 1px solid var(--ed-border);
     border-radius: 999px;
-    backdrop-filter: blur(8px);
   }
 
   &-overlay {

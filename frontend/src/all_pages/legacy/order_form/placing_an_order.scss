@@ -278,19 +278,19 @@ $pao-radius: 18px;
     }
   }
 
-  /* ===== КНОПКИ ДОБАВЛЕНИЯ — большие, премиальные ===== */
+  /* ===== КНОПКИ ДОБАВЛЕНИЯ — аккуратные, стандартизированные ===== */
   &__add-wrap {
     display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: 10px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
-    animation: pao-rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+    animation: pao-rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
   }
 
   &__add-button {
-    flex: 1 1 220px;
+    flex: 1 1 200px;
     max-width: 100%;
-    min-height: 48px;
+    min-height: 40px;
     box-sizing: border-box;
     appearance: none;
     -webkit-appearance: none;
@@ -298,9 +298,9 @@ $pao-radius: 18px;
     backdrop-filter: blur(10px);
     border: 1px solid var(--pao-gold);
     color: var(--pao-gold);
-    border-radius: $pao-radius;
-    padding: 14px 20px;
-    font-size: 14px;
+    border-radius: 12px;
+    padding: 9px 16px;
+    font-size: 13px;
     font-weight: 700;
     font-family: inherit;
     line-height: 1.25;
@@ -308,7 +308,7 @@ $pao-radius: 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
     cursor: pointer;
     transition: background 0.25s $pao-ease, border-color 0.25s $pao-ease, color 0.25s $pao-ease, transform 0.25s $pao-ease, box-shadow 0.25s $pao-ease;
     box-shadow: var(--pao-shadow-sm);
@@ -319,7 +319,7 @@ $pao-radius: 18px;
         color: #0c0b0a;
         border-color: transparent;
         transform: translateY(-2px);
-        box-shadow: 0 12px 28px var(--pao-gold-subtle);
+        box-shadow: 0 8px 20px var(--pao-gold-subtle);
       }
     }
 
@@ -513,25 +513,25 @@ $pao-radius: 18px;
 
   /* ===== ИТОГОВЫЕ ДЕЙСТВИЯ ВНИЗУ ===== */
   &__footer-actions {
-    margin-top: 24px;
-    padding-top: 18px;
+    margin-top: 20px;
+    padding-top: 16px;
     border-top: 1px solid var(--pao-border-soft);
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    animation: pao-rise-in 0.55s $pao-ease 0.18s both;
+    animation: pao-rise-in 0.5s $pao-ease 0.15s both;
   }
 
   &__clear,
   &__draft,
   &__submit {
-    padding: 12px 22px;
-    font-size: 14px;
+    padding: 10px 18px;
+    font-size: 13px;
     font-weight: 700;
     font-family: inherit;
-    border-radius: 12px;
+    border-radius: 10px;
     cursor: pointer;
     transition: all 0.25s $pao-ease;
     display: flex;

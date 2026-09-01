@@ -1,14 +1,14 @@
 const webpush = require('web-push');
 const pool = require('../database/pg');
 
-const publicKey = process.env.VAPID_PUBLIC_KEY || '';
-const privateKey = process.env.VAPID_PRIVATE_KEY || '';
-const subject = process.env.VAPID_SUBJECT || 'mailto:admin@timetrack.local';
-
 let configured = false;
 
 function ensureConfigured() {
     if (configured) return true;
+    const publicKey = process.env.VAPID_PUBLIC_KEY || '';
+    const privateKey = process.env.VAPID_PRIVATE_KEY || '';
+    const subject = process.env.VAPID_SUBJECT || 'mailto:admin@timetrack.local';
+
     if (!publicKey || !privateKey) {
         console.warn('[push] VAPID keys missing — push disabled');
         return false;
@@ -19,7 +19,7 @@ function ensureConfigured() {
 }
 
 function getPublicKey() {
-    return publicKey || null;
+    return process.env.VAPID_PUBLIC_KEY || null;
 }
 
 async function ensureTable() {

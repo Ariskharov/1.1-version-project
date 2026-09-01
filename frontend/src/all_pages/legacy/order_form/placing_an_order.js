@@ -57,7 +57,8 @@ const PlacingAnOrder = () => {
         title: '',
         price: '',
         quantity: 1,
-        description: ''
+        description: '',
+        img: ''
     });
 
     // Фильтрованные продукты для модалки (зависит от поиска)
@@ -170,7 +171,8 @@ const PlacingAnOrder = () => {
                     title: itemToEdit.title,
                     price: itemToEdit.price,
                     quantity: itemToEdit.quantity,
-                    description: itemToEdit.description || ''
+                    description: itemToEdit.description || '',
+                    img: itemToEdit.img || ''
                 });
                 // Цвета для произвольных позиций не используются (есть описание)
                 setBodyColor('');
@@ -204,7 +206,7 @@ const PlacingAnOrder = () => {
             setSelectedProduct(null);
             setInputs({});
             setCustomDesc('');
-            setCustomItem({ title: '', price: '', quantity: 1, description: '' });
+            setCustomItem({ title: '', price: '', quantity: 1, description: '', img: '' });
             setBodyColor('');
             setFacadeColor('');
             if (type === 'catalog') setProductSearch('');
@@ -219,7 +221,7 @@ const PlacingAnOrder = () => {
         setSelectedProduct(null);
         setInputs({});
         setCustomDesc('');
-        setCustomItem({ title: '', price: '', quantity: 1, description: '' });
+        setCustomItem({ title: '', price: '', quantity: 1, description: '', img: '' });
         setBodyColor('');
         setFacadeColor('');
         setProductSearch('');
@@ -280,7 +282,7 @@ const PlacingAnOrder = () => {
                 price,
                 quantity,
                 totalPrice: price * quantity,
-                img: null
+                img: customItem.img || null
             };
 
             setOrder(prev => ({

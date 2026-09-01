@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useRef, useCallback, memo } from 'react';
 import './edit_mebel.scss';
 import { CustomContext } from '../../../Context';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
@@ -10,6 +10,80 @@ import { API_BASE, resolveImageUrl } from '../../../config/api';
 const API_URL = `${API_BASE}/product`;
 const UPLOAD_URL = `${API_BASE}/upload`;
 
+const ProductCard = memo(({ product: p, index: idx, onOpen, onDelete, isDeleting }) => (
+  <div
+    className="product-card"
+    style={{ '--card-delay': `${Math.min(idx, 15) * 40}ms` }}
+    onClick={() => onOpen(p)}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onOpen(p);
+      }
+    }}
+    role="button"
+    tabIndex={0}
+    aria-labelledby={`editor-card-title-${p.id}`}
+  >
+    <span className="product-card__shine" aria-hidden="true" />
+
+    <div className="product-card-image">
+      <span className="product-card-id-badge">#{p.id}</span>
+      {p.img ? (
+        <img
+          src={resolveImageUrl(p.img)}
+          alt={p.title}
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <div className="no-image">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="9" cy="10" r="2" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M21 16l-5-5-4 4-2-2-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>Нет фото</span>
+        </div>
+      )}
+      <div className="product-card-overlay">
+        <span className="product-card-edit-hint">Редактировать</span>
+      </div>
+    </div>
+
+    <div className="product-card-content">
+      <div id={`editor-card-title-${p.id}`} className="product-card-title">{p.title}</div>
+      <div className="product-card-meta">
+        {p.price ? (
+          <span className="product-card-price">{p.price} сом</span>
+        ) : (
+          <span className="product-card-price product-card-price--empty">Цена не указана</span>
+        )}
+      </div>
+      <div className="product-card-tags">
+        <span className="product-card-tag">{p.variables?.length || 0} перем.</span>
+        <span className="product-card-tag">{p.details?.length || 0} деталей</span>
+      </div>
+    </div>
+
+    <div className="product-card-actions">
+      <button
+        type="button"
+        className="btn-delete"
+        disabled={isDeleting}
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          onDelete(p.id); 
+        }}
+        title="Удалить"
+        aria-label={`Удалить: ${p.title}`}
+      >
+        {isDeleting ? '...' : '×'}
+      </button>
+    </div>
+  </div>
+));
+
 function FurnitureEditor() {
     const { resolvedTheme } = useCatalogTheme();
     const { showToast, confirm } = useContext(CustomContext);
@@ -18,6 +92,31 @@ function FurnitureEditor() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [pendingActions, setPendingActions] = useState({}); // защита от повторных кликов
+
+    const isPending = useCallback((key) => !!pendingActions[key], [pendingActions]);
+
+    const setPending = useCallback((key, active) => {
+        setPendingActions(prev => {
+            if (active) return { ...prev, [key]: true };
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+    }, []);
+
+    const withLoading = useCallback(async (key, fn) => {
+        if (pendingActions[key]) return; // уже выполняется
+        setPendingActions(prev => ({ ...prev, [key]: true }));
+        try {
+            await fn();
+        } finally {
+            setPendingActions(prev => {
+                const next = { ...prev };
+                delete next[key];
+                return next;
+            });
+        }
+    }, [pendingActions]);
 
     useEffect(() => {
         fetchProducts();
@@ -36,9 +135,9 @@ function FurnitureEditor() {
         }
     };
 
-    const selectProduct = (p) => {
+    const selectProduct = useCallback((p) => {
         setSelected(JSON.parse(JSON.stringify(p)));
-    };
+    }, []);
 
     const save = async () => {
         if (!selected?.id || isPending('save')) return;
@@ -121,7 +220,7 @@ function FurnitureEditor() {
         }
     };
 
-    const deleteProduct = async (id) => {
+    const deleteProduct = useCallback(async (id) => {
         const confirmed = await confirm({
             message: `Удалить мебель ID ${id}?`,
             confirmLabel: 'Удалить',
@@ -143,7 +242,7 @@ function FurnitureEditor() {
         } finally {
             setPending(`delete-${id}`, false);
         }
-    };
+    }, [confirm, isPending, selected?.id, setPending, showToast]);
 
     const update = (path, value) => {
         setSelected(prev => {
@@ -255,36 +354,14 @@ function FurnitureEditor() {
         update(['details'], selected.details.filter((_, i) => i !== idx));
     };
 
-    // ===== Защита от повторных кликов + анимация загрузки =====
-    const withLoading = async (key, fn) => {
-        if (pendingActions[key]) return; // уже выполняется
-        setPendingActions(prev => ({ ...prev, [key]: true }));
-        try {
-            await fn();
-        } finally {
-            setPendingActions(prev => {
-                const next = { ...prev };
-                delete next[key];
-                return next;
-            });
-        }
-    };
-
-    const isPending = (key) => !!pendingActions[key];
-
-    const setPending = (key, active) => {
-        setPendingActions(prev => {
-            if (active) return { ...prev, [key]: true };
-            const next = { ...prev };
-            delete next[key];
-            return next;
-        });
-    };
+    const handleDeleteProduct = useCallback((id) => {
+        withLoading(`delete-${id}`, () => deleteProduct(id));
+    }, [deleteProduct, withLoading]);
 
     // ===== Управление drawer'ом =====
-  const openDrawer = (product) => {
-    selectProduct(product);
-  };
+    const openDrawer = useCallback((product) => {
+        selectProduct(product);
+    }, [selectProduct]);
 
   // Обёртка для загрузки фото с защитой от повторных кликов
   const handleFileUploadWithLoading = (e) => {
@@ -401,78 +478,14 @@ function FurnitureEditor() {
       <div className="products-grid">
         {filteredProducts.length > 0 ? (
           filteredProducts.map((p, idx) => (
-            <div
+            <ProductCard
               key={p.id}
-              className="product-card"
-              style={{ '--card-delay': `${idx * 45}ms` }}
-              onClick={() => openDrawer(p)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  openDrawer(p);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              aria-labelledby={`editor-card-title-${p.id}`}
-            >
-              <span className="product-card__shine" aria-hidden="true" />
-
-              <div className="product-card-image">
-                <span className="product-card-id-badge">#{p.id}</span>
-                {p.img ? (
-                  <img
-                    src={resolveImageUrl(p.img)}
-                    alt={p.title}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <div className="no-image">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                      <circle cx="9" cy="10" r="2" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M21 16l-5-5-4 4-2-2-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span>Нет фото</span>
-                  </div>
-                )}
-                <div className="product-card-overlay">
-                  <span className="product-card-edit-hint">Редактировать</span>
-                </div>
-              </div>
-
-                <div className="product-card-content">
-                <div id={`editor-card-title-${p.id}`} className="product-card-title">{p.title}</div>
-                <div className="product-card-meta">
-                  {p.price ? (
-                    <span className="product-card-price">{p.price} сом</span>
-                  ) : (
-                    <span className="product-card-price product-card-price--empty">Цена не указана</span>
-                  )}
-                </div>
-                <div className="product-card-tags">
-                  <span className="product-card-tag">{p.variables?.length || 0} перем.</span>
-                  <span className="product-card-tag">{p.details?.length || 0} деталей</span>
-                </div>
-              </div>
-
-              <div className="product-card-actions">
-                <button
-                  type="button"
-                  className="btn-delete"
-                  disabled={isPending(`delete-${p.id}`)}
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    withLoading(`delete-${p.id}`, () => deleteProduct(p.id)); 
-                  }}
-                  title="Удалить"
-                  aria-label={`Удалить: ${p.title}`}
-                >
-                  {isPending(`delete-${p.id}`) ? '...' : '×'}
-                </button>
-              </div>
-            </div>
+              product={p}
+              index={idx}
+              onOpen={openDrawer}
+              onDelete={handleDeleteProduct}
+              isDeleting={isPending(`delete-${p.id}`)}
+            />
           ))
         ) : (
           <div className="empty-state">

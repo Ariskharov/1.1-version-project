@@ -73,7 +73,12 @@ a {
   padding-top: 64px;
   padding-left: 256px;
   max-width: 100%;
+  min-height: 100vh;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
   overflow-x: clip;
   animation: app-page-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
