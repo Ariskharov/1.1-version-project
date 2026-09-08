@@ -1,25 +1,34 @@
 const webpush = require('web-push');
 const pool = require('../database/pg');
 
+const DEFAULT_VAPID_PUBLIC_KEY = 'BMCa1KFzwCinml2K6JTMNoYDUu8LVYwxsKRZQNaXH5N6MGSs5c6ZKxWEbsfczBpHqpWrc9wDI5sfNz056Ec-GWc';
+const DEFAULT_VAPID_PRIVATE_KEY = 'Gu6ZzM1aJm3z9WJKCcXezQqCongjTYY1BlNvGcwGTAI';
+const DEFAULT_VAPID_SUBJECT = 'mailto:admin@timetrack.local';
+
 let configured = false;
 
 function ensureConfigured() {
     if (configured) return true;
-    const publicKey = process.env.VAPID_PUBLIC_KEY || '';
-    const privateKey = process.env.VAPID_PRIVATE_KEY || '';
-    const subject = process.env.VAPID_SUBJECT || 'mailto:admin@timetrack.local';
+    const publicKey = process.env.VAPID_PUBLIC_KEY || DEFAULT_VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY || DEFAULT_VAPID_PRIVATE_KEY;
+    const subject = process.env.VAPID_SUBJECT || DEFAULT_VAPID_SUBJECT;
 
     if (!publicKey || !privateKey) {
         console.warn('[push] VAPID keys missing — push disabled');
         return false;
     }
-    webpush.setVapidDetails(subject, publicKey, privateKey);
-    configured = true;
-    return true;
+    try {
+        webpush.setVapidDetails(subject, publicKey, privateKey);
+        configured = true;
+        return true;
+    } catch (err) {
+        console.warn('[push] Failed to set VAPID details:', err.message);
+        return false;
+    }
 }
 
 function getPublicKey() {
-    return process.env.VAPID_PUBLIC_KEY || null;
+    return process.env.VAPID_PUBLIC_KEY || DEFAULT_VAPID_PUBLIC_KEY;
 }
 
 async function ensureTable() {

@@ -56,11 +56,21 @@ export async function registerServiceWorker() {
     return reg;
 }
 
+let cachedVapidPublicKey = null;
+
 export async function fetchVapidPublicKey() {
+    if (cachedVapidPublicKey) return cachedVapidPublicKey;
     const res = await fetch(`${API_BASE}/push/vapid-public-key`);
-    if (!res.ok) throw new Error('Push на сервере не настроен');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Push на сервере не настроен');
+    }
     const data = await res.json();
-    return data.publicKey;
+    if (!data?.publicKey) {
+        throw new Error('Ключ VAPID не найден на сервере');
+    }
+    cachedVapidPublicKey = data.publicKey;
+    return cachedVapidPublicKey;
 }
 
 /**

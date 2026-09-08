@@ -20,9 +20,10 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
   @include theme-editor-dark(ed);
 
   position: relative;
-  max-width: 1520px;
+  width: 100%;
+  max-width: 1840px;
   margin: 0 auto;
-  padding: 14px 24px 40px;
+  padding: 14px clamp(16px, 2.5vw, 36px) 40px;
   min-height: calc(100vh - 64px);
   background: transparent;
   color: var(--ed-text);
@@ -244,14 +245,23 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
-/* Grid */
 .products-grid {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
   animation: ed-fade-up 0.55s $ed-ease 0.12s both;
+
+  @media (min-width: 1200px) {
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 18px;
+  }
+
+  @media (min-width: 1600px) {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 20px;
+  }
 }
 
 .product-card {
@@ -1078,8 +1088,8 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .products-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
   }
 
   .drawer {
