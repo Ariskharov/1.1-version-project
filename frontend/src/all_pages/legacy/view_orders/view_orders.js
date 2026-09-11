@@ -76,6 +76,20 @@ const ViewOrders = () => {
         fetchOrders();
     }, []);
 
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 720px)');
+        const apply = () => {
+            if (mq.matches) setViewMode('grid');
+        };
+        apply();
+        if (typeof mq.addEventListener === 'function') {
+            mq.addEventListener('change', apply);
+            return () => mq.removeEventListener('change', apply);
+        }
+        mq.addListener(apply);
+        return () => mq.removeListener(apply);
+    }, []);
+
     const calculateOrderTotal = (order) => {
         if (order.total && order.total > 0) return order.total;
         return order.product_order?.reduce((sum, item) => {
@@ -205,7 +219,7 @@ const ViewOrders = () => {
                         <SearchIcon />
                         <input
                             type="text"
-                            placeholder="Поиск по клиенту, компании, адресу или ID..."
+                            placeholder="Клиент, компания, адрес или ID"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />

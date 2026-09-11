@@ -48,10 +48,14 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
   --vo-tab-active-color:  var(--vo-gold-light);
   --vo-icon-accent:    rgba(212,175,120,0.5);
 
+  width: 100%;
   max-width: 1400px;
+  min-width: 0;
   margin: 0 auto;
   padding: 40px 28px;
-  min-height: 100vh;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+  overflow-x: clip;
   background: var(--vo-surface);
   color: var(--vo-text);
   font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
@@ -102,10 +106,16 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
   padding-bottom: 28px;
   border-bottom: 1px solid var(--vo-border);
 
-  @media (min-width: 1024px) {
+  min-width: 0;
+
+  @media (min-width: 1100px) {
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
+  }
+
+  > div {
+    min-width: 0;
   }
 
   h1 {
@@ -130,8 +140,10 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
   gap: 12px;
   width: 100%;
 
+  min-width: 0;
+
   @media (min-width: 640px) { grid-template-columns: repeat(4, 1fr); }
-  @media (min-width: 1024px) { width: auto; min-width: 520px; }
+  @media (min-width: 1100px) { width: auto; flex: 1 1 480px; max-width: 560px; }
 
   .stat-card {
     background: var(--vo-surface-2);
@@ -140,6 +152,7 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
     padding: 14px 16px;
     display: flex;
     flex-direction: column;
+    min-width: 0;
     transition: transform 0.25s $ease, box-shadow 0.25s $ease;
 
     &:hover {
@@ -155,7 +168,7 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
       margin-bottom: 6px;
     }
 
-    .stat-label { font-size: 12px; font-weight: 500; color: var(--vo-muted); }
+    .stat-label { font-size: 12px; font-weight: 500; color: var(--vo-muted); overflow-wrap: anywhere; }
 
     &--new    { border-left: 3px solid var(--vo-stat-new);       .stat-value { color: var(--vo-stat-new); } }
     &--progress  { border-left: 3px solid var(--vo-stat-progress);  .stat-value { color: var(--vo-stat-progress); } }
@@ -169,21 +182,25 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
   flex-direction: column;
   gap: 16px;
   margin-bottom: 24px;
+  min-width: 0;
 
-  @media (min-width: 768px) { flex-direction: row; justify-content: space-between; align-items: center; }
+  @media (min-width: 768px) { flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: wrap; }
 
   &__left {
     display: flex;
     flex-direction: column;
     gap: 12px;
     width: 100%;
-    @media (min-width: 640px) { flex-direction: row; align-items: center; }
+    min-width: 0;
+    @media (min-width: 720px) { flex-direction: row; align-items: center; }
   }
 
   .search-box {
     position: relative;
-    flex: 1;
+    flex: 1 1 auto;
+    width: 100%;
     max-width: 520px;
+    min-width: 0;
     display: flex;
     align-items: center;
 
@@ -191,6 +208,7 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
 
     input {
       width: 100%;
+      min-width: 0;
       padding: 11px 40px 11px 44px;
       font-size: 14px;
       font-family: inherit;
@@ -227,10 +245,16 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
+    width: 100%;
+    @media (min-width: 720px) { width: auto; flex: 0 1 auto; }
 
-    label { font-size: 13px; font-weight: 500; color: var(--vo-muted); white-space: nowrap; }
+    label { font-size: 13px; font-weight: 500; color: var(--vo-muted); white-space: nowrap; flex-shrink: 0; }
 
     select {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: 100%;
       padding: 10px 14px;
       font-size: 13px;
       font-family: inherit;
@@ -289,6 +313,8 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
   margin-bottom: 28px;
   scrollbar-width: thin;
   scrollbar-color: var(--vo-border) transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 
   &::-webkit-scrollbar { height: 3px; }
   &::-webkit-scrollbar-thumb { background: var(--vo-border); border-radius: 4px; }
@@ -306,6 +332,7 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
     color: var(--vo-muted);
     transition: all 0.2s $ease;
 
@@ -334,8 +361,9 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
 /* ==================== GRID VIEW ==================== */
 .orders-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 20px;
+  min-width: 0;
 }
 
 .order-card-new {
@@ -345,6 +373,8 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
   padding: 22px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
   transition: transform 0.3s $ease, box-shadow 0.3s $ease, border-color 0.2s ease;
 
   &:hover {
@@ -357,10 +387,12 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
     margin-bottom: 16px;
     padding-bottom: 14px;
     border-bottom: 1px solid var(--vo-border-soft);
-    .order-id { font-weight: 700; font-size: 15px; color: var(--vo-gold-light); }
+    .order-id { font-weight: 700; font-size: 15px; color: var(--vo-gold-light); min-width: 0; }
   }
 
   /* Status Badges — shared across grid and table */
@@ -372,6 +404,11 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
     text-transform: uppercase;
     letter-spacing: 0.4px;
     display: inline-block;
+    flex-shrink: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .card-middle {
@@ -385,8 +422,9 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
       align-items: center;
       gap: 10px;
       color: var(--vo-muted);
+      min-width: 0;
       svg { flex-shrink: 0; color: var(--vo-icon-accent); }
-      .value { font-size: 14px; font-weight: 500; color: var(--vo-text); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .value { font-size: 14px; font-weight: 500; color: var(--vo-text); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
       .placeholder-text { font-style: italic; color: var(--vo-muted); font-size: 13px; }
     }
   }
@@ -420,9 +458,12 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
       .item-preview-row {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
         font-size: 13px;
-        .item-title { font-weight: 500; color: var(--vo-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-        .item-qty { font-weight: 600; color: var(--vo-gold); flex-shrink: 0; margin-left: 8px; }
+        .item-title { font-weight: 500; color: var(--vo-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+        .item-qty { font-weight: 600; color: var(--vo-gold); flex-shrink: 0; margin-left: 0; }
       }
 
       .more-items { font-size: 12px; font-style: italic; color: var(--vo-muted); margin-top: 2px; }
@@ -441,11 +482,13 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 8px;
+      min-width: 0;
       .price-label { font-size: 12px; font-weight: 500; color: var(--vo-muted); }
       .price-value { font-size: 18px; font-weight: 700; color: var(--vo-gold-light); }
     }
 
-    .action-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .action-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
     .action-btn {
       display: flex;
@@ -459,7 +502,10 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
       transition: all 0.2s $ease;
       cursor: pointer;
       font-family: inherit;
+      min-width: 0;
+      min-height: 42px;
       svg { flex-shrink: 0; }
+      span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
       &--view {
         background: var(--vo-btn-view-bg);
@@ -484,6 +530,8 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
   border: 1px solid var(--vo-border);
   border-radius: 18px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
 
 .orders-table {
@@ -686,5 +734,206 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
     cursor: pointer;
     transition: all 0.2s ease;
     &:hover { background: var(--vo-gold-hover, rgba(212,175,120,0.2)); border-color: var(--vo-gold, #d4af78); }
+  }
+}
+
+/* ==================== MOBILE / TABLET ==================== */
+@media (max-width: 900px) {
+  .view-orders-container {
+    padding: 20px 16px 32px;
+  }
+
+  .orders-header {
+    gap: 18px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+  }
+
+  .header-stats {
+    .stat-card {
+      padding: 12px 14px;
+
+      .stat-value { font-size: 22px; }
+    }
+  }
+
+  .filters-bar {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .status-tabs {
+    margin-bottom: 18px;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+
+    .status-tab-btn {
+      min-height: 40px;
+      padding: 8px 14px;
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  .view-orders-container {
+    padding: 14px 14px 28px;
+  }
+
+  .view-toggle {
+    display: none;
+  }
+
+  .status-tabs {
+    margin-left: -14px;
+    margin-right: -14px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .filters-bar {
+    &__left {
+      width: 100%;
+    }
+
+    .search-box {
+      max-width: 100%;
+
+      input {
+        font-size: 16px; /* prevent iOS zoom on focus */
+        padding: 12px 40px 12px 44px;
+      }
+
+      .clear-btn {
+        width: 32px;
+        height: 32px;
+      }
+    }
+
+    .sort-box {
+      width: 100%;
+
+      select {
+        font-size: 16px;
+        min-height: 44px;
+      }
+    }
+  }
+
+  .orders-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .order-card-new {
+    padding: 16px;
+
+    &:hover {
+      transform: none;
+    }
+
+    .card-footer .action-buttons {
+      gap: 8px;
+    }
+
+    .card-footer .action-btn {
+      padding: 10px 8px;
+      font-size: 12.5px;
+    }
+  }
+
+  .header-stats .stat-card:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .view-orders-container {
+    padding: 12px 12px 24px;
+  }
+
+  .orders-header {
+    gap: 14px;
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+
+    h1 { font-size: 22px; }
+    .subtitle { font-size: 13px; }
+  }
+
+  .header-stats {
+    gap: 8px;
+
+    .stat-card {
+      padding: 10px 10px;
+      border-radius: 12px;
+
+      .stat-value { font-size: 20px; margin-bottom: 4px; }
+      .stat-label { font-size: 11px; line-height: 1.25; }
+    }
+  }
+
+  .status-tabs {
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 6px;
+
+    .status-tab-btn {
+      padding: 8px 12px;
+      font-size: 12px;
+      gap: 6px;
+    }
+  }
+
+  .order-card-new {
+    padding: 14px;
+    border-radius: 14px;
+
+    .card-footer .price-value { font-size: 16px; }
+  }
+
+  .empty-orders {
+    margin: 20px auto;
+    padding: 40px 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .header-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .order-card-new .card-footer .action-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (hover: none) {
+  .order-card-new:hover,
+  .header-stats .stat-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .order-card-new:hover {
+    border-color: var(--vo-border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-orders-container,
+  .order-card-new,
+  .header-stats .stat-card,
+  .vo-spinner {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .order-card-new:hover,
+  .header-stats .stat-card:hover {
+    transform: none !important;
   }
 }
