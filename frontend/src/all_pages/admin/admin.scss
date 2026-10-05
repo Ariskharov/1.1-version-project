@@ -2533,6 +2533,12 @@ $adm-ease: cubic-bezier(0.22, 1, 0.36, 1);
     align-items: stretch;
   }
 
+  .admin-announcements__head-text {
+    /* 200px в колонке становились высотой заголовка */
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
   .admin-announcements__list {
     max-height: min(280px, 40vh);
   }

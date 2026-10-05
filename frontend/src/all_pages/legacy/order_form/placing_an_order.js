@@ -498,7 +498,7 @@ const PlacingAnOrder = () => {
 
                     <div className="placing_an_order__fields">
                         <label className="placing_an_order__field">
-                            <span>ФИО клиента *</span>
+                            <span>ФИО клиента * Обязательно</span>
                             <input
                                 value={order.name_client}
                                 onChange={e => handleOrderChange('name_client', e.target.value)}
@@ -514,7 +514,7 @@ const PlacingAnOrder = () => {
                             />
                         </label>
                         <label className="placing_an_order__field">
-                            <span>Телефон *</span>
+                            <span>Телефон * Обязательно</span>
                             <input
                                 value={order.phone}
                                 onChange={e => handleOrderChange('phone', e.target.value)}
@@ -531,7 +531,7 @@ const PlacingAnOrder = () => {
                             />
                         </label>
                         <label className="placing_an_order__field placing_an_order__field--full">
-                            <span>Адрес</span>
+                            <span>Адрес * Обязательно</span>
                             <input
                                 value={order.address}
                                 onChange={e => handleOrderChange('address', e.target.value)}

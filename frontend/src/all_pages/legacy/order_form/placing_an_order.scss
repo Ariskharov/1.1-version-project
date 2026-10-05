@@ -1288,6 +1288,16 @@ $pao-radius: 18px;
 
     &__add-wrap {
       flex-direction: column;
+      align-items: stretch;
+    }
+
+    &__add-button {
+      /* flex-basis 200px в колонке становится высотой — держим кнопку по контенту */
+      flex: 0 0 auto;
+      width: 100%;
+      min-width: 0;
+      height: auto;
+      min-height: 40px;
     }
 
     &__footer-actions {
@@ -1319,9 +1329,14 @@ $pao-radius: 18px;
   }
 
   .placing_an_order__add-button {
-    padding: 10px 14px;
-    min-height: 42px;
-    font-size: 13.5px;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    padding: 8px 14px;
+    min-height: 36px;
+    font-size: 13px;
+    line-height: 1.2;
     border-radius: 10px;
     gap: 6px;
   }
