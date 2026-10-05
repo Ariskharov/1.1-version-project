@@ -506,14 +506,18 @@ const loadOfficeLogo = async () => {
     }
 };
 
+const sanitizeDownloadName = (value) => {
+    let cleaned = '';
+    for (const ch of String(value)) {
+        const code = ch.charCodeAt(0);
+        cleaned += (code < 32 || '<>:"/\\|?*'.includes(ch)) ? ' ' : ch;
+    }
+    return cleaned.replace(/\s+/g, ' ').trim().replace(/[. ]+$/g, '').slice(0, 100);
+};
+
 const downloadName = (data, suffix) => {
     const org = String(data.buyerOrg || '').trim();
-    const base = (org && org !== '—' ? org : 'Организация')
-        .replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .replace(/[. ]+$/g, '')
-        .slice(0, 100) || 'Организация';
+    const base = sanitizeDownloadName(org && org !== '—' ? org : '') || 'Организация';
     return suffix ? `${base} ${suffix}.docx` : `${base}.docx`;
 };
 
