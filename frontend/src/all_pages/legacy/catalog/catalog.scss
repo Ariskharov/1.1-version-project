@@ -638,7 +638,7 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
 .catalog-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 1200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -991,6 +991,23 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 10px;
+  }
+
+  &__order {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  &__draft-link {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--cat-gold);
+    text-align: center;
+    text-decoration: none;
   }
 }
 

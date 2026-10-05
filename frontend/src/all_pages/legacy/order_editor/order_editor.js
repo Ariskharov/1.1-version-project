@@ -16,6 +16,8 @@ import {
 import { uploadPhoto } from '../../../utils/uploadService';
 
 import { API_BASE, resolveImageUrl } from '../../../config/api';
+import OrganizationSuggest from '../../../components/ui/OrganizationSuggest';
+import { applyOrganization, buildOrganizationCards } from '../../../utils/orderConvenience';
 
 const getLineTotal = (item) =>
     Number(item.price || 0) * (Number(item.quantity || item.userInputs?.coll || 1) || 1);
@@ -119,9 +121,20 @@ const OrderEditor = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
+    const [lastSaved, setLastSaved] = useState(null);
+    const [mobilePane, setMobilePane] = useState('item');
+    const [orgCards, setOrgCards] = useState([]);
     const [isDocLoading, setIsDocLoading] = useState(null);
     const skipDirtyRef = useRef(true);
+    const dirtyVersionRef = useRef(0);
+    const savingRef = useRef(false);
+    const orderRef = useRef(null);
+    const statusRef = useRef('Оформлен');
+    const customStatusRef = useRef('');
     const addModalRef = useRef(null);
+    orderRef.current = order;
+    statusRef.current = status;
+    customStatusRef.current = customStatus;
 
     const closeModal = useCallback(() => {
         setModalOpen(false);
@@ -206,8 +219,19 @@ const OrderEditor = () => {
             skipDirtyRef.current = false;
             return;
         }
+        dirtyVersionRef.current += 1;
         setIsDirty(true);
-    }, [order, status, loading]);
+    }, [order, status, customStatus, loading]);
+
+    useEffect(() => {
+        fetch(`${API_BASE}/order`)
+            .then((res) => res.json())
+            .then((data) => {
+                const list = Array.isArray(data) ? data : data.order || [];
+                setOrgCards(buildOrganizationCards(list));
+            })
+            .catch(() => setOrgCards([]));
+    }, []);
 
     useEffect(() => {
         const onBeforeUnload = (e) => {
@@ -355,40 +379,51 @@ const OrderEditor = () => {
         }
     };
 
-    const saveOrder = async () => {
-        if (isSaving || !order) return;
-        const totals = recalcOrderTotals(order);
-
+    const saveOrder = useCallback(async ({ leave = false, silent = false } = {}) => {
+        const snapshot = orderRef.current;
+        if (savingRef.current || !snapshot) return;
+        const version = dirtyVersionRef.current;
+        savingRef.current = true;
         setIsSaving(true);
         try {
-            const { subtotal, total } = totals;
-            const effectiveStatus = getEffectiveStatus(status, customStatus);
-            const product_order = (order.product_order || []).map(syncItemTotal);
+            const totals = recalcOrderTotals(snapshot);
+            const effectiveStatus = getEffectiveStatus(statusRef.current, customStatusRef.current);
+            const product_order = (snapshot.product_order || []).map(syncItemTotal);
             const res = await fetch(`${API_BASE}/order/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...order,
+                    ...snapshot,
                     product_order,
                     status: effectiveStatus,
-                    subtotal,
-                    total,
+                    subtotal: totals.subtotal,
+                    total: totals.total,
                     updatedAt: new Date().toISOString()
                 })
             });
             if (res.ok) {
-                setIsDirty(false);
-                showToast('success', 'Заказ успешно сохранён');
-                navigate(`/order/${id}`);
+                if (dirtyVersionRef.current === version) setIsDirty(false);
+                setLastSaved(new Date());
+                if (!silent) showToast('success', 'Заказ сохранён');
+                if (leave) navigate(`/order/${id}`);
             } else {
-                showToast('error', 'Не удалось сохранить заказ');
+                showToast('error', silent ? 'Автосохранение не удалось' : 'Не удалось сохранить заказ');
             }
         } catch (err) {
             showToast('error', 'Ошибка сохранения: ' + err.message);
         } finally {
+            savingRef.current = false;
             setIsSaving(false);
         }
-    };
+    }, [id, navigate, showToast]);
+
+    useEffect(() => {
+        if (!isDirty || loading || !order) return undefined;
+        const timer = setTimeout(() => {
+            saveOrder({ silent: true });
+        }, 1200);
+        return () => clearTimeout(timer);
+    }, [isDirty, order, status, customStatus, loading, saveOrder]);
 
     const selectPresetStatus = (preset) => {
         setStatus(preset);
@@ -503,7 +538,13 @@ const OrderEditor = () => {
             <div className="order_editor__nav">
                 <Link to="/view_orders" className="order_editor__back">← К списку заказов</Link>
                 <Link to={`/order/${id}`} className="order_editor__back">👁 Просмотр</Link>
-                {isDirty && <span className="order_editor__dirty-badge">Есть несохранённые изменения</span>}
+                {isSaving && <span className="order_editor__dirty-badge">Сохранение...</span>}
+                {!isSaving && isDirty && <span className="order_editor__dirty-badge">Есть несохранённые изменения</span>}
+                {!isSaving && !isDirty && lastSaved && (
+                    <span className="order_editor__saved-badge">
+                        Сохранено · {lastSaved.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                )}
             </div>
 
             {/* Современный хедер */}
@@ -553,14 +594,23 @@ const OrderEditor = () => {
                     <button
                         className="btn btn-primary"
                         disabled={isSaving || isDeleting}
-                        onClick={saveOrder}
+                        onClick={() => saveOrder({ leave: true })}
                     >
-                        {renderSaveLabel('Сохранить изменения')}
+                        {renderSaveLabel('Сохранить и открыть')}
                     </button>
                 </div>
             </div>
 
-            <div className="order_editor__main">
+            <div className="order_editor__pane-switch" role="tablist" aria-label="Раздел редактора">
+                <button type="button" className={mobilePane === 'item' ? 'is-active' : ''} onClick={() => setMobilePane('item')}>
+                    Позиция
+                </button>
+                <button type="button" className={mobilePane === 'client' ? 'is-active' : ''} onClick={() => setMobilePane('client')}>
+                    Клиент и договор
+                </button>
+            </div>
+
+            <div className={`order_editor__main ${mobilePane === 'client' ? 'order_editor__main--client' : 'order_editor__main--item'}`}>
                 {/* Левая панель */}
                 <aside className="order_editor__left">
                     <div className="order_editor__left-head">
@@ -646,7 +696,7 @@ const OrderEditor = () => {
                                 </div>
                                 <button
                                     disabled={isSaving || isDeleting}
-                                    onClick={saveOrder}
+                                    onClick={() => saveOrder({ leave: true })}
                                 >
                                     {renderSaveLabel('Сохранить изменения')}
                                 </button>
@@ -808,7 +858,7 @@ const OrderEditor = () => {
                         </div>
                         <button
                             disabled={isSaving || isDeleting}
-                            onClick={saveOrder}
+                            onClick={() => saveOrder({ leave: true })}
                         >
                             {renderSaveLabel('Сохранить / Подтвердить')}
                         </button>
@@ -824,6 +874,22 @@ const OrderEditor = () => {
 
                     <section className="order_editor__contract">
                         <h4>Данные для договора</h4>
+                        <label className="order_editor__field order_editor__field--full">
+                            <span>Организация покупателя</span>
+                            <OrganizationSuggest
+                                className="nice-input"
+                                value={order.name_compony || ''}
+                                cards={orgCards}
+                                placeholder='МП "...", ОсОО "..."'
+                                onChange={(value) => handleOrderInput('name_compony', value)}
+                                onPick={(card) => {
+                                    setOrder((prev) => applyOrganization(prev, card));
+                                    showToast('success', `Реквизиты подставлены из заказа №${card.sourceId}`);
+                                }}
+                            />
+                        </label>
+                        <details className="order_editor__contract-fold">
+                            <summary>Остальные реквизиты</summary>
                         <div className="order_editor__contract-grid">
                             <label className="order_editor__field">
                                 <span>№ договора</span>
@@ -836,10 +902,6 @@ const OrderEditor = () => {
                             <label className="order_editor__field">
                                 <span>Город</span>
                                 <input className="nice-input" value={order.contract_city || ''} onChange={e => handleOrderInput('contract_city', e.target.value)} placeholder="Токмок" />
-                            </label>
-                            <label className="order_editor__field order_editor__field--full">
-                                <span>Организация покупателя</span>
-                                <input className="nice-input" value={order.name_compony || ''} onChange={e => handleOrderInput('name_compony', e.target.value)} placeholder='МП "...", ОсОО "..."' />
                             </label>
                             <label className="order_editor__field">
                                 <span>Должность представителя</span>
@@ -886,6 +948,7 @@ const OrderEditor = () => {
                                 <textarea className="nice-textarea order_editor__contract-note" value={order.procurement_basis || ''} onChange={e => handleOrderInput('procurement_basis', e.target.value)} placeholder="Текст основания закупки..." />
                             </label>
                         </div>
+                        </details>
                     </section>
 
                     <section className="order_editor__docs">
@@ -902,6 +965,18 @@ const OrderEditor = () => {
                     </section>
                 </aside>
             </div>
+            </div>
+
+            <div className="order_editor__sticky-save">
+                <span>
+                    {isSaving && 'Сохранение...'}
+                    {!isSaving && isDirty && 'Есть изменения'}
+                    {!isSaving && !isDirty && lastSaved && `Сохранено · ${lastSaved.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
+                    {!isSaving && !isDirty && !lastSaved && 'Черновик на сервере'}
+                </span>
+                <button type="button" disabled={isSaving || isDeleting} onClick={() => saveOrder({ leave: true })}>
+                    {isSaving ? 'Сохранение...' : 'Открыть заказ'}
+                </button>
             </div>
 
             {modalOpen && createPortal(

@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import './view_orders.scss';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
+import { CustomContext } from '../../../Context';
+import DraftBanner from '../../../components/ui/DraftBanner';
+import { ORDER_STATUSES, isTodayOrder, repeatOrderPayload } from '../../../utils/orderConvenience';
 
 import { API_BASE } from '../../../config/api';
 
@@ -47,11 +50,16 @@ const SomIcon = () => (
 
 const ViewOrders = () => {
     const { resolvedTheme } = useCatalogTheme();
+    const { currentUser, showToast } = useContext(CustomContext);
+    const navigate = useNavigate();
+    const isAdmin = currentUser?.role === 'admin';
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('Все');
+    const [workFilter, setWorkFilter] = useState('all');
+    const [repeatingId, setRepeatingId] = useState(null);
     const [viewMode, setViewMode] = useState('grid');
     const [sortBy, setSortBy] = useState('id-desc');
 
@@ -102,13 +110,60 @@ const ViewOrders = () => {
     const stats = {
         total: orders.length,
         new: orders.filter(o => o.status === 'Оформлен' || o.status === 'Черновик' || !o.status).length,
-        inProgress: orders.filter(o => o.status === 'Пилится' || o.status === 'Собирается').length,
+        saw: orders.filter(o => o.status === 'Пилится').length,
+        assembly: orders.filter(o => o.status === 'Собирается').length,
         delivery: orders.filter(o => o.status === 'Ожидание доставки' || o.status === 'Установка').length,
         completed: orders.filter(o => o.status === 'Завершено').length,
     };
 
+    const updateStatus = async (orderId, status) => {
+        try {
+            const res = await fetch(`${API_BASE}/order/${orderId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status }),
+            });
+            if (!res.ok) throw new Error('Не удалось сменить статус');
+            setOrders((prev) => prev.map((item) => (item.id === orderId ? { ...item, status } : item)));
+            showToast?.('success', 'Статус обновлён');
+        } catch (err) {
+            showToast?.('error', err.message);
+        }
+    };
+
+    const repeatOrder = async (order) => {
+        if (repeatingId) return;
+        setRepeatingId(order.id);
+        try {
+            const res = await fetch(`${API_BASE}/order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(repeatOrderPayload(order)),
+            });
+            if (!res.ok) throw new Error('Не удалось повторить заказ');
+            const data = await res.json();
+            const createdId = data.id || data[0]?.id;
+            showToast?.('success', 'Заказ скопирован как черновик');
+            if (createdId) navigate(`/order_editor/${createdId}`);
+        } catch (err) {
+            showToast?.('error', err.message);
+        } finally {
+            setRepeatingId(null);
+        }
+    };
+
+    const phoneHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, '')}`;
+
     const getFilteredAndSortedOrders = () => {
         return orders
+            .filter((order) => {
+                if (workFilter === 'today') return isTodayOrder(order);
+                if (workFilter === 'progress') {
+                    return ['Пилится', 'Собирается', 'Ожидание доставки', 'Установка'].includes(order.status);
+                }
+                if (workFilter === 'draft') return order.status === 'Черновик';
+                return true;
+            })
             .filter((order) => {
                 if (selectedStatus !== 'Все') {
                     if (selectedStatus === 'Оформлен') {
@@ -186,6 +241,7 @@ const ViewOrders = () => {
 
     return (
         <div className={`view-orders-container view-orders--theme-${resolvedTheme}`}>
+            {isAdmin && <DraftBanner />}
             {/* Header */}
             <div className="orders-header">
                 <div>
@@ -202,8 +258,16 @@ const ViewOrders = () => {
                         <span className="stat-label">Новые / Черновики</span>
                     </div>
                     <div className="stat-card stat-card--progress">
-                        <span className="stat-value">{stats.inProgress}</span>
-                        <span className="stat-label">В работе</span>
+                        <span className="stat-value">{stats.saw}</span>
+                        <span className="stat-label">Пилится</span>
+                    </div>
+                    <div className="stat-card stat-card--progress">
+                        <span className="stat-value">{stats.assembly}</span>
+                        <span className="stat-label">Собирается</span>
+                    </div>
+                    <div className="stat-card stat-card--completed">
+                        <span className="stat-value">{stats.delivery}</span>
+                        <span className="stat-label">Доставка</span>
                     </div>
                     <div className="stat-card stat-card--completed">
                         <span className="stat-value">{stats.completed}</span>
@@ -257,6 +321,24 @@ const ViewOrders = () => {
                 </div>
             </div>
 
+            <div className="work-filters">
+                {[
+                    ['all', 'Все заказы'],
+                    ['today', 'Сегодня'],
+                    ['progress', 'В работе'],
+                    ['draft', 'Черновики'],
+                ].map(([id, label]) => (
+                    <button
+                        key={id}
+                        type="button"
+                        className={`work-filter ${workFilter === id ? 'active' : ''}`}
+                        onClick={() => setWorkFilter(id)}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+
             {/* Status tabs */}
             <div className="status-tabs">
                 {allStatuses.map((status) => {
@@ -284,7 +366,7 @@ const ViewOrders = () => {
                     <div className="empty-icon">📦</div>
                     <h3>Заказы не найдены</h3>
                     <p>Попробуйте сбросить фильтры поиска или изменить выбранный статус заказа.</p>
-                    <button onClick={() => { setSearchTerm(''); setSelectedStatus('Все'); }}>
+                    <button onClick={() => { setSearchTerm(''); setSelectedStatus('Все'); setWorkFilter('all'); }}>
                         Сбросить фильтры
                     </button>
                 </div>
@@ -299,9 +381,25 @@ const ViewOrders = () => {
                             <div key={order.id} className="order-card-new">
                                 <div className="card-top">
                                     <span className="order-id">Заказ #{order.id}</span>
-                                    <span className={`status-badge-new ${statusInfo.className}`}>
-                                        {statusInfo.text}
-                                    </span>
+                                    {isAdmin ? (
+                                        <select
+                                            className="status-inline"
+                                            value={order.status || 'Оформлен'}
+                                            aria-label={`Статус заказа ${order.id}`}
+                                            onChange={(event) => updateStatus(order.id, event.target.value)}
+                                        >
+                                            {ORDER_STATUSES.map((status) => (
+                                                <option key={status} value={status}>{status}</option>
+                                            ))}
+                                            {order.status && !ORDER_STATUSES.includes(order.status) && (
+                                                <option value={order.status}>{order.status}</option>
+                                            )}
+                                        </select>
+                                    ) : (
+                                        <span className={`status-badge-new ${statusInfo.className}`}>
+                                            {statusInfo.text}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="card-middle">
@@ -323,6 +421,11 @@ const ViewOrders = () => {
                                             {order.address || <span className="placeholder-text">Адрес не указан</span>}
                                         </span>
                                     </div>
+                                    {order.phone && (
+                                        <div className="info-row">
+                                            <a className="phone-link" href={phoneHref(order.phone)}>{order.phone}</a>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="card-details">
@@ -366,6 +469,16 @@ const ViewOrders = () => {
                                             <EditIcon />
                                             <span>Изменить</span>
                                         </Link>
+                                        {isAdmin && (
+                                            <button
+                                                type="button"
+                                                className="action-btn action-btn--repeat"
+                                                disabled={repeatingId === order.id}
+                                                onClick={() => repeatOrder(order)}
+                                            >
+                                                <span>{repeatingId === order.id ? 'Копия...' : 'Повторить'}</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -433,9 +546,28 @@ const ViewOrders = () => {
                                             </span>
                                         </td>
                                         <td>
-                                            <span className={`status-badge-new ${statusInfo.className}`}>
-                                                {statusInfo.text}
-                                            </span>
+                                            {isAdmin ? (
+                                                <select
+                                                    className="status-inline"
+                                                    value={order.status || 'Оформлен'}
+                                                    aria-label={`Статус заказа ${order.id}`}
+                                                    onChange={(event) => updateStatus(order.id, event.target.value)}
+                                                >
+                                                    {ORDER_STATUSES.map((status) => (
+                                                        <option key={status} value={status}>{status}</option>
+                                                    ))}
+                                                    {order.status && !ORDER_STATUSES.includes(order.status) && (
+                                                        <option value={order.status}>{order.status}</option>
+                                                    )}
+                                                </select>
+                                            ) : (
+                                                <span className={`status-badge-new ${statusInfo.className}`}>
+                                                    {statusInfo.text}
+                                                </span>
+                                            )}
+                                            {order.phone && (
+                                                <a className="phone-link" href={phoneHref(order.phone)}>{order.phone}</a>
+                                            )}
                                         </td>
                                         <td>
                                             <div className="table-actions">
@@ -445,6 +577,17 @@ const ViewOrders = () => {
                                                 <Link to={`/order_editor/${order.id}`} className="table-action-btn edit" title="Редактировать">
                                                     <EditIcon />
                                                 </Link>
+                                                {isAdmin && (
+                                                    <button
+                                                        type="button"
+                                                        className="table-action-btn edit"
+                                                        title="Повторить заказ"
+                                                        disabled={repeatingId === order.id}
+                                                        onClick={() => repeatOrder(order)}
+                                                    >
+                                                        ↻
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

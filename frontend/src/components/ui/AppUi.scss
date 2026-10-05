@@ -197,9 +197,10 @@
 
   .app-ui-toast {
     top: auto;
-    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
     right: 12px;
     left: 12px;
     max-width: none;
+    z-index: 1050;
   }
 }

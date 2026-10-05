@@ -2154,3 +2154,109 @@ $oed-radius: 18px;
     transform: none !important;
   }
 }
+
+.order_editor__saved-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3f7d4e;
+  background: rgba(74, 222, 128, 0.14);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.order_editor__pane-switch,
+.order_editor__sticky-save {
+  display: none;
+}
+
+.order_editor__contract-fold {
+  margin-top: 8px;
+
+  summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+}
+
+@media (max-width: 820px) {
+  .order_editor__pane-switch {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+
+    button {
+      flex: 1;
+      min-height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--oed-border, rgba(212, 175, 120, 0.3));
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.is-active {
+      background: rgba(212, 175, 120, 0.2);
+    }
+  }
+
+  .order_editor__main--item .order_editor__right {
+    display: none;
+  }
+
+  .order_editor__main--client .order_editor__left,
+  .order_editor__main--client .order_editor__center {
+    display: none;
+  }
+
+  .order_editor__sticky-save {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--oed-surface, #1a1816);
+    border-top: 1px solid var(--oed-border, rgba(212, 175, 120, 0.28));
+    box-sizing: border-box;
+
+    span {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    button {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 10px;
+      background: #d4af78;
+      color: #1a1612;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  }
+
+  .order_editor {
+    padding-bottom: 84px;
+  }
+}
+
+@media (max-width: 650px) {
+  .order_editor__sticky-save {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .order_editor {
+    padding-bottom: 150px;
+  }
+}

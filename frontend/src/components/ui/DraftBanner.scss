@@ -1,0 +1,33 @@
+.draft-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(154, 118, 40, 0.35);
+  background: rgba(184, 149, 74, 0.12);
+  color: inherit;
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  a {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: #9a7628;
+    color: #fffdf9;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+}

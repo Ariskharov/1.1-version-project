@@ -448,6 +448,27 @@ const Header = () => {
                     />
                 )}
             </div>
+            {currentUser && currentUser.role !== 'scanner' && (
+                <nav
+                    className={`header__bottom-nav${menuOpen ? ' header__bottom-nav--hidden' : ''}`}
+                    aria-label="Быстрые разделы"
+                    aria-hidden={menuOpen || undefined}
+                    {...(menuOpen ? { inert: true } : {})}
+                >
+                    {currentUser.role === 'admin' ? (
+                        <>
+                            <Link to="/view_orders" className={isActive('/view_orders') ? 'is-active' : ''} onClick={toTop}>Заказы</Link>
+                            <Link to="/placing_an_order" className={isActive('/placing_an_order') ? 'is-active' : ''} onClick={toTop}>Новый</Link>
+                            <Link to="/" className={isCatalogActive ? 'is-active' : ''} onClick={toTop}>Каталог</Link>
+                        </>
+                    ) : (
+                        <>
+                            <Link to="/cabinet" className={isActive('/cabinet') ? 'is-active' : ''} onClick={toTop}>Кабинет</Link>
+                            <Link to="/view_orders" className={isActive('/view_orders') ? 'is-active' : ''} onClick={toTop}>Заказы</Link>
+                        </>
+                    )}
+                </nav>
+            )}
         </header>
     );
 };

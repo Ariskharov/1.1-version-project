@@ -11,6 +11,14 @@ import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { uploadPhoto } from '../../../utils/uploadService';
 
 import { API_BASE, resolveImageUrl } from '../../../config/api';
+import OrganizationSuggest from '../../../components/ui/OrganizationSuggest';
+import {
+    ORDER_DRAFT_KEY,
+    applyOrganization,
+    buildOrganizationCards,
+    discountFromPercent,
+    writeOrderDraft,
+} from '../../../utils/orderConvenience';
 
 const PlacingAnOrder = () => {
     const navigate = useNavigate();
@@ -41,6 +49,8 @@ const PlacingAnOrder = () => {
 
     // Скидка на весь заказ (в процентах)
     const [discountPercent, setDiscountPercent] = useState(0);
+    const [orgCards, setOrgCards] = useState([]);
+    const [orgHint, setOrgHint] = useState('');
 
     // Для каталога
     const [products, setProducts] = useState([]);
@@ -68,34 +78,45 @@ const PlacingAnOrder = () => {
         return products.filter(p => p.title && p.title.toLowerCase().includes(q));
     }, [products, productSearch]);
 
-    const DRAFT_KEY = 'order_draft';
-
     // Загрузка черновика из localStorage при монтировании
     useEffect(() => {
-        const savedDraft = localStorage.getItem(DRAFT_KEY);
+        const savedDraft = localStorage.getItem(ORDER_DRAFT_KEY);
         if (savedDraft) {
             try {
                 const parsed = JSON.parse(savedDraft);
-                setOrder(parsed);
-                setLastSaved(new Date());
+                if (parsed && Array.isArray(parsed.positions)) {
+                    setDiscountPercent(Number(parsed.discountPercent) || 0);
+                    setOrder(parsed);
+                    setLastSaved(new Date());
+                }
             } catch (e) {
                 console.warn('Не удалось загрузить черновик заказа');
             }
         }
     }, []);
 
+    useEffect(() => {
+        fetch(`${API_BASE}/order`)
+            .then((res) => res.json())
+            .then((data) => {
+                const list = Array.isArray(data) ? data : data.order || [];
+                setOrgCards(buildOrganizationCards(list));
+            })
+            .catch(() => setOrgCards([]));
+    }, []);
+
     // Автосохранение черновика при изменении заказа
     useEffect(() => {
-        if (order.positions.length > 0 || order.name_client || order.name_compony) {
+        if (order.positions.length > 0 || order.name_client || order.name_compony || discountPercent > 0) {
             const timeout = setTimeout(() => {
-                localStorage.setItem(DRAFT_KEY, JSON.stringify(order));
+                writeOrderDraft(order, discountPercent);
                 setLastSaved(new Date());
                 setIsDirty(true);
             }, 800);
 
             return () => clearTimeout(timeout);
         }
-    }, [order]);
+    }, [order, discountPercent]);
 
     // Предупреждение при уходе со страницы
     useEffect(() => {
@@ -346,7 +367,8 @@ const PlacingAnOrder = () => {
             positions: []
         });
         setDiscountPercent(0);
-        localStorage.removeItem(DRAFT_KEY);
+        setOrgHint('');
+        localStorage.removeItem(ORDER_DRAFT_KEY);
         setIsDirty(false);
         setLastSaved(null);
         showToast('success', 'Форма очищена');
@@ -398,12 +420,16 @@ const PlacingAnOrder = () => {
 
         setIsSaving(true);
 
+        const finance = discountFromPercent(getSubtotal(), discountPercent);
         const payload = {
             ...order,
             product_order: order.positions,
-            subtotal: calculateTotal(),
-            total: calculateTotal(),
-            status: asDraft ? 'Черновик' : 'Оформлен'
+            discountPercent: finance.discountPercent,
+            discountAmount: finance.discountAmount,
+            subtotal: finance.subtotal,
+            total: finance.total,
+            status: asDraft ? 'Черновик' : 'Оформлен',
+            createdAt: new Date().toISOString(),
         };
 
         try {
@@ -418,7 +444,7 @@ const PlacingAnOrder = () => {
             const createdId = data.id || data[0]?.id;
 
             if (!asDraft) {
-                localStorage.removeItem(DRAFT_KEY);
+                localStorage.removeItem(ORDER_DRAFT_KEY);
                 setIsDirty(false);
                 if (createdId) {
                     navigate(`/order/${createdId}`);
@@ -507,11 +533,21 @@ const PlacingAnOrder = () => {
                         </label>
                         <label className="placing_an_order__field">
                             <span>Организация</span>
-                            <input
+                            <OrganizationSuggest
                                 value={order.name_compony}
-                                onChange={e => handleOrderChange('name_compony', e.target.value)}
+                                cards={orgCards}
                                 placeholder='МП "...", ОсОО "..."'
+                                onChange={(value) => {
+                                    setOrgHint('');
+                                    handleOrderChange('name_compony', value);
+                                }}
+                                onPick={(card) => {
+                                    setOrder((prev) => applyOrganization(prev, card));
+                                    setOrgHint(`Реквизиты подставлены из заказа №${card.sourceId}`);
+                                    setIsDirty(true);
+                                }}
                             />
+                            {orgHint && <small className="placing_an_order__org-hint">{orgHint}</small>}
                         </label>
                         <label className="placing_an_order__field">
                             <span>Телефон * Обязательно</span>

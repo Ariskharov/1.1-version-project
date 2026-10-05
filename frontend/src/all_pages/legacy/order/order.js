@@ -13,6 +13,7 @@ import {
 } from '../../../utils/contractDocuments';
 
 import { API_BASE, resolveImageUrl } from '../../../config/api';
+import { calculatePositionDetails } from '../../../utils/orderConvenience';
 
 const getQty = (item) => Number(item.quantity || item.userInputs?.coll || 1) || 1;
 
@@ -156,24 +157,10 @@ const Order = () => {
 
                 loaded.product_order = (loaded.product_order || []).map((item) => {
                     if (!item.calculatedDetails?.length) {
-                        const nums = item.userInputs || {};
-                        const details = (item.details || [])
-                            .map((d) => {
-                                if (d.if_condition && !nums[d.if_condition]) return null;
-                                try {
-                                    const w = nums[d.formula_width] || 0;
-                                    const h = d.formula_height ? nums[d.formula_height] : null;
-                                    const cnt = nums[d.count_formula] || 1;
-                                    const size = h
-                                        ? `${Math.round(w)} × ${Math.round(h)} мм`
-                                        : `${Math.round(w)} мм`;
-                                    return { key: d.key, label: d.label, size, count: Math.round(cnt) };
-                                } catch {
-                                    return { key: d.key, label: d.label, size: 'Ошибка', count: 0 };
-                                }
-                            })
-                            .filter(Boolean);
-                        return { ...item, calculatedDetails: details };
+                        return {
+                            ...item,
+                            calculatedDetails: calculatePositionDetails(item, item.userInputs || {}),
+                        };
                     }
                     return item;
                 });
@@ -340,7 +327,12 @@ const Order = () => {
                                 {(order.discountAmount || 0) > 0 && (
                                     <div className="meta-row meta-row--discount">
                                         <span className="label">Скидка</span>
-                                        <span className="value">−{(order.discountAmount || 0).toLocaleString()} сом</span>
+                                        <span className="value">
+                                            −{(order.discountAmount || 0).toLocaleString()} сом
+                                            {subtotal > 0 && (
+                                                <> ({Math.round((Number(order.discountAmount) / subtotal) * 100)}%)</>
+                                            )}
+                                        </span>
                                     </div>
                                 )}
                                 {(order.taxAmount || 0) > 0 && (

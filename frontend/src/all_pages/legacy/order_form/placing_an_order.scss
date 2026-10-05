@@ -1512,3 +1512,11 @@ $pao-radius: 18px;
     }
   }
 }
+
+.placing_an_order__org-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--pao-muted);
+}

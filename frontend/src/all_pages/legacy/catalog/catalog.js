@@ -1,10 +1,18 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef, memo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, memo, useContext } from 'react';
+import { Link } from 'react-router-dom';
 import { useFurnitureCalculator } from './useFurnitureCalculator';
 import './catalog.scss';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { resolveImageUrl } from '../../../config/api';
+import { CustomContext } from '../../../Context';
+import DraftBanner from '../../../components/ui/DraftBanner';
+import {
+    appendPositionToDraft,
+    buildCatalogPosition,
+    calculatePositionDetails,
+} from '../../../utils/orderConvenience';
 
 const SORT_OPTIONS = [
     { value: 'name-asc', label: 'По названию А–Я' },
@@ -77,6 +85,8 @@ const Catalog = () => {
     const [copiedResults, setCopiedResults] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const { resolvedTheme } = useCatalogTheme();
+    const { showToast, currentUser } = useContext(CustomContext);
+    const [draftCount, setDraftCount] = useState(0);
     const modalRef = useRef(null);
     const lightboxRef = useRef(null);
 
@@ -94,7 +104,17 @@ const Catalog = () => {
         selectProduct(product);
         setModalVisible(true);
         setCopiedResults(false);
+        setDraftCount(0);
     }, [selectProduct]);
+
+    const addCalculatedToDraft = () => {
+        if (!selectedProduct || !resultsArray.length) return;
+        const details = calculatePositionDetails(selectedProduct, inputs);
+        const position = buildCatalogPosition(selectedProduct, inputs, details);
+        const count = appendPositionToDraft(position);
+        setDraftCount(count);
+        showToast?.('success', 'Позиция добавлена в черновик заказа');
+    };
 
     useEffect(() => {
         if (selectedProduct) {
@@ -197,6 +217,8 @@ const Catalog = () => {
                 <div className="catalog-ambient__orb catalog-ambient__orb--2" />
                 <div className="catalog-ambient__grain" />
             </div>
+
+            {currentUser?.role === 'admin' && <DraftBanner />}
 
             <header className="catalog-hero" aria-labelledby="catalog-hero-title">
                 <p className="catalog-hero__badge">Коллекция мебели</p>
@@ -448,6 +470,19 @@ const Catalog = () => {
                                                     </div>
                                                 );
                                             })}
+                                        </div>
+                                        <div className="catalog-results__order">
+                                            <button type="button" className="catalog-calc-btn" onClick={addCalculatedToDraft}>
+                                                Добавить в текущий заказ
+                                            </button>
+                                            {draftCount > 0 && currentUser?.role === 'admin' && (
+                                                <Link to="/placing_an_order" className="catalog-results__draft-link">
+                                                    В черновике {draftCount} поз. — открыть оформление
+                                                </Link>
+                                            )}
+                                            {draftCount > 0 && currentUser?.role !== 'admin' && (
+                                                <p className="catalog-results__draft-link">Позиция лежит в черновике оформления</p>
+                                            )}
                                         </div>
                                     </div>
                                 )}
