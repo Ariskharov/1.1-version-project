@@ -31,7 +31,7 @@ const DEFAULT_PROCUREMENT =
     'закона Кыргызской Республики №27 от 14 апреля 2022 года «О государственных закупках» статья 17, часть 3, пункт 12. Методом из одного источника.';
 
 const KP_INTRO =
-    'ОсОО «Токмокское учебно-производственном предприятии Кыргызского общества слепых и глухих», расположенное в г. Токмок, специализируется на пошиве спецодежды и изготовлении мягкого, твердого инвентаря. На предприятии трудится 41 человек, из них 25 человек лица с ограниченными возможностями здоровья по зрению, слуху и по другим категориям что составляет 60,90% от общего количества работников, на основании закона Кыргызской Республики №27 от 14 апреля 2022 года «О государственных закупках» статья 17, часть 3, пункт 12.';
+    'ОсОО «Токмокское учебно-производственном предприятии Кыргызского общества слепых и глухих», расположенное в г. Токмок, специализируется на пошиве спецодежды и изготовлении мягкого, твердого инвентаря. На предприятии трудится 41 человек, из них 25 человек лица с ограниченными возможностями здоровья по зрению, слуху и по другим категориям что составляет 60,90% от общего количества работников, на основании закона Кыргызской Республики №27 от 14 апреля 2022года «О государственных закупках» статья 17, часть 3 пункт 12 Предлагаем заказать на нашем предприятии:';
 
 const escapeXml = (value) =>
     String(value ?? '')
@@ -121,11 +121,12 @@ export const buildOrderDocData = (order, orderTotal) => {
     };
 };
 
-const wRPr = ({ bold = false, size = SIZE_BODY, szCs = null, font = FONT } = {}) =>
+const wRPr = ({ bold = false, size = SIZE_BODY, szCs = null, font = FONT, omitSzCs = false } = {}) =>
     `<w:rPr>` +
     `<w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}"/>` +
     (bold ? '<w:b/><w:bCs/>' : '') +
-    `<w:sz w:val="${size}"/><w:szCs w:val="${szCs || size}"/>` +
+    `<w:sz w:val="${size}"/>` +
+    (omitSzCs ? '' : `<w:szCs w:val="${szCs || size}"/>`) +
     `</w:rPr>`;
 
 const wPPr = (opts = {}) => {
@@ -135,8 +136,17 @@ const wPPr = (opts = {}) => {
     if (opts.borderBottom) {
         xml += '<w:pBdr><w:bottom w:val="single" w:sz="12" w:space="1" w:color="000000"/></w:pBdr>';
     }
-    if (opts.rightTab) {
-        xml += `<w:tabs><w:tab w:val="right" w:pos="${CONTENT_W}"/></w:tabs>`;
+    if (opts.rightTab || (opts.tabStops && opts.tabStops.length)) {
+        xml += '<w:tabs>';
+        if (opts.tabStops) {
+            for (const stop of opts.tabStops) {
+                const pos = typeof stop === 'number' ? stop : stop.pos;
+                const val = typeof stop === 'number' ? 'left' : stop.val;
+                xml += `<w:tab w:val="${val}" w:pos="${pos}"/>`;
+            }
+        }
+        if (opts.rightTab) xml += `<w:tab w:val="right" w:pos="${opts.rightTabPos || CONTENT_W}"/>`;
+        xml += '</w:tabs>';
     }
     if (opts.spacing) {
         xml += `<w:spacing w:before="${opts.spacing.before || 0}" w:after="${opts.spacing.after}" w:line="${opts.spacing.line}" w:lineRule="auto"/>`;
@@ -148,7 +158,13 @@ const wPPr = (opts = {}) => {
         xml += '/>';
     }
     xml += `<w:jc w:val="${align}"/>`;
-    xml += wRPr({ bold: opts.bold, size: opts.size || SIZE_BODY, szCs: opts.szCs, font: opts.font });
+    xml += wRPr({
+        bold: opts.bold,
+        size: opts.size || SIZE_BODY,
+        szCs: opts.szCs,
+        font: opts.font,
+        omitSzCs: opts.omitSzCs,
+    });
     xml += '</w:pPr>';
     return xml;
 };
@@ -165,6 +181,7 @@ const wP = (text, opts = {}) => {
         size: opts.size || SIZE_BODY,
         szCs: opts.szCs,
         font: opts.font,
+        omitSzCs: opts.omitSzCs,
     };
     return `<w:p>${wPPr({ ...opts, align })}${text === '' && !opts.keepRun ? '' : wRun(text, runOpts)}</w:p>`;
 };
@@ -175,76 +192,139 @@ const wPTabs = (left, right, opts = {}) => {
     return `<w:p>${wPPr({ align: 'left', rightTab: true, bold: opts.bold, size: opts.size })}${wRun(left, runOpts)}${wTab()}${wRun(right, runOpts)}</w:p>`;
 };
 
+// Левый текст и правый у поля. Без таблицы, чтобы Word не рисовал ячейки.
+const wSideLine = (left, right, opts = {}) => {
+    const size = opts.size || SIZE_BODY;
+    const rightText = String(right ?? '');
+    return (
+        `<w:p>${wPPr({
+            align: 'left',
+            rightTab: !!rightText,
+            rightTabPos: opts.tabPos,
+            size,
+        })}` +
+        (left ? wRun(left, { bold: !!opts.leftBold, size }) : '') +
+        (rightText ? `${wTab()}${wRun(rightText, { bold: !!opts.rightBold, size })}` : '') +
+        `</w:p>`
+    );
+};
+
 const CELL_BORDERS = ['top', 'left', 'bottom', 'right']
     .map((edge) => `<w:${edge} w:val="single" w:color="000000" w:sz="4" w:space="0"/>`)
+    .join('');
+const NO_CELL_BORDERS = ['top', 'left', 'bottom', 'right']
+    .map((edge) => `<w:${edge} w:val="none" w:sz="0" w:space="0" w:color="auto"/>`)
     .join('');
 
 const wTc = (innerXml, width, vAlign = 'top', borders = false) =>
     `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/>` +
-    (borders ? `<w:tcBorders>${CELL_BORDERS}</w:tcBorders>` : '') +
+    `<w:tcBorders>${borders ? CELL_BORDERS : NO_CELL_BORDERS}</w:tcBorders>` +
     `<w:vAlign w:val="${vAlign}"/></w:tcPr>${innerXml}</w:tc>`;
 
 const wTcP = (text, opts = {}, width = 1000) => {
     const align = opts.center ? 'center' : opts.right ? 'right' : 'left';
-    const size = opts.size || SIZE_BODY;
+    const runOpts = {
+        bold: opts.bold,
+        size: opts.size || SIZE_BODY,
+        font: opts.font || FONT,
+        szCs: opts.szCs,
+        omitSzCs: opts.omitSzCs,
+    };
     const p =
-        `<w:p><w:pPr><w:jc w:val="${align}"/>${wRPr({ bold: opts.bold, size })}</w:pPr>` +
-        `${wRun(text, { bold: opts.bold, size })}</w:p>`;
+        `<w:p><w:pPr><w:jc w:val="${align}"/>${wRPr(runOpts)}</w:pPr>` +
+        (text === '' ? '' : wRun(text, runOpts)) +
+        `</w:p>`;
     return wTc(p, width, opts.vAlign || 'center', opts.borders !== false);
 };
 
-const wTcEmpty = (width) => wTc('<w:p><w:pPr><w:jc w:val="center"/></w:pPr></w:p>', width, 'center', true);
-
-// Ширина текста на A4 при полях образца: 11906 − 1701 − 850.
+// Ширина текста на A4 при полях договора: 11906 − 1701 − 850.
 const CONTENT_W = 9355;
-const COL_PAIR = [4600, 4755];
-// Доли колонок как в спецификации Биримдик, сжатые в ширину страницы.
-const COLS = [695, 4125, 1127, 849, 1097, 1462];
-const SPEC_HEADERS = ['№', 'Наименование продукции', 'Ед.измер.', 'ко.во', 'Цена за единицу', 'сумма'];
+// Правая колонка реквизитов, как в образце: обычные табы, без ячеек.
+const REQUISITE_TAB = 720;
+const REQUISITE_COL = 5760;
+const REQUISITE_STOPS = [];
+for (let pos = REQUISITE_TAB; pos <= CONTENT_W; pos += REQUISITE_TAB) REQUISITE_STOPS.push(pos);
+const CALIBRI = 'Calibri';
+const SIZE_CALIBRI = 22;
+// Сетка спецификации Биримдик: tblW 10080, таблица шире текстовой колонки.
+const SPEC_W = 10080;
+const SPEC_IND = 93;
+const SPEC_GRID = [750, 4424, 1293, 916, 1121, 1576];
+// КП на листе с равными полями, как бланк «Ак кудук».
+const KP_MARGIN_X = 850;
+const KP_CONTENT_W = 11906 - KP_MARGIN_X * 2;
+const SPEC_HEADERS = ['№', 'Наименование продукции', 'Ед.измер.', 'ко.во', 'Цена  за единицу', 'сумма'];
 const KP_HEADERS = ['№', 'Наименование продукта', 'Ед.измер.', 'Кол.', 'Цена с НДС за 1 ед.изд.', 'сумма'];
+const NONE_BORDERS = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
+    .map((edge) => `<w:${edge} w:val="none" w:color="auto" w:sz="0" w:space="0"/>`)
+    .join('');
 
-const specTableXml = (rows, total, headers = SPEC_HEADERS) => {
+const fitGrid = (target) => {
+    const scaled = SPEC_GRID.map((width) => Math.round((width * target) / SPEC_W));
+    scaled[1] += target - scaled.reduce((sum, width) => sum + width, 0);
+    return scaled;
+};
+
+const specTableXml = (rows, total, mode = 'spec') => {
+    const kp = mode === 'kp';
+    const cols = kp ? fitGrid(KP_CONTENT_W) : SPEC_GRID;
+    const headerAlign = kp
+        ? ['center', 'center', 'center', 'center', 'center', 'center']
+        : ['center', 'left', 'left', 'left', 'center', 'left'];
+    const cell = (text, opts, index) => wTcP(text, {
+        vAlign: kp ? 'center' : 'bottom',
+        font: kp ? FONT : CALIBRI,
+        size: kp ? SIZE_BODY : SIZE_CALIBRI,
+        ...opts,
+    }, cols[index]);
+
     const header = `<w:tr>` +
-        headers.map((title, i) => wTcP(title, { center: true, bold: true }, COLS[i])).join('') +
+        (kp ? KP_HEADERS : SPEC_HEADERS).map((title, index) => cell(title, {
+            center: headerAlign[index] === 'center',
+            bold: true,
+        }, index)).join('') +
         '</w:tr>';
 
-    const body = rows.map((row) =>
+    const body = rows.map((row) => (
         `<w:tr>` +
-        wTcP(String(row.index), { center: true }, COLS[0]) +
-        wTcP(row.title, { left: true, bold: true }, COLS[1]) +
-        wTcP(row.unit, { center: true }, COLS[2]) +
-        wTcP(String(row.qty), { center: true }, COLS[3]) +
-        wTcP(String(row.price), { center: true }, COLS[4]) +
-        wTcP(String(row.sum), { center: true }, COLS[5]) +
+        cell(String(row.index), { center: true, font: FONT, size: SIZE_BODY }, 0) +
+        cell(row.title, { font: FONT, size: SIZE_BODY, vAlign: kp ? 'center' : 'top' }, 1) +
+        cell(row.unit, { center: true, font: FONT, size: SIZE_BODY }, 2) +
+        cell(String(row.qty), { center: true, font: FONT, size: SIZE_BODY }, 3) +
+        cell(String(row.price), { center: true, font: FONT, size: SIZE_BODY }, 4) +
+        cell(String(row.sum), {
+            center: !kp,
+            right: kp,
+            font: kp ? FONT : CALIBRI,
+            size: kp ? SIZE_BODY : SIZE_CALIBRI,
+        }, 5) +
         '</w:tr>'
-    ).join('');
+    )).join('');
 
     const footer =
-        `<w:tr>` +
-        wTcEmpty(COLS[0]) +
-        wTcP('ИТОГО', { left: true, bold: true }, COLS[1]) +
-        wTcEmpty(COLS[2]) +
-        wTcEmpty(COLS[3]) +
-        wTcEmpty(COLS[4]) +
-        wTcP(String(total), { center: true, bold: true }, COLS[5]) +
+        `<w:tr><w:trPr><w:trHeight w:val="336" w:hRule="atLeast"/></w:trPr>` +
+        cell('', { center: true }, 0) +
+        cell('ИТОГО', { bold: false }, 1) +
+        cell('', {}, 2) +
+        cell('', {}, 3) +
+        cell('', {}, 4) +
+        cell(String(total), { right: true, bold: true, center: false }, 5) +
         '</w:tr>';
 
     return (
         `<w:tbl><w:tblPr>` +
-        `<w:tblW w:w="${CONTENT_W}" w:type="dxa"/>` +
-        `<w:tblBorders>` +
-        `<w:top w:val="single" w:color="auto" w:sz="4" w:space="0"/>` +
-        `<w:left w:val="single" w:color="auto" w:sz="4" w:space="0"/>` +
-        `<w:bottom w:val="single" w:color="auto" w:sz="4" w:space="0"/>` +
-        `<w:right w:val="single" w:color="auto" w:sz="4" w:space="0"/>` +
-        `<w:insideH w:val="single" w:color="auto" w:sz="4" w:space="0"/>` +
-        `<w:insideV w:val="single" w:color="auto" w:sz="4" w:space="0"/>` +
-        `</w:tblBorders>` +
+        `<w:tblW w:w="${kp ? KP_CONTENT_W : SPEC_W}" w:type="dxa"/>` +
+        (kp ? '' : `<w:tblInd w:w="${SPEC_IND}" w:type="dxa"/>`) +
+        `<w:tblBorders>${NONE_BORDERS}</w:tblBorders>` +
         `<w:tblLayout w:type="fixed"/>` +
+        `<w:tblCellMar>` +
+        `<w:top w:w="0" w:type="dxa"/>` +
+        `<w:left w:w="108" w:type="dxa"/>` +
+        `<w:bottom w:w="0" w:type="dxa"/>` +
+        `<w:right w:w="108" w:type="dxa"/>` +
+        `</w:tblCellMar>` +
         `</w:tblPr>` +
-        `<w:tblGrid>` +
-        COLS.map((w) => `<w:gridCol w:w="${w}"/>`).join('') +
-        `</w:tblGrid>` +
+        `<w:tblGrid>${cols.map((width) => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>` +
         header + body + footer +
         `</w:tbl>`
     );
@@ -256,13 +336,14 @@ const buildPreamble = (data) =>
 // Пункты с раздела 2 в образце идут стилем List Paragraph: интервал 1,15 и отступ после абзаца.
 const wOffice = (text, opts = {}) => wP(text, {
     style: opts.plain ? undefined : '5',
-    leftInd: opts.plain ? undefined : 0,
+    leftInd: opts.plain || opts.keepIndent ? undefined : 0,
     firstLine: opts.firstLine,
     center: opts.center,
     right: opts.right,
     bold: opts.bold,
     size: opts.size || SIZE_BODY,
-    szCs: opts.plain ? undefined : (opts.szCs || 28),
+    szCs: opts.szCs,
+    omitSzCs: opts.omitSzCs,
     spacing: opts.spacing,
 });
 
@@ -275,7 +356,7 @@ const pushOfficeClause = (parts, text, opts) => {
     }
     parts.push(wOffice(text, opts));
     if (text.startsWith('6.1.')) {
-        parts.push(wOffice('6.2. Предоплата на сырье 50 % от общей суммы заказа.', opts));
+        parts.push(wOffice('6.2 Предоплата на сырье 50 % от общей суммы заказа.', opts));
     }
 };
 
@@ -304,72 +385,22 @@ const buildContractBodyXml = (data) => {
             text = `5.1. «Поставщик» обязуется поставить продукцию в течении ${data.deliveryDays} (${data.deliveryDaysWords}) рабочих дней с момента подписания настоящего договора на склад «Покупателя».`;
         }
 
-        const plain = text.startsWith('1.');
+        const sectionMatch = text.match(/^(\d+)\./);
+        const sectionNo = sectionMatch ? Number(sectionMatch[1]) : 0;
+        // В Биримдик разделы 1 и 2 — обычный абзац. С 6-го заголовка отступ List Paragraph не сбрасывается.
+        const plain = text.startsWith('1.') || text.startsWith('2. Цена');
+        const keepIndent = item.type === 'sectionHeader' && [6, 7, 8, 9, 11, 12, 13].includes(sectionNo);
         pushOfficeClause(parts, text, {
             plain,
+            keepIndent,
             bold: item.type === 'sectionHeader' || item.type === 'totalLine',
             center: item.type === 'sectionHeader',
+            szCs: !plain && sectionNo >= 2 && sectionNo <= 6 ? 28 : undefined,
+            omitSzCs: !plain && sectionNo >= 7,
         });
     });
 
     return parts.join('');
-};
-
-const NIL_EDGES = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
-    .map((edge) => `<w:${edge} w:val="nil"/>`)
-    .join('');
-
-const wPairCell = (text, width, opts = {}) => {
-    const lines = Array.isArray(text) ? text : [text ?? ''];
-    const paras = lines.map((line) => wP(line, {
-        left: !opts.alignRight,
-        right: !!opts.alignRight,
-        bold: opts.bold,
-        size: opts.size,
-        style: '5',
-        leftInd: 0,
-        spacing: { after: 0, line: 240 },
-    })).join('');
-    return (
-        `<w:tc><w:tcPr>` +
-        `<w:tcW w:w="${width}" w:type="dxa"/>` +
-        `<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/></w:tcBorders>` +
-        `<w:vAlign w:val="${opts.vAlign || 'top'}"/>` +
-        `</w:tcPr>${paras}</w:tc>`
-    );
-};
-
-// Две колонки без рамок. Табы в образце выравнивают стороны вручную,
-// а фиксированные позиции 3600+360 сдвигают правую колонку на длинных строках.
-const wPairTable = (rows) => {
-    const body = rows.map((row) => (
-        `<w:tr>` +
-        wPairCell(row.left, COL_PAIR[0], { bold: row.bold, vAlign: row.vAlign, size: row.size }) +
-        wPairCell(row.right, COL_PAIR[1], {
-            bold: row.bold,
-            vAlign: row.vAlign,
-            size: row.size,
-            alignRight: row.alignRight,
-        }) +
-        `</w:tr>`
-    )).join('');
-    return (
-        `<w:tbl><w:tblPr>` +
-        `<w:tblW w:w="${CONTENT_W}" w:type="dxa"/>` +
-        `<w:tblInd w:w="0" w:type="dxa"/>` +
-        `<w:tblBorders>${NIL_EDGES}</w:tblBorders>` +
-        `<w:tblLayout w:type="fixed"/>` +
-        `<w:tblCellMar>` +
-        `<w:top w:w="20" w:type="dxa"/>` +
-        `<w:left w:w="0" w:type="dxa"/>` +
-        `<w:bottom w:w="20" w:type="dxa"/>` +
-        `<w:right w:w="160" w:type="dxa"/>` +
-        `</w:tblCellMar>` +
-        `</w:tblPr>` +
-        `<w:tblGrid><w:gridCol w:w="${COL_PAIR[0]}"/><w:gridCol w:w="${COL_PAIR[1]}"/></w:tblGrid>` +
-        body +
-        `</w:tbl>`
-    );
 };
 
 const requisitesRows = (data) => {
@@ -377,7 +408,7 @@ const requisitesRows = (data) => {
     const buyerInn = data.buyerInn ? `ИНН: ${data.buyerInn}` : '';
     const buyerBik = data.buyerBik ? `БИК: ${data.buyerBik}` : '';
     const buyerAccount = data.buyerAccount ? `р/сч ${data.buyerAccount}` : '';
-    const buyerAddress = data.buyerAddress ? `Адрес: ${data.buyerAddress}` : 'Адрес:';
+    const buyerAddress = data.buyerAddress ? `Адрес: ${data.buyerAddress}` : '';
     const buyerPhone = data.buyerPhone || '';
     const line = '_______________';
 
@@ -396,10 +427,48 @@ const requisitesRows = (data) => {
     ];
 };
 
+// Ширина Times New Roman 12 жирный, с запасом, чтобы правая колонка не залезла на левую.
+const estimateRequisiteWidth = (text) => {
+    let width = 0;
+    for (const ch of String(text)) width += ch === ' ' ? 80 : 160;
+    return width;
+};
+
+const wRequisiteLine = (left, right) => {
+    const leftText = String(left ?? '');
+    const rightText = String(right ?? '');
+    const runOpts = { bold: true, size: SIZE_BODY };
+    let tabs = '';
+    if (rightText) {
+        const width = estimateRequisiteWidth(leftText);
+        let count = 0;
+        for (const stop of REQUISITE_STOPS) {
+            if (stop <= width) continue;
+            count += 1;
+            if (stop >= REQUISITE_COL) break;
+        }
+        tabs = wTab().repeat(Math.max(count, 1));
+    }
+    return (
+        `<w:p>${wPPr({
+            style: '5',
+            align: 'both',
+            leftInd: 0,
+            bold: true,
+            size: SIZE_BODY,
+            tabStops: rightText ? REQUISITE_STOPS : undefined,
+        })}` +
+        (leftText ? wRun(leftText, runOpts) : '') +
+        tabs +
+        (rightText ? wRun(rightText, runOpts) : '') +
+        `</w:p>`
+    );
+};
+
 const requisitesBlock = (data, title) => [
     wP(title, { left: true, bold: true }),
     wP(''),
-    wPairTable(requisitesRows(data)),
+    requisitesRows(data).map((row) => wRequisiteLine(row.left, row.right)).join(''),
     wP(''),
 ].join('');
 
@@ -409,47 +478,81 @@ const signaturesXml = (data) =>
 const LOGO_CX = 1266900;
 const LOGO_CY = 822960;
 
-const logoDrawing = () =>
-    `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
-    `<wp:extent cx="${LOGO_CX}" cy="${LOGO_CY}"/>` +
-    `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
-    `<wp:docPr id="1" name="Логотип"/>` +
-    `<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
+const logoGraphic = () =>
     `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="officeLogo.png"/><pic:cNvPicPr/></pic:nvPicPr>` +
     `<pic:blipFill><a:blip r:embed="rIdLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${LOGO_CX}" cy="${LOGO_CY}"/></a:xfrm>` +
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>` +
-    `</a:graphicData></a:graphic></wp:inline></w:drawing>`;
+    `</a:graphicData></a:graphic>`;
 
-const plainTable = (widths, rowsXml) =>
-    `<w:tbl><w:tblPr><w:tblW w:w="${CONTENT_W}" w:type="dxa"/>` +
-    `<w:tblBorders>${NIL_EDGES}</w:tblBorders><w:tblLayout w:type="fixed"/>` +
-    `</w:tblPr><w:tblGrid>${widths.map((w) => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>` +
-    `${rowsXml}</w:tbl>`;
+// Логотип лежит поверх середины шапки и не создаёт ячейку.
+const logoRun = () =>
+    `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
+    `relativeHeight="251658240" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">` +
+    `<wp:simplePos x="0" y="0"/>` +
+    `<wp:positionH relativeFrom="column"><wp:align>center</wp:align></wp:positionH>` +
+    `<wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>` +
+    `<wp:extent cx="${LOGO_CX}" cy="${LOGO_CY}"/>` +
+    `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    `<wp:wrapNone/>` +
+    `<wp:docPr id="1" name="Логотип"/>` +
+    `<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
+    logoGraphic() +
+    `</wp:anchor></w:drawing></w:r>`;
 
-const linesCell = (lines, width, opts) =>
-    wTc(lines.map((line) => wP(line, opts)).join(''), width, 'center');
+const HEAD_COL = Math.floor(KP_CONTENT_W / 3);
+const HEAD_TABS = [
+    { val: 'center', pos: Math.round(HEAD_COL / 2) },
+    { val: 'center', pos: Math.round(KP_CONTENT_W / 2) },
+    { val: 'center', pos: Math.round(KP_CONTENT_W - HEAD_COL / 2) },
+];
+
+const wHeadLine = (left, middle, right, opts = {}) => {
+    const size = opts.size || 18;
+    const runOpts = { bold: !!opts.bold, size };
+    const run = (text) => (text ? wRun(text, runOpts) : '');
+    return (
+        `<w:p>${wPPr({
+            align: 'left',
+            tabStops: HEAD_TABS,
+            size,
+            bold: !!opts.bold,
+            spacing: { before: 0, after: 0, line: 240 },
+        })}` +
+        `${opts.logo || ''}${wTab()}${run(left)}${wTab()}${run(middle)}${wTab()}${run(right)}` +
+        `</w:p>`
+    );
+};
+
+const wHeadRows = (leftLines, midLines, rightLines, opts = {}) => {
+    const count = Math.max(leftLines.length, midLines.length, rightLines.length);
+    let xml = '';
+    for (let i = 0; i < count; i += 1) {
+        xml += wHeadLine(leftLines[i] || '', midLines[i] || '', rightLines[i] || '', {
+            ...opts,
+            logo: i === 0 ? opts.logo : '',
+        });
+    }
+    return xml;
+};
 
 const letterheadXml = (withLogo) => {
-    const col = [3118, 3119, 3118];
-    const titleOpts = { center: true, bold: true, size: 18 };
-    const addrOpts = { center: true, size: 16 };
     const kgTitle = [
-        '«КЫРГЫЗ АЗИЗДЕР ЖАНА',
+        '"КЫРГЫЗ АЗИЗДЕР ЖАНА',
         'ДУЛӨЙЛӨР КООМУНУН',
         'ТОКМОКТОГУ ҮЙРӨТҮҮ-',
-        'ӨНДҮРҮШТҮК ИШКАНАСЫ»',
+        'ӨНДҮРҮШТҮК ИШКАНАСЫ"',
         'ЖООПКЕРЧИЛИГИ',
         'ЧЕКТЕЛГЕН КООМУ',
     ];
     const ruTitle = [
         'ОБЩЕСТВО С ОГРАНИЧЕННОЙ',
         'ОТВЕТСТВЕННОСТЬЮ',
-        '«ТОКМОКСКОЕ УЧЕБНО-',
+        '"ТОКМОКСКОЕ УЧЕБНО-',
         'ПРОИЗВОДСТВЕННОЕ',
         'ПРЕДПРИЯТИЕ КЫРГЫЗСКОГО',
-        'ОБЩЕСТВА СЛЕПЫХ И ГЛУХИХ»',
+        'ОБЩЕСТВА СЛЕПЫХ И ГЛУХИХ"',
     ];
     const addrKg = [
         '722209, Кыргыз Республикасы',
@@ -463,36 +566,35 @@ const letterheadXml = (withLogo) => {
     ];
     const addrRu = [
         '722209, Кыргызская Республика',
-        'г. Токмок, ул. Манап бий, 292',
-        'тел. 0553 993-993',
+        'г. Токмок , ул. Манап бий, 292',
+        'тел.0553 993-993',
         'тел. +996(3138) 3-05-29',
-        'E-mail: kosikog@mail.ru',
-        'Расчетный счет: 1030420000031864',
+        'E-mail :kosikog@mail.ru',
+        'Расчетный счет:1030420000031864',
         'АКБ «Кыргызстан» г. Токмок',
         'БИК 103004 ИНН 01509199210115',
     ];
     const addrEn = [
         'Kyrgyz Republic, Chuy Region,',
         'Tokmok City, Manap Biy Street, 292',
-        'tel.: +996(553) 993-993',
+        'tel.:+996(553)993-993',
         'tel.: +996(3138) 3-05-29',
-        'E-mail: kosikog@mail.ru',
+        'E-mail:kosikog@mail.ru',
         'C/A: 1030420000031864',
-        '«Kyrgyzstan» JSCB, Tokmok',
+        '"Kyrgyzstan" JSCB, Tokmok',
         'BIC 103004 TIN 01509199210115',
     ];
-    const logoCell = withLogo
-        ? wTc(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${logoDrawing()}</w:r></w:p>`, col[1], 'center')
-        : wTc(wP(''), col[1], 'center');
-    const top = `<w:tr>${linesCell(kgTitle, col[0], titleOpts)}${logoCell}${linesCell(ruTitle, col[2], titleOpts)}</w:tr>`;
-    const addr = `<w:tr>${linesCell(addrKg, col[0], addrOpts)}${linesCell(addrRu, col[1], addrOpts)}${linesCell(addrEn, col[2], addrOpts)}</w:tr>`;
-    const rule = wP('', { borderBottom: true, spacing: { before: 40, after: 80, line: 120 } });
+    const english = { center: true, bold: true, size: 22, spacing: { after: 0, line: 240 } };
     return [
-        plainTable(col, top),
-        wP('LLP «TOKMOK TRAINING AND PRODUCTION ENTERPRISE OF THE KYRGYZ SOCIETY OF THE BLIND AND DEAF»', { center: true, bold: true, size: 18 }),
-        rule,
-        plainTable(col, addr),
-        rule,
+        wHeadRows(kgTitle, [], ruTitle, { bold: true, size: 18, logo: withLogo ? logoRun() : '' }),
+        wP('LLP "TOKMOK TRAINING AND PRODUCTION ENTERPRISE OF THE KYRGYZ', english),
+        wP('SOCIETY OF THE BLIND AND DEAF"', {
+            ...english,
+            borderBottom: true,
+            spacing: { before: 0, after: 60, line: 240 },
+        }),
+        wHeadRows(addrKg, addrRu, addrEn, { size: 18 }),
+        wP('', { borderBottom: true, spacing: { before: 40, after: 80, line: 120 } }),
     ].join('');
 };
 
@@ -522,8 +624,20 @@ const downloadName = (data, suffix) => {
 };
 
 const appendixHeadXml = (data) => [
-    wOffice('Приложение №1', { right: true, spacing: { after: 0, line: 240 } }),
-    wOffice(`К договору № ${data.contractNo} от “${data.day}” ${data.month} ${data.year}г.`, { right: true, spacing: { after: 0, line: 240 } }),
+    wOffice('Приложение №1', {
+        right: true,
+        size: 22,
+        szCs: 22,
+        firstLine: 0,
+        spacing: { after: 0, line: 240 },
+    }),
+    wOffice(`К договору № ${data.contractNo} от “${data.day}” ${data.month} ${data.year}г.`, {
+        right: true,
+        bold: true,
+        size: SIZE_TITLE,
+        szCs: 28,
+        firstLine: 708,
+    }),
     wP('С П Е Ц И Ф И К А Ц И Я № 1', {
         style: '5',
         leftInd: 0,
@@ -537,15 +651,12 @@ const appendixHeadXml = (data) => [
 
 const kpFooterXml = () => [
     wP(''),
-    wPairTable([
-        {
-            left: ['С Уважением', 'директор ОсОО «Токмокское УПП КОС и КОГ»'],
-            right: SUPPLIER.sign,
-            bold: true,
-            vAlign: 'center',
-            alignRight: true,
-        },
-    ]),
+    wP('С Уважением', { left: true, bold: true }),
+    wSideLine('директор ОсОО “Токмокское УПП КОС и КОГ”', SUPPLIER.sign, {
+        leftBold: true,
+        rightBold: true,
+        tabPos: KP_CONTENT_W,
+    }),
 ].join('');
 
 const SECT_PR =
@@ -580,6 +691,19 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
       <w:lang w:val="ru-RU"/>
     </w:rPr>
   </w:style>
+  <w:style w:type="table" w:default="1" w:styleId="3">
+    <w:name w:val="Normal Table"/>
+    <w:semiHidden/>
+    <w:unhideWhenUsed/>
+    <w:tblPr>
+      <w:tblCellMar>
+        <w:top w:w="0" w:type="dxa"/>
+        <w:left w:w="108" w:type="dxa"/>
+        <w:bottom w:w="0" w:type="dxa"/>
+        <w:right w:w="108" w:type="dxa"/>
+      </w:tblCellMar>
+    </w:tblPr>
+  </w:style>
   <w:style w:type="paragraph" w:styleId="5">
     <w:name w:val="List Paragraph"/>
     <w:basedOn w:val="1"/>
@@ -589,13 +713,25 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
       <w:ind w:left="720"/>
       <w:contextualSpacing/>
     </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="${FONT}" w:hAnsi="${FONT}" w:cs="${FONT}"/>
+      <w:sz w:val="22"/><w:szCs w:val="22"/>
+    </w:rPr>
   </w:style>
 </w:styles>`;
 
-const buildDocumentXml = (bodyXml) =>
+const SECT_PR_KP =
+    `<w:sectPr>` +
+    `<w:pgSz w:w="11906" w:h="16838"/>` +
+    `<w:pgMar w:top="794" w:right="${KP_MARGIN_X}" w:bottom="794" w:left="${KP_MARGIN_X}" w:header="567" w:footer="567" w:gutter="0"/>` +
+    `<w:cols w:space="708" w:num="1"/>` +
+    `<w:docGrid w:linePitch="360" w:charSpace="0"/>` +
+    `</w:sectPr>`;
+
+const buildDocumentXml = (bodyXml, sectPr = SECT_PR) =>
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
-    `<w:body>${bodyXml}${SECT_PR}</w:body></w:document>`;
+    `<w:body>${bodyXml}${sectPr}</w:body></w:document>`;
 
 const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -616,11 +752,11 @@ const DOCUMENT_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`;
 
-const saveDocx = async (bodyXml, filename, logoBuffer = null) => {
+const saveDocx = async (bodyXml, filename, logoBuffer = null, sectPr = SECT_PR) => {
     const zip = new JSZip();
     zip.file('[Content_Types].xml', CONTENT_TYPES);
     zip.folder('_rels')?.file('.rels', RELS);
-    zip.folder('word')?.file('document.xml', buildDocumentXml(bodyXml));
+    zip.folder('word')?.file('document.xml', buildDocumentXml(bodyXml, sectPr));
     zip.folder('word')?.file('styles.xml', STYLES_XML);
     const rels = logoBuffer
         ? DOCUMENT_RELS.replace(
@@ -646,22 +782,19 @@ export const downloadCommercialProposal = async (order, orderTotal) => {
     const body = [
         letterheadXml(!!logo),
         wP(''),
-        wPairTable([{
-            left: [`№ ${data.contractNo}`, `«${data.day}» ${data.month} ${data.year} года`],
-            right: data.buyerOrg,
-            bold: true,
-            vAlign: 'center',
-            alignRight: true,
-        }]),
+        wP(`№${data.contractNo}`, { left: true }),
+        wSideLine(`“ ${data.day}” ${data.month} ${data.year} года`, data.buyerOrg, {
+            rightBold: true,
+            tabPos: KP_CONTENT_W,
+        }),
         wP('Коммерческое предложение', { center: true, bold: true, size: SIZE_TITLE }),
         wP(KP_INTRO),
-        wP('Предлагаем заказать на нашем предприятии:'),
-        specTableXml(data.rows, data.total, KP_HEADERS),
+        specTableXml(data.rows, data.total, 'kp'),
         wP(''),
-        wP('Цена с учетом всех налогов и доставки.', { left: true }),
+        wP('Цена с учетом  всех налогов и доставки.', { left: true }),
         kpFooterXml(),
     ].join('');
-    await saveDocx(body, downloadName(data, 'КП'), logo);
+    await saveDocx(body, downloadName(data, 'КП'), logo, SECT_PR_KP);
 };
 
 export const downloadSpecification = async (order, orderTotal) => {
