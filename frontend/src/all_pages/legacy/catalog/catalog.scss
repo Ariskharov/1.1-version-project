@@ -922,7 +922,7 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--cat-bg);
+  color: var(--cat-btn-on-gold, #1a1612);
   background: linear-gradient(135deg, var(--cat-gold) 0%, #b8955c 100%);
   border: none;
   border-radius: 14px;
@@ -1144,7 +1144,7 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
     &__cta {
       background: linear-gradient(135deg, #e8c992 0%, #b8954a 55%, #9a7628 100%);
-      color: #fffdf9;
+      color: #1a1612;
       box-shadow: 0 6px 20px rgba(184, 149, 74, 0.38);
       letter-spacing: 0.16em;
     }
@@ -1186,6 +1186,7 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .catalog-calc-btn {
+    color: #1a1612;
     background: linear-gradient(135deg, #e8c992 0%, #b8954a 45%, #9a7628 100%);
     box-shadow: 0 8px 28px rgba(184, 149, 74, 0.32);
 
@@ -1203,9 +1204,13 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow: 0 20px 50px rgba(23, 26, 31, 0.14);
   }
 
+  .catalog-checkbox input:checked + .catalog-checkbox__box::after {
+    border-color: #1a1612;
+  }
+
   .catalog-empty__btn {
     background: linear-gradient(135deg, #e8c992, #b8954a);
-    color: #fffdf9;
+    color: #1a1612;
   }
 }
 
@@ -1425,4 +1430,58 @@ $catalog-ease: cubic-bezier(0.22, 1, 0.36, 1);
   .catalog-card:hover {
     transform: none;
   }
+}
+
+.catalog-hero__request {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 2px auto 18px;
+  padding: 0 18px;
+  border: 1px solid var(--cat-border);
+  border-radius: 999px;
+  background: var(--cat-gold-subtle);
+  color: var(--cat-gold);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.catalog-request-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+
+  .catalog-results__draft-link {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--cat-gold);
+    text-align: center;
+    text-decoration: none;
+  }
+}
+
+.catalog-calc-btn--ghost,
+.catalog--theme-light .catalog-calc-btn--ghost {
+  color: var(--cat-gold);
+  background: transparent;
+  border: 1px solid var(--cat-border);
+  box-shadow: none;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.catalog-calc-btn--ghost:hover,
+.catalog--theme-light .catalog-calc-btn--ghost:hover {
+  background: rgba(212, 175, 120, 0.12);
+  box-shadow: none;
+}
+
+.catalog-calc-btn--sentence {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
 }

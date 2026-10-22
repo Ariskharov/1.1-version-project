@@ -193,7 +193,7 @@ const Scan = () => {
                 </div>
             </div>
 
-            <div className="kiosk-scan__content">
+            <main className="kiosk-scan__content">
                 {/* Time & Date display */}
                 <div className="kiosk-scan__clock-section">
                     <div className="kiosk-scan__time">{formatTime(currentTime)}</div>
@@ -204,7 +204,7 @@ const Scan = () => {
                 {/* Main Action Block: QR scanning or Status result */}
                 <div className="kiosk-scan__main-panel">
                     {status && (
-                        <div className={`kiosk-scan__result kiosk-scan__result--${status.type}`}>
+                        <div className={`kiosk-scan__result kiosk-scan__result--${status.type}`} role="status" aria-live="polite">
                             {status.type === 'loading' && (
                                 <div className="kiosk-scan__loader">
                                     <div className="spinner"></div>
@@ -239,10 +239,13 @@ const Scan = () => {
 
                 {/* Backup manual entry */}
                 <div className="kiosk-scan__manual" style={{ display: status ? 'none' : 'block' }}>
-                    <form onSubmit={handleManualSubmit}>
+                    <form onSubmit={handleManualSubmit} aria-label="Ручная отметка по номеру бейджа">
+                        <label className="visually-hidden" htmlFor="badge-manual">Номер бейджа</label>
                         <input
+                            id="badge-manual"
                             type="text"
                             placeholder="Введите ID бейджа вручную"
+                            aria-label="Номер бейджа"
                             value={badgeInput}
                             onChange={(e) => setBadgeInput(e.target.value)}
                             disabled={processing.current}
@@ -252,7 +255,7 @@ const Scan = () => {
                         </button>
                     </form>
                 </div>
-            </div>
+            </main>
         </div>
     );
 };

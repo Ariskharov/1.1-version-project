@@ -41,11 +41,17 @@ const SingIn = () => {
     const location = useLocation();
     const redirectTo = location.state?.from;
 
+    const homeFor = (user) => {
+        if (user?.role === 'admin') return '/edit_mebel';
+        if (user?.role === 'scanner') return '/scan';
+        return '/cabinet';
+    };
+
     useEffect(() => {
-        if (currentUser) {
-            navigate(currentUser.role === 'admin' ? '/edit_mebel' : '/cabinet', { replace: true });
-        }
-    }, [currentUser, navigate]);
+        if (!currentUser) return;
+        const target = redirectTo && redirectTo !== '/signin' ? redirectTo : homeFor(currentUser);
+        navigate(target, { replace: true });
+    }, [currentUser, navigate, redirectTo]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -61,15 +67,11 @@ const SingIn = () => {
         const success = await loginUser(login, password);
 
         setLoading(false);
-        if (success) {
-            if (redirectTo && redirectTo !== '/signin') {
-                navigate(redirectTo, { replace: true });
-            } else if (success.role === 'admin') {
-                navigate('/edit_mebel', { replace: true });
-            } else {
-                navigate('/cabinet', { replace: true });
-            }
-        } else {
+        if (success?.error === 'network') {
+            setError('Сервер недоступен. Проверьте соединение и попробуйте снова.');
+        } else if (success?.error === 'server') {
+            setError('Сервер не смог выполнить вход. Попробуйте позже.');
+        } else if (!success) {
             setError('Неверный логин или пароль');
         }
     };

@@ -742,6 +742,8 @@ $ease: cubic-bezier(0.22, 1, 0.36, 1);
 /* Shared status badge colors — used in both grid cards and table */
 .status-badge-new {
   &.status--draft      { background: var(--vo-status-draft-bg, rgba(148,163,184,0.12));      color: var(--vo-status-draft-color, #94a3b8); }
+  &.status--request   { background: rgba(212, 175, 120, 0.16); color: var(--vo-gold, #c4a15a); }
+  .view-orders--theme-light &.status--request { color: #6f5420; }
   &.status--new        { background: var(--vo-status-new-bg, rgba(96,165,250,0.12));          color: var(--vo-status-new-color, #60a5fa); }
   &.status--sawing     { background: var(--vo-status-sawing-bg, rgba(196,131,250,0.12));      color: var(--vo-status-sawing-color, #c084fc); }
   &.status--assembling { background: var(--vo-status-assembling-bg, rgba(251,146,60,0.12));   color: var(--vo-status-assembling-color, #fb923c); }

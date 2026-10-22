@@ -204,6 +204,14 @@ const Header = () => {
                         >
                             Каталог мебели
                         </Link>
+                        <Link
+                            to="/zayavka"
+                            onClick={toTop}
+                            className={navLinkClass(isActive('/zayavka'))}
+                            aria-current={isActive('/zayavka') ? 'page' : undefined}
+                        >
+                            Заявка
+                        </Link>
 
                         {currentUser && currentUser.role !== 'admin' && (
                             <>
@@ -317,9 +325,14 @@ const Header = () => {
                                 </button>
                             </>
                         ) : (
-                            <Link to="/signin" className="header__mobile-login-btn">
-                                Войти
-                            </Link>
+                            <>
+                                <Link to="/zayavka" className={`header__mobile-login-btn${isActive('/zayavka') ? ' is-active' : ''}`} aria-current={isActive('/zayavka') ? 'page' : undefined}>
+                                    Заявка
+                                </Link>
+                                <Link to="/signin" className="header__mobile-login-btn">
+                                    Войти
+                                </Link>
+                            </>
                         )}
                     </div>
                 </div>
@@ -343,6 +356,14 @@ const Header = () => {
                                 aria-current={isCatalogActive ? 'page' : undefined}
                             >
                                 Каталог мебели
+                            </Link>
+                            <Link
+                                to="/zayavka"
+                                onClick={() => { toTop(); closeMobileMenu(); }}
+                                className={`header__mobile-link ${isActive('/zayavka') ? 'active' : ''}`}
+                                aria-current={isActive('/zayavka') ? 'page' : undefined}
+                            >
+                                Заявка
                             </Link>
 
                             {currentUser && currentUser.role !== 'admin' && (
@@ -448,23 +469,28 @@ const Header = () => {
                     />
                 )}
             </div>
-            {currentUser && currentUser.role !== 'scanner' && (
+            {currentUser?.role !== 'scanner' && (
                 <nav
                     className={`header__bottom-nav${menuOpen ? ' header__bottom-nav--hidden' : ''}`}
                     aria-label="Быстрые разделы"
                     aria-hidden={menuOpen || undefined}
                     {...(menuOpen ? { inert: true } : {})}
                 >
-                    {currentUser.role === 'admin' ? (
+                    {!currentUser ? (
                         <>
-                            <Link to="/view_orders" className={isActive('/view_orders') ? 'is-active' : ''} onClick={toTop}>Заказы</Link>
-                            <Link to="/placing_an_order" className={isActive('/placing_an_order') ? 'is-active' : ''} onClick={toTop}>Новый</Link>
-                            <Link to="/" className={isCatalogActive ? 'is-active' : ''} onClick={toTop}>Каталог</Link>
+                            <Link to="/" className={isCatalogActive ? 'is-active' : ''} aria-current={isCatalogActive ? 'page' : undefined} onClick={toTop}>Каталог</Link>
+                            <Link to="/zayavka" className={isActive('/zayavka') ? 'is-active' : ''} aria-current={isActive('/zayavka') ? 'page' : undefined} onClick={toTop}>Заявка</Link>
+                        </>
+                    ) : currentUser.role === 'admin' ? (
+                        <>
+                            <Link to="/view_orders" className={isActive('/view_orders') ? 'is-active' : ''} aria-current={isActive('/view_orders') ? 'page' : undefined} onClick={toTop}>Заказы</Link>
+                            <Link to="/placing_an_order" className={isActive('/placing_an_order') ? 'is-active' : ''} aria-current={isActive('/placing_an_order') ? 'page' : undefined} aria-label="Новый заказ" onClick={toTop}>Новый</Link>
+                            <Link to="/" className={isCatalogActive ? 'is-active' : ''} aria-current={isCatalogActive ? 'page' : undefined} onClick={toTop}>Каталог</Link>
                         </>
                     ) : (
                         <>
-                            <Link to="/cabinet" className={isActive('/cabinet') ? 'is-active' : ''} onClick={toTop}>Кабинет</Link>
-                            <Link to="/view_orders" className={isActive('/view_orders') ? 'is-active' : ''} onClick={toTop}>Заказы</Link>
+                            <Link to="/cabinet" className={isActive('/cabinet') ? 'is-active' : ''} aria-current={isActive('/cabinet') ? 'page' : undefined} onClick={toTop}>Кабинет</Link>
+                            <Link to="/view_orders" className={isActive('/view_orders') ? 'is-active' : ''} aria-current={isActive('/view_orders') ? 'page' : undefined} onClick={toTop}>Заказы</Link>
                         </>
                     )}
                 </nav>

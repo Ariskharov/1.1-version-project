@@ -91,9 +91,13 @@ const getPeriodLabel = (preset, dateRange) => {
   return labels[preset] || 'Период';
 };
 
+const sameUserId = (left, right) => (
+  left != null && right != null && left !== '' && right !== '' && String(left) === String(right)
+);
+
 const getUserHoursInRange = (sessions, userId, from, to) => {
   const minutes = sessions
-    .filter(s => s.userId === userId)
+    .filter(s => sameUserId(s.userId, userId))
     .filter(s => {
       const start = s.date;
       const end = s.endDate || s.date;
@@ -275,7 +279,7 @@ const PersonalCabinet = () => {
   const filteredShifts = useMemo(() => {
     if (!currentUser) return [];
 
-    let result = workSessions.filter(s => s.userId === currentUser.id);
+    let result = workSessions.filter(s => sameUserId(s.userId, currentUser.id));
 
     // Фильтр по периоду
     result = result.filter(s => {
@@ -381,7 +385,7 @@ const PersonalCabinet = () => {
       labels.push(daysOfWeek[weekdayIndex]);
 
       const daySessions = workSessions.filter(
-        s => s.userId === currentUser.id && s.date === dateStr
+        s => sameUserId(s.userId, currentUser.id) && s.date === dateStr
       );
 
       const minutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
@@ -445,8 +449,8 @@ const PersonalCabinet = () => {
   const currentActiveShift = useMemo(() => {
     if (!currentUser) return null;
     return workSessions
-      .filter(s => s.userId === currentUser.id && isShiftActive(s))
-      .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+      .filter(s => sameUserId(s.userId, currentUser.id) && isShiftActive(s))
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0] || null;
   }, [workSessions, currentUser]);
 
   useEffect(() => {

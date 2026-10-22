@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { createPortal } from 'react-dom';
-import { evaluate } from 'mathjs';
+import { evaluateFormula, evaluateReady } from '../../../utils/formulaEval';
 import { useNavigate } from 'react-router-dom';
 import './placing_an_order.scss';
 import { CustomContext } from '../../../Context';
@@ -167,9 +167,9 @@ const PlacingAnOrder = () => {
         return product.details.map(detail => {
             if (detail.if_condition && !nums[detail.if_condition]) return null;
             try {
-                const w = evaluate(detail.formula_width || '0', nums);
-                const h = detail.formula_height ? evaluate(detail.formula_height, nums) : null;
-                const cnt = evaluate(detail.count_formula || '1', nums);
+                const w = evaluateFormula(detail.formula_width || '0', nums);
+                const h = detail.formula_height ? evaluateFormula(detail.formula_height, nums) : null;
+                const cnt = evaluateFormula(detail.count_formula || '1', nums);
 
                 const size = h ? `${Math.round(w)} × ${Math.round(h)} мм` : `${Math.round(w)} мм`;
                 return { key: detail.key, label: detail.label, size, count: Math.max(0, Math.round(cnt)) };
@@ -251,9 +251,17 @@ const PlacingAnOrder = () => {
     useDialogA11y(modalOpen, closeModal, addModalRef);
 
     // Добавление / Обновление позиции
-    const savePosition = () => {
+    const savePosition = async () => {
         if (modalType === 'catalog') {
             if (!selectedProduct) return;
+
+            try {
+                await evaluateReady;
+            } catch (err) {
+                console.error('Не удалось загрузить модуль расчёта', err);
+                showToast?.('error', 'Не удалось рассчитать деталировку');
+                return;
+            }
 
             const calcDetails = calculateDetails(selectedProduct, inputs);
             const quantity = Number(inputs.coll) || 1;
@@ -379,13 +387,7 @@ const PlacingAnOrder = () => {
         setIsDirty(true);
     };
 
-    const calculateTotal = () => {
-        const subtotal = order.positions.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-        if (discountPercent > 0) {
-            return Math.round(subtotal * (1 - discountPercent / 100));
-        }
-        return subtotal;
-    };
+    const calculateTotal = () => discountFromPercent(getSubtotal(), discountPercent).total;
 
     const getSubtotal = () => {
         return order.positions.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
@@ -395,13 +397,13 @@ const PlacingAnOrder = () => {
     const validateOrder = () => {
         const errors = [];
 
-        if (!order.name_client.trim()) {
+        if (!order.name_client?.trim()) {
             errors.push('Укажите ФИО клиента');
         }
-        if (!order.phone.trim()) {
+        if (!order.phone?.trim()) {
             errors.push('Укажите телефон клиента');
         }
-        if (order.positions.length === 0) {
+        if (!order.positions?.length) {
             errors.push('Добавьте хотя бы одну позицию в заказ');
         }
 
@@ -495,6 +497,7 @@ const PlacingAnOrder = () => {
                                 type="number"
                                 min="0"
                                 max="100"
+                                aria-label="Скидка в процентах"
                                 value={discountPercent}
                                 onChange={e => {
                                     const val = Math.max(0, Math.min(100, Number(e.target.value) || 0));

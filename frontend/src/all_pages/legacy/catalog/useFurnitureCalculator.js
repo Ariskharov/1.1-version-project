@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { evaluate } from 'mathjs';
+import { evaluateFormula, evaluateReady } from '../../../utils/formulaEval';
 
 import { API_BASE } from '../../../config/api';
 
@@ -138,9 +138,9 @@ export function useFurnitureCalculator() {
             if (detail.if_condition && !nums[detail.if_condition]) return;
 
             try {
-                const width = evaluate(detail.formula_width || '0', nums);
-                const height = detail.formula_height ? evaluate(detail.formula_height, nums) : null;
-                const count = evaluate(detail.count_formula || '1', nums);
+                const width = evaluateFormula(detail.formula_width || '0', nums);
+                const height = detail.formula_height ? evaluateFormula(detail.formula_height, nums) : null;
+                const count = evaluateFormula(detail.count_formula || '1', nums);
 
                 const sizeStr = height 
                     ? `${Math.round(width)} × ${Math.round(height)}` 
@@ -157,13 +157,21 @@ export function useFurnitureCalculator() {
     }, []);
 
     // Основная функция расчёта
-    const calculate = useCallback(() => {
+    const calculate = useCallback(async () => {
         if (!selectedProduct) return;
 
         const errors = validateInputs();
         setValidationErrors(errors);
 
         if (Object.keys(errors).length > 0) {
+            setResult({});
+            return;
+        }
+
+        try {
+            await evaluateReady;
+        } catch (err) {
+            console.error('Не удалось загрузить модуль расчёта', err);
             setResult({});
             return;
         }

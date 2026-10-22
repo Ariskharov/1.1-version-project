@@ -1,11 +1,32 @@
-import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import bcrypt from 'bcryptjs';
 import { differenceInMinutes, parseISO, addDays, format } from 'date-fns';
 import AppUi from './components/ui/AppUi';
 import { API_BASE } from './config/api';
 
 export const CustomContext = createContext();
+
+let bcryptPromise = null;
+const loadBcrypt = () => {
+    if (!bcryptPromise) {
+        bcryptPromise = import('bcryptjs').then((mod) => mod.default || mod);
+    }
+    return bcryptPromise;
+};
+
+const sameUserId = (left, right) => (
+    left != null && right != null && left !== '' && right !== '' && String(left) === String(right)
+);
+
+const setIfChanged = (setter, next) => {
+    setter((prev) => {
+        try {
+            return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+        } catch {
+            return next;
+        }
+    });
+};
 
 /**
  * Надёжный расчёт продолжительности смены.
@@ -85,33 +106,54 @@ export const Context = ({ children }) => {
         });
     }, []);
 
-    const handleConfirmOk = () => {
+    const handleConfirmOk = useCallback(() => {
         confirmResolverRef.current?.(true);
         confirmResolverRef.current = null;
         setConfirmDialog(null);
-    };
+    }, []);
 
-    const handleConfirmCancel = () => {
+    const handleConfirmCancel = useCallback(() => {
         confirmResolverRef.current?.(false);
         confirmResolverRef.current = null;
         setConfirmDialog(null);
-    };
+    }, []);
 
-    // Функция обновления данных (переиспользуемая)
-    const refreshData = async () => {
+    // Одинаковый ответ сервера не меняет ссылку и не перерисовывает страницы.
+    const refreshData = useCallback(async () => {
         try {
             const [usersRes, sessionsRes, productsRes] = await Promise.all([
                 axios.get(`${API_BASE}/users`),
                 axios.get(`${API_BASE}/workSessions`),
                 axios.get(`${API_BASE}/product`)
             ]);
-            setUsers(usersRes.data);
-            setWorkSessions(sessionsRes.data);
-            setProducts(productsRes.data);
+            setIfChanged(setUsers, usersRes.data);
+            setIfChanged(setWorkSessions, sessionsRes.data);
+            setIfChanged(setProducts, productsRes.data);
+            setCurrentUser((prev) => {
+                if (!prev) return prev;
+                const list = Array.isArray(usersRes.data) ? usersRes.data : [];
+                const fresh = list.find((user) => sameUserId(user.id, prev.id));
+                if (!fresh) return prev;
+                const next = {
+                    ...prev,
+                    login: fresh.login,
+                    email: fresh.email,
+                    fullName: fresh.fullName,
+                    role: fresh.role,
+                    avatar: fresh.avatar || '',
+                    phone: fresh.phone || '',
+                    position: fresh.position || '',
+                    badgeId: fresh.badgeId || '',
+                    description: fresh.description || '',
+                };
+                if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+                localStorage.setItem('currentUser', JSON.stringify(next));
+                return next;
+            });
         } catch (err) {
             console.error('Ошибка обновления данных:', err);
         }
-    };
+    }, []);
 
     // Загрузка данных при старте: не блокируем каталог ожиданием всех API
     useEffect(() => {
@@ -126,25 +168,8 @@ export const Context = ({ children }) => {
         }
         setLoading(false);
 
-        const loadData = async () => {
-            try {
-                const [usersRes, sessionsRes, productsRes] = await Promise.all([
-                    axios.get(`${API_BASE}/users`),
-                    axios.get(`${API_BASE}/workSessions`),
-                    axios.get(`${API_BASE}/product`)
-                ]);
-                setUsers(usersRes.data);
-                setWorkSessions(sessionsRes.data);
-                setProducts(productsRes.data);
-            } catch (err) {
-                console.error('Ошибка загрузки данных:', err);
-            } finally {
-                setDataLoaded(true);
-            }
-        };
-
-        loadData();
-    }, []);
+        refreshData().finally(() => setDataLoaded(true));
+    }, [refreshData]);
 
     // Автообновление данных каждые 10 секунд (для отображения QR-отметок в реальном времени)
     useEffect(() => {
@@ -152,8 +177,7 @@ export const Context = ({ children }) => {
             refreshData();
         }, 10000);
         return () => clearInterval(interval);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [refreshData]);
 
     // Мгновенная синхронизация при действиях на соседних вкладках (например, сканнер)
     useEffect(() => {
@@ -165,86 +189,48 @@ export const Context = ({ children }) => {
         };
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [refreshData]);
 
     // Логин
-    const login = async (identifier, password) => {
-        console.log('Попытка входа:', identifier, password);
-
+    const login = useCallback(async (identifier, password) => {
         try {
-            const candidates = users.filter(u =>
-                u.login === identifier ||
-                u.email === identifier ||
-                (u.login && u.login.toLowerCase() === identifier.toLowerCase()) ||
-                u.fullName === identifier
-            );
-
-            if (candidates.length === 0) {
-                console.log('Пользователь не найден');
-                return false;
-            }
-
-            let foundUser = null;
-            for (const u of candidates) {
-                let match = false;
-                if (u.password?.startsWith('$2a$') || u.password?.startsWith('$2b$')) {
-                    match = bcrypt.compareSync(password, u.password);
-                } else {
-                    match = (u.password === password);
-                }
-
-                if (match) {
-                    foundUser = u;
-                    break;
-                }
-            }
-
-            if (!foundUser) {
-                console.log('Неверный пароль для всех совпадений');
-                return false;
-            }
+            const loginRes = await axios.post(`${API_BASE}/login`, { email: identifier, password });
+            const data = loginRes.data || {};
+            if (!data.token) return { error: 'server' };
 
             const safeUser = {
-                id: foundUser.id,
-                login: foundUser.login,
-                email: foundUser.email,
-                fullName: foundUser.fullName,
-                role: foundUser.role,
-                avatar: foundUser.avatar || ""
+                id: data.id,
+                login: data.login,
+                email: data.email,
+                fullName: data.fullName,
+                role: data.role,
+                avatar: data.avatar || '',
+                phone: data.phone || '',
+                position: data.position || '',
+                badgeId: data.badgeId || '',
+                description: data.description || '',
             };
 
-            console.log('Успешный вход:', safeUser);
-
-            // Получаем JWT токен с бэкенда для последующих запросов
-            try {
-                const loginRes = await axios.post(`${API_BASE}/login`, { email: identifier, password });
-                if (loginRes.data && loginRes.data.token) {
-                    localStorage.setItem('token', loginRes.data.token);
-                }
-            } catch (err) {
-                console.error('Ошибка получения JWT токена:', err.response?.data || err.message);
-            }
-
-            setCurrentUser(safeUser);
+            localStorage.setItem('token', data.token);
             localStorage.setItem('currentUser', JSON.stringify(safeUser));
-
+            setCurrentUser(safeUser);
             return safeUser;
-
         } catch (err) {
-            console.error('Ошибка в login:', err);
-            return false;
+            if (!err.response) return { error: 'network' };
+            if (err.response.status === 401) return false;
+            console.error('Ошибка входа:', err.response?.data || err.message);
+            return { error: 'server' };
         }
-    };
+    }, []);
 
-    const logout = () => {
+    const logout = useCallback(() => {
         setCurrentUser(null);
         localStorage.removeItem('currentUser');
         localStorage.removeItem('token');
-    };
+    }, []);
 
     // Удаление пользователя
-    const deleteUser = async (userId) => {
+    const deleteUser = useCallback(async (userId) => {
         if (!userId) return;
 
         if (currentUser && currentUser.id === userId) {
@@ -255,18 +241,18 @@ export const Context = ({ children }) => {
         try {
             await axios.delete(`${API_BASE}/users/${userId}`);
 
-            setUsers(prev => prev.filter(user => user.id !== userId));
-            setWorkSessions(prev => prev.filter(session => session.userId !== userId));
+            setUsers(prev => prev.filter(user => !sameUserId(user.id, userId)));
+            setWorkSessions(prev => prev.filter(session => !sameUserId(session.userId, userId)));
 
             console.log(`Пользователь с ID ${userId} успешно удалён`);
         } catch (err) {
             console.error('Ошибка при удалении пользователя:', err);
             showToast('error', 'Не удалось удалить пользователя. Ошибка сервера.');
         }
-    };
+    }, [currentUser, showToast]);
 
     // Добавление нового пользователя
-    const addUser = async (newUser) => {
+    const addUser = useCallback(async (newUser) => {
         try {
             let userToSend = {
                 fullName: newUser.fullName,
@@ -283,26 +269,24 @@ export const Context = ({ children }) => {
 
             // Хэшируем пароль
             if (userToSend.password) {
+                const bcrypt = await loadBcrypt();
                 const salt = bcrypt.genSaltSync(10);
                 userToSend.password = bcrypt.hashSync(userToSend.password, salt);
             }
 
-            console.log("Отправляем на сервер:", userToSend);
-
             const res = await axios.post(`${API_BASE}/users`, userToSend);
 
             setUsers(prev => [...prev, res.data]);
-            console.log("✅ Ответ от сервера:", res.data);
             return res.data;
         } catch (err) {
             console.error('Ошибка добавления:', err.response?.data || err);
             showToast('error', 'Не удалось создать пользователя');
             throw err;
         }
-    };
+    }, [showToast]);
 
     // Обновление пользователя
-    const updateUser = async (userId, updates) => {
+    const updateUser = useCallback(async (userId, updates) => {
         try {
             let dataToSend = {
                 fullName: updates.fullName,
@@ -315,32 +299,30 @@ export const Context = ({ children }) => {
             };
 
             if (updates.password) {
+                const bcrypt = await loadBcrypt();
                 const salt = bcrypt.genSaltSync(10);
                 dataToSend.password = bcrypt.hashSync(updates.password, salt);
             }
 
-            console.log("Обновляем пользователя:", dataToSend);
-
             const res = await axios.patch(`${API_BASE}/users/${userId}`, dataToSend);
 
-            setUsers(prev => prev.map(u => Number(u.id) === Number(userId) ? { ...u, ...res.data } : u));
-            console.log('✅ Пользователь обновлён:', res.data);
+            setUsers(prev => prev.map(u => sameUserId(u.id, userId) ? { ...u, ...res.data } : u));
             return res.data;
         } catch (err) {
             console.error('Ошибка обновления:', err.response?.data || err);
             throw err;
         }
-    };
+    }, []);
 
     // Начать новую смену
-    const manualStartShift = async (userId) => {
+    const manualStartShift = useCallback(async (userId) => {
         const now = new Date();
         const today = format(now, 'yyyy-MM-dd');
         const nowTime = format(now, 'HH:mm:ss');
 
         // Проверяем открытые смены
-        const openShifts = workSessions.filter(s => 
-            s.userId === userId && !s.endTime
+        const openShifts = workSessions.filter(s =>
+            sameUserId(s.userId, userId) && !s.endTime
         );
 
         if (openShifts.length > 0) {
@@ -369,9 +351,9 @@ export const Context = ({ children }) => {
             console.error('Ошибка начала смены:', err);
             showToast('error', 'Не удалось начать смену');
         }
-    };
+    }, [workSessions, confirm, currentUser, showToast]);
 
-    const manualEndShift = async (sessionId) => {
+    const manualEndShift = useCallback(async (sessionId) => {
         const session = workSessions.find(s => s.id === sessionId);
         if (!session || session.endTime) return;
 
@@ -404,9 +386,9 @@ export const Context = ({ children }) => {
             console.error('Ошибка завершения смены:', err);
             showToast('error', 'Не удалось закрыть смену');
         }
-    };
+    }, [workSessions, currentUser, showToast]);
 
-    const editSession = async (sessionId, updates) => {
+    const editSession = useCallback(async (sessionId, updates) => {
         try {
             const res = await axios.patch(`${API_BASE}/workSessions/${sessionId}`, updates);
             console.log('[EDIT SHIFT] Ответ от сервера:', res.data);
@@ -428,10 +410,10 @@ export const Context = ({ children }) => {
             console.error('Ошибка редактирования сессии:', backendError);
             throw new Error(`Ошибка сохранения смены: ${backendError}`);
         }
-    };
+    }, []);
 
     // Удаление смены
-    const deleteSession = async (sessionId) => {
+    const deleteSession = useCallback(async (sessionId) => {
         const confirmed = await confirm({
             message: 'Вы уверены, что хотите удалить эту смену? Это действие нельзя отменить.',
             confirmLabel: 'Удалить',
@@ -447,36 +429,36 @@ export const Context = ({ children }) => {
             console.error('Ошибка удаления смены:', err.response?.data || err);
             showToast('error', 'Не удалось удалить смену');
         }
-    };
+    }, [confirm, showToast]);
 
-    const addProduct = async (newProduct) => {
+    const addProduct = useCallback(async (newProduct) => {
         try {
             const res = await axios.post(`${API_BASE}/product`, newProduct);
             setProducts(prev => [...prev, res.data]);
         } catch (err) {
             console.error('Ошибка добавления продукта:', err);
         }
-    };
+    }, []);
 
-    const updateProduct = async (productId, updates) => {
+    const updateProduct = useCallback(async (productId, updates) => {
         try {
             const res = await axios.patch(`${API_BASE}/product/${productId}`, updates);
             setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...res.data } : p));
         } catch (err) {
             console.error('Ошибка обновления продукта:', err);
         }
-    };
+    }, []);
 
-    const deleteProduct = async (productId) => {
+    const deleteProduct = useCallback(async (productId) => {
         try {
             await axios.delete(`${API_BASE}/product/${productId}`);
             setProducts(prev => prev.filter(p => p.id !== productId));
         } catch (err) {
             console.error('Ошибка удаления продукта:', err);
         }
-    };
+    }, []);
 
-    const value = {
+    const value = useMemo(() => ({
         currentUser,
         users,
         workSessions,
@@ -499,7 +481,29 @@ export const Context = ({ children }) => {
         formatDuration,
         showToast,
         confirm,
-    };
+    }), [
+        currentUser,
+        users,
+        workSessions,
+        products,
+        loading,
+        dataLoaded,
+        login,
+        logout,
+        manualStartShift,
+        manualEndShift,
+        editSession,
+        deleteSession,
+        addUser,
+        updateUser,
+        deleteUser,
+        addProduct,
+        updateProduct,
+        deleteProduct,
+        refreshData,
+        showToast,
+        confirm,
+    ]);
 
     return (
         <CustomContext.Provider value={value}>

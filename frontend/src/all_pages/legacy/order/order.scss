@@ -193,6 +193,12 @@ $ord-radius: 18px;
       border-color: rgba(251, 191, 36, 0.25);
     }
 
+    &--request {
+      background: var(--ord-gold-subtle);
+      color: var(--ord-gold);
+      border-color: var(--ord-border);
+    }
+
     &--progress {
       background: rgba(96, 165, 250, 0.12);
       color: var(--ord-info);

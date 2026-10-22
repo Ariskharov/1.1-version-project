@@ -1,4 +1,5 @@
 const express = require('express');
+const { authenticate } = require('../middleware/auth');
 const {
     getPublicKey,
     saveSubscription,
@@ -49,9 +50,12 @@ router.post('/push/unsubscribe', async (req, res) => {
     }
 });
 
-/** Тестовая отправка (для проверки с админки) */
-router.post('/push/test', async (req, res) => {
+/** Тестовая отправка только для администратора */
+router.post('/push/test', authenticate, async (req, res) => {
     try {
+        if (req.userRole !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
         const { notifyAnnouncement } = require('../services/pushService');
         const result = await notifyAnnouncement({
             id: 'test',

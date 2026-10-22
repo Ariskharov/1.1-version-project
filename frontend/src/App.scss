@@ -46,6 +46,18 @@ html {
   scroll-behavior: smooth;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[role='button']:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #b8954a !important;
+  outline-offset: 2px;
+}
+
 * {
   margin: 0;
   padding: 0;

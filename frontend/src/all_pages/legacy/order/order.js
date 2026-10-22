@@ -14,10 +14,24 @@ import {
 
 import { API_BASE, resolveImageUrl } from '../../../config/api';
 import { calculatePositionDetails } from '../../../utils/orderConvenience';
+import { evaluateReady } from '../../../utils/formulaEval';
 
 const getQty = (item) => Number(item.quantity || item.userInputs?.coll || 1) || 1;
 
 const getLineTotal = (item) => Number(item.price || 0) * getQty(item);
+
+const readPositions = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
 
 const getItemImageSrc = (item) => resolveImageUrl(item?.img);
 
@@ -78,6 +92,7 @@ const getPositionFacts = (item) => {
 
 const statusClass = (status) => {
     const s = (status || '').toLowerCase();
+    if (s.includes('заявк')) return 'order-page__status--request';
     if (s.includes('черновик')) return 'order-page__status--draft';
     if (s.includes('отмен')) return 'order-page__status--cancelled';
     if (s.includes('выполн') || s.includes('заверш')) return 'order-page__status--done';
@@ -152,10 +167,18 @@ const Order = () => {
                 if (!res.ok) throw new Error('Заказ не найден');
                 return res.json();
             })
-            .then((data) => {
+            .then(async (data) => {
                 const loaded = data.order?.[0] || data;
+                const items = readPositions(loaded.product_order);
+                if (items.some((item) => !item.calculatedDetails?.length && item.details?.length)) {
+                    try {
+                        await evaluateReady;
+                    } catch (err) {
+                        console.error('Не удалось загрузить модуль расчёта', err);
+                    }
+                }
 
-                loaded.product_order = (loaded.product_order || []).map((item) => {
+                loaded.product_order = items.map((item) => {
                     if (!item.calculatedDetails?.length) {
                         return {
                             ...item,
@@ -240,8 +263,12 @@ const Order = () => {
     const openedDetails = detailsItem?.calculatedDetails || [];
     const openedFacts = detailsItem ? getPositionFacts(detailsItem) : [];
     const hasFinanceAdjustments = (order.discountAmount || 0) > 0 || (order.taxAmount || 0) > 0;
-    const backLink = currentUser ? '/view_orders' : '/';
-    const backLabel = currentUser ? '← Все заказы' : '← Каталог мебели';
+    const isRequest = order.status === 'Заявка';
+    const backLink = currentUser ? '/view_orders' : (isRequest ? '/zayavka' : '/');
+    const backLabel = currentUser ? '← Все заказы' : (isRequest ? '← Новая заявка' : '← Каталог мебели');
+    const totalLabel = isRequest ? (orderTotal > 0 ? 'Ориентир' : 'Сумма') : 'К оплате';
+    const totalText = isRequest && orderTotal <= 0 ? 'Уточняется' : `${orderTotal.toLocaleString('ru-RU')} сом`;
+    const subtotalText = isRequest && subtotal <= 0 ? 'Уточняется' : `${subtotal.toLocaleString('ru-RU')} сом`;
 
     return (
         <div className={pageClassName()}>
@@ -263,9 +290,9 @@ const Order = () => {
 
                 <header className="order-page__hero">
                     <div className="order-page__hero-intro">
-                        <span className="order-page__badge">Просмотр заказа</span>
+                        <span className="order-page__badge">{isRequest ? 'Просмотр заявки' : 'Просмотр заказа'}</span>
                         <div className="order-page__title">
-                            <h1>Заказ №{order.id}</h1>
+                            <h1>{isRequest ? 'Заявка' : 'Заказ'} №{order.id}</h1>
                             <span className={`order-page__status ${statusClass(order.status)}`}>
                                 {order.status || 'Оформлен'}
                             </span>
@@ -278,8 +305,8 @@ const Order = () => {
                             <span className="order-page__summary-value">{positions.length}</span>
                         </div>
                         <div className="order-page__summary-item order-page__summary-item--total">
-                            <span className="order-page__summary-label">К оплате</span>
-                            <span className="order-page__summary-value">{orderTotal.toLocaleString()} сом</span>
+                            <span className="order-page__summary-label">{totalLabel}</span>
+                            <span className="order-page__summary-value">{totalText}</span>
                         </div>
                     </div>
                 </header>
@@ -320,7 +347,7 @@ const Order = () => {
                         </div>
                         <div className="meta-row">
                             <span className="label">Сумма позиций</span>
-                            <span className="value">{subtotal.toLocaleString()} сом</span>
+                            <span className="value">{subtotalText}</span>
                         </div>
                         {hasFinanceAdjustments && (
                             <>
@@ -351,8 +378,8 @@ const Order = () => {
                         )}
                         <div className="grand-total">
                             <div className="meta-row">
-                                <span className="label">К оплате</span>
-                                <span className="value">{orderTotal.toLocaleString()} сом</span>
+                                <span className="label">{totalLabel}</span>
+                                <span className="value">{totalText}</span>
                             </div>
                         </div>
                     </div>
@@ -447,8 +474,14 @@ const Order = () => {
                                         )}
 
                                         <div className="position-price">
-                                            {Number(item.price).toLocaleString()} сом × {getQty(item)} ={' '}
-                                            <strong>{getLineTotal(item).toLocaleString()} сом</strong>
+                                            {isRequest && !(Number(item.price) > 0)
+                                                ? 'Цену уточнит сотрудник'
+                                                : (
+                                                    <>
+                                                        {Number(item.price).toLocaleString('ru-RU')} сом × {getQty(item)} ={' '}
+                                                        <strong>{getLineTotal(item).toLocaleString('ru-RU')} сом</strong>
+                                                    </>
+                                                )}
                                         </div>
                                         <div className="position-open-hint">Открыть карточку</div>
                                     </div>
@@ -484,8 +517,14 @@ const Order = () => {
                                             </span>
                                             <h3 id="order-details-title">{detailsItem.title || 'Позиция'}</h3>
                                             <p>
-                                                {Number(detailsItem.price).toLocaleString()} сом × {getQty(detailsItem)} ={' '}
-                                                <strong>{getLineTotal(detailsItem).toLocaleString()} сом</strong>
+                                                {isRequest && !(Number(detailsItem.price) > 0)
+                                                    ? 'Цену уточнит сотрудник'
+                                                    : (
+                                                        <>
+                                                            {Number(detailsItem.price).toLocaleString('ru-RU')} сом × {getQty(detailsItem)} ={' '}
+                                                            <strong>{getLineTotal(detailsItem).toLocaleString('ru-RU')} сом</strong>
+                                                        </>
+                                                    )}
                                             </p>
                                         </div>
                                         <button
@@ -568,7 +607,11 @@ const Order = () => {
                                                     </div>
                                                     <div className="ord-modal__fact">
                                                         <span>Цена</span>
-                                                        <strong>{Number(detailsItem.price || 0).toLocaleString()} сом</strong>
+                                                        <strong>
+                                                            {isRequest && !(Number(detailsItem.price) > 0)
+                                                                ? 'Уточняется'
+                                                                : `${Number(detailsItem.price || 0).toLocaleString('ru-RU')} сом`}
+                                                        </strong>
                                                     </div>
                                                     <div className="ord-modal__fact">
                                                         <span>Количество</span>
@@ -576,7 +619,11 @@ const Order = () => {
                                                     </div>
                                                     <div className="ord-modal__fact">
                                                         <span>Сумма</span>
-                                                        <strong>{getLineTotal(detailsItem).toLocaleString()} сом</strong>
+                                                        <strong>
+                                                            {isRequest && !(Number(detailsItem.price) > 0)
+                                                                ? 'Уточняется'
+                                                                : `${getLineTotal(detailsItem).toLocaleString('ru-RU')} сом`}
+                                                        </strong>
                                                     </div>
                                                     {openedFacts.map((fact) => (
                                                         <div className="ord-modal__fact" key={fact.key}>
@@ -698,7 +745,7 @@ const Order = () => {
 
                 <div className="order-page__summary-bar">
                     <div className="summary-text">
-                        Итого к оплате: <strong>{orderTotal.toLocaleString()} сом</strong>
+                        {isRequest ? totalLabel : 'Итого к оплате'}: <strong>{totalText}</strong>
                     </div>
                     {isAdmin && (
                         <Link to={`/order_editor/${order.id}`} className="order-page__edit-btn">

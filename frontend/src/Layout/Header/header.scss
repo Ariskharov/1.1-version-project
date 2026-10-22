@@ -340,7 +340,14 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .header__mobile-login-btn {
-    padding: 10px 18px;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 1.2;
+    white-space: nowrap;
+
+    @media (max-width: 380px) {
+      padding: 8px 10px;
+    }
     background: var(--hdr-btn-bg);
     border: 1px solid var(--hdr-border);
     border-radius: 10px;
@@ -350,9 +357,11 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
     text-decoration: none;
     transition: all 0.25s $hdr-ease;
 
-    &:hover {
+    &:hover,
+    &.is-active {
       border-color: var(--hdr-gold);
       color: var(--hdr-gold);
+      background: var(--hdr-gold-subtle);
     }
   }
 

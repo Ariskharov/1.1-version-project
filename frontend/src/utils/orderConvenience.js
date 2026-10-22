@@ -1,6 +1,57 @@
-import { evaluate } from 'mathjs';
+import { evaluateFormula } from './formulaEval';
 
 export const ORDER_DRAFT_KEY = 'order_draft';
+export const CLIENT_REQUEST_KEY = 'client_request_draft';
+
+const emptyClientRequest = () => ({
+    name_client: '',
+    name_compony: '',
+    address: '',
+    phone: '',
+    email: '',
+    order_note: '',
+    positions: [],
+});
+
+export function readClientRequest() {
+    try {
+        const raw = sessionStorage.getItem(CLIENT_REQUEST_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return null;
+        return {
+            ...emptyClientRequest(),
+            ...parsed,
+            positions: Array.isArray(parsed.positions) ? parsed.positions : [],
+        };
+    } catch {
+        return null;
+    }
+}
+
+export function writeClientRequest(draft) {
+    try {
+        const payload = {
+            ...emptyClientRequest(),
+            ...draft,
+            positions: draft?.positions || [],
+        };
+        sessionStorage.setItem(CLIENT_REQUEST_KEY, JSON.stringify(payload));
+    } catch {
+        // Приватный режим и переполненное хранилище не должны ронять форму.
+    }
+}
+
+export function appendClientRequestPosition(position) {
+    const draft = readClientRequest() || emptyClientRequest();
+    const positions = [...(draft.positions || []), position];
+    writeClientRequest({ ...draft, positions });
+    return positions.length;
+}
+
+export function clearClientRequest() {
+    sessionStorage.removeItem(CLIENT_REQUEST_KEY);
+}
 
 export const BUYER_FIELDS = [
     'name_client',
@@ -23,6 +74,7 @@ export const BUYER_FIELDS = [
 ];
 
 export const ORDER_STATUSES = [
+    'Заявка',
     'Черновик',
     'Оформлен',
     'Пилится',
@@ -135,9 +187,9 @@ export function calculatePositionDetails(product, userInputs = {}) {
     return product.details.map((detail) => {
         if (detail.if_condition && !nums[detail.if_condition]) return null;
         try {
-            const width = evaluate(detail.formula_width || '0', nums);
-            const height = detail.formula_height ? evaluate(detail.formula_height, nums) : null;
-            const count = evaluate(detail.count_formula || '1', nums);
+            const width = evaluateFormula(detail.formula_width || '0', nums);
+            const height = detail.formula_height ? evaluateFormula(detail.formula_height, nums) : null;
+            const count = evaluateFormula(detail.count_formula || '1', nums);
             const size = height
                 ? `${Math.round(width)} × ${Math.round(height)} мм`
                 : `${Math.round(width)} мм`;
@@ -153,11 +205,17 @@ export function calculatePositionDetails(product, userInputs = {}) {
     }).filter(Boolean);
 }
 
+export const parseMoney = (value) => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const num = parseFloat(String(value ?? '').replace(/[^\d.,]/g, '').replace(',', '.'));
+    return Number.isFinite(num) ? num : 0;
+};
+
 export function buildCatalogPosition(product, inputs, calculatedDetails) {
     const quantity = Math.max(1, Number(inputs?.coll) || 1);
-    const price = Number(product?.price || 0);
+    const price = parseMoney(product?.price);
     return {
-        id: Date.now(),
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         isCustom: false,
         productId: product.id,
         title: product.title,

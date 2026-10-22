@@ -43,6 +43,17 @@ const toIsoOrNull = (localValue) => {
     return Number.isNaN(d.getTime()) ? null : d.toISOString();
 };
 
+const announcementSavedText = (isActive, push, created) => {
+    const base = created ? 'Объявление создано' : 'Объявление обновлено';
+    if (!isActive) return `${base}. Оно выключено, push не отправлялся.`;
+    if (!push) return `${base}.`;
+    if (push.skipped === 'expired') return `${base}, но срок уже истёк — push не отправлен.`;
+    if (push.skipped === 'inactive') return `${base}. Push не отправлен.`;
+    if (push.error || push.skipped === true) return `${base}, но push не настроен или не отправился.`;
+    if (push.sent > 0) return `${base}. Push отправлен подписчикам: ${push.sent}.`;
+    return `${base}. Подписчиков с push нет — уведомление некому отправить.`;
+};
+
 // ==================== PURE UTILITIES ====================
 
 const calculateShiftDuration = (startDate, startTime, endDate, endTime) => {
@@ -90,9 +101,9 @@ const normalizeTime = (input) => {
 
 const sortSessions = (sessions) =>
   [...sessions].sort((a, b) => {
-    const dateA = a.endDate || a.date;
-    const dateB = b.endDate || b.date;
-    return dateB.localeCompare(dateA) || a.startTime.localeCompare(b.startTime);
+    const dateA = String(a.endDate || a.date || '');
+    const dateB = String(b.endDate || b.date || '');
+    return dateB.localeCompare(dateA) || String(a.startTime || '').localeCompare(String(b.startTime || ''));
   });
 
 const getInitials = (name = '') => {
@@ -263,19 +274,14 @@ const Admin = () => {
         setAnnSaving(true);
         try {
             if (editingAnnId != null) {
-                await updateAnnouncement(editingAnnId, payload);
-                showToast('success', 'Объявление обновлено');
+                const updated = await updateAnnouncement(editingAnnId, payload);
+                showToast('success', announcementSavedText(payload.isActive, updated?.push, false));
             } else {
-                await createAnnouncement({
+                const created = await createAnnouncement({
                     ...payload,
                     createdBy: currentUser?.id ?? null,
                 });
-                showToast(
-                    'success',
-                    payload.isActive
-                        ? 'Объявление создано. Push отправлен подписчикам.'
-                        : 'Объявление создано (выключено — push не отправлялся).'
-                );
+                showToast('success', announcementSavedText(payload.isActive, created?.push, true));
             }
             resetAnnForm();
             loadAnnouncements();
@@ -291,8 +297,13 @@ const Admin = () => {
         const nextActive = !(item.isActive !== false && item.isactive !== false);
         setAnnBusyId(item.id);
         try {
-            await updateAnnouncement(item.id, { isActive: nextActive });
-            showToast('success', nextActive ? 'Объявление включено' : 'Объявление выключено');
+            const updated = await updateAnnouncement(item.id, { isActive: nextActive });
+            showToast(
+                'success',
+                nextActive
+                    ? announcementSavedText(true, updated?.push, false).replace('Объявление обновлено', 'Объявление включено')
+                    : 'Объявление выключено'
+            );
             loadAnnouncements();
         } catch (err) {
             showToast('error', err.message || 'Не удалось изменить статус');
@@ -444,12 +455,10 @@ const Admin = () => {
         }
 
         // 4. Сортировка
+        const dateKey = (session) => String(session.endDate || session.date || '');
+        const timeKey = (session) => String(session.startTime || '');
         if (sortBy === 'date_asc') {
-            result.sort((a, b) => {
-                const da = a.endDate || a.date;
-                const db = b.endDate || b.date;
-                return da.localeCompare(db) || a.startTime.localeCompare(b.startTime);
-            });
+            result.sort((a, b) => dateKey(a).localeCompare(dateKey(b)) || timeKey(a).localeCompare(timeKey(b)));
         } else if (sortBy === 'duration_desc') {
             // Активные смены (без duration) считаем "самыми длинными" — показываем первыми
             result.sort((a, b) => {
@@ -458,12 +467,7 @@ const Admin = () => {
                 return db - da;
             });
         } else {
-            // date_desc по умолчанию
-            result.sort((a, b) => {
-                const da = a.endDate || a.date;
-                const db = b.endDate || b.date;
-                return db.localeCompare(da) || b.startTime.localeCompare(a.startTime);
-            });
+            result.sort((a, b) => dateKey(b).localeCompare(dateKey(a)) || timeKey(b).localeCompare(timeKey(a)));
         }
 
         return result;
@@ -630,8 +634,6 @@ const Admin = () => {
     const onSubmitEditSession = async (data) => {
         if (!editingSession || isSavingShift) return;
 
-        setIsSavingShift(true);
-
         const normalizedStart = normalizeTime(data.startTime);
         if (!normalizedStart) {
             showToast('error', 'Неверный формат времени прихода');
@@ -647,17 +649,16 @@ const Admin = () => {
             }
         }
 
+        setIsSavingShift(true);
+
         // === Определяем финальные даты ===
-        const startDate = data.startDate || editingSession.date;   // пользователь мог поменять дату начала
+        const startDate = data.startDate || editingSession.date;
 
-        let endDate = startDate; // по умолчанию та же дата
-
+        let endDate = startDate;
         if (data.endDateType === 'next') {
             endDate = format(addDays(parseISO(startDate), 1), 'yyyy-MM-dd');
         } else if (data.endDateType === 'custom' && data.customEndDate) {
             endDate = data.customEndDate;
-        } else if (editingSession.endDate) {
-            endDate = editingSession.endDate; // сохраняем старую, если не меняли
         }
 
         const updates = {
@@ -672,17 +673,12 @@ const Admin = () => {
             updates.durationMinutes = Math.round(parseFloat(data.manualDurationHours) * 60);
             if (normalizedEnd) {
                 updates.endTime = normalizedEnd + ':00';
-                if (endDate && endDate !== startDate) {
-                    updates.endDate = endDate;
-                }
+                updates.endDate = endDate;
             }
         } 
         else if (normalizedEnd) {
             updates.endTime = normalizedEnd + ':00';
-
-            if (endDate && endDate !== startDate) {
-                updates.endDate = endDate;
-            }
+            updates.endDate = endDate;
 
             updates.durationMinutes = calculateShiftDuration(
                 startDate,
@@ -693,7 +689,7 @@ const Admin = () => {
         } else {
             updates.endTime = null;
             updates.durationMinutes = null;
-            // Не отправляем endDate если смена активная
+            updates.endDate = null;
         }
 
         try {
@@ -1194,7 +1190,7 @@ const Admin = () => {
                     </div>
 
                     <div className="admin__table" role="region" aria-label="Журнал смен по сотрудникам">
-                        <div className="admin__table__header" aria-hidden="true">
+                        <div className="admin__table__header">
                             <span></span>
                             <span>Период</span>
                             <span>Приход</span>
@@ -1233,6 +1229,7 @@ const Admin = () => {
                                                 <button
                                                     onClick={() => handleStartShift(user.id)}
                                                     className="btn-start"
+                                                    aria-label={`Начать смену: ${user.fullName}`}
                                                     disabled={isUserStartPending(user.id)}
                                                 >
                                                     {isUserStartPending(user.id) ? '⏳ Загрузка...' : '▶ Старт'}
@@ -1297,6 +1294,7 @@ const Admin = () => {
                                                 <button
                                                     onClick={() => handleStartShift(user.id)}
                                                     className="btn-start"
+                                                    aria-label={`Новая смена: ${user.fullName}`}
                                                     disabled={isUserStartPending(user.id)}
                                                 >
                                                     {isUserStartPending(user.id) ? '⏳ Загрузка...' : '▶ Новая'}
@@ -1373,6 +1371,7 @@ const Admin = () => {
                                     <button
                                         onClick={() => handleStartShift(user.id)}
                                         className="btn-start"
+                                        aria-label={`Начать смену: ${user.fullName}`}
                                         disabled={isUserStartPending(user.id)}
                                     >
                                         {isUserStartPending(user.id) ? '⏳ Загрузка...' : '▶ Начать смену'}
@@ -1381,7 +1380,7 @@ const Admin = () => {
                                         type="button"
                                         onClick={() => focusEmployee(user.id)}
                                         className="btn-focus"
-                                        title="Показать все смены этого сотрудника"
+                                        aria-label={`Показать все смены: ${user.fullName}`}
                                     >
                                         Фокус
                                     </button>

@@ -23,7 +23,8 @@ const ProductCard = memo(({ product: p, index: idx, onOpen, onDelete, isDeleting
     }}
     role="button"
     tabIndex={0}
-    aria-labelledby={`editor-card-title-${p.id}`}
+    aria-labelledby={`editor-card-title-${p.id} editor-card-action-${p.id}`}
+    aria-describedby={`editor-card-meta-${p.id}`}
   >
     <span className="product-card__shine" aria-hidden="true" />
 
@@ -52,8 +53,9 @@ const ProductCard = memo(({ product: p, index: idx, onOpen, onDelete, isDeleting
     </div>
 
     <div className="product-card-content">
+      <span id={`editor-card-action-${p.id}`} className="visually-hidden">Редактировать</span>
       <div id={`editor-card-title-${p.id}`} className="product-card-title">{p.title}</div>
-      <div className="product-card-meta">
+      <div className="product-card-meta" id={`editor-card-meta-${p.id}`}>
         {p.price ? (
           <span className="product-card-price">{p.price} сом</span>
         ) : (
@@ -596,13 +598,15 @@ function FurnitureEditor() {
                     id="fileInput"
                     className="editor-file-input"
                     accept="image/*"
+                    aria-label="Файл фотографии мебели"
                     onChange={handleFileUploadWithLoading}
                   />
                 </div>
 
                 <div className="editor-form-group">
-                  <label className="editor-label">Ссылка на фото</label>
+                  <label className="editor-label" htmlFor="editor-photo-url">Ссылка на фото</label>
                   <input
+                    id="editor-photo-url"
                     value={selected.img || ''}
                     onChange={e => update(['img'], e.target.value)}
                     placeholder="Прямая ссылка или путь после загрузки"
@@ -612,8 +616,9 @@ function FurnitureEditor() {
                 </div>
 
                 <div className="editor-form-group">
-                  <label className="editor-label">Цена (сом)</label>
+                  <label className="editor-label" htmlFor="editor-price">Цена (сом)</label>
                   <input
+                    id="editor-price"
                     type="number"
                     value={selected.price || ''}
                     onChange={e => update(['price'], e.target.value)}
@@ -635,12 +640,14 @@ function FurnitureEditor() {
                       value={v.name} 
                       onChange={e => update(['variables', idx, 'name'], e.target.value)} 
                       placeholder="Имя" 
+                      aria-label={`Имя переменной ${idx + 1}`}
                       className="input-small" 
                     />
                     <input 
                       value={v.label} 
                       onChange={e => update(['variables', idx, 'label'], e.target.value)} 
                       placeholder="Подпись" 
+                      aria-label={`Подпись переменной ${idx + 1}`}
                       className="input-medium" 
                     />
                     <input 
@@ -648,9 +655,10 @@ function FurnitureEditor() {
                       value={v.default} 
                       onChange={e => update(['variables', idx, 'default'], +e.target.value)} 
                       placeholder="По умолчанию" 
+                      aria-label={`Значение переменной ${idx + 1} по умолчанию`}
                       className="input-small" 
                     />
-                    <button onClick={() => removeVariable(idx)} className="btn btn-remove">Удалить</button>
+                    <button type="button" onClick={() => removeVariable(idx)} className="btn btn-remove" aria-label={`Удалить переменную ${idx + 1}`}>Удалить</button>
                   </div>
                 ))}
                 <button onClick={addVariable} className="btn btn-secondary">+ Добавить переменную</button>
@@ -669,15 +677,17 @@ function FurnitureEditor() {
                       value={c.name} 
                       onChange={e => update(['conditions', idx, 'name'], e.target.value)} 
                       placeholder="Имя" 
+                      aria-label={`Имя условия ${idx + 1}`}
                       className="input-small" 
                     />
                     <input 
                       value={c.label} 
                       onChange={e => update(['conditions', idx, 'label'], e.target.value)} 
                       placeholder="Подпись" 
+                      aria-label={`Подпись условия ${idx + 1}`}
                       className="input-medium" 
                     />
-                    <button onClick={() => removeCondition(idx)} className="btn btn-remove">Удалить</button>
+                    <button type="button" onClick={() => removeCondition(idx)} className="btn btn-remove" aria-label={`Удалить условие ${idx + 1}`}>Удалить</button>
                   </div>
                 ))}
                 <button onClick={addCondition} className="btn btn-secondary">+ Добавить условие</button>
@@ -697,34 +707,40 @@ function FurnitureEditor() {
                         value={d.key} 
                         onChange={e => update(['details', idx, 'key'], e.target.value)} 
                         placeholder="Ключ" 
+                        aria-label={`Ключ детали ${idx + 1}`}
                         className="input-small" 
                       />
                       <input 
                         value={d.label} 
                         onChange={e => update(['details', idx, 'label'], e.target.value)} 
                         placeholder="Название детали" 
+                        aria-label={`Название детали ${idx + 1}`}
                         className="input-medium" 
                       />
-                      <button onClick={() => removeDetail(idx)} className="btn btn-remove">Удалить</button>
+                      <button type="button" onClick={() => removeDetail(idx)} className="btn btn-remove" aria-label={`Удалить деталь ${idx + 1}`}>Удалить</button>
                     </div>
                     <div className="detail-formulas">
                       <input 
                         value={d.formula_width || ''} 
                         onChange={e => update(['details', idx, 'formula_width'], e.target.value)} 
                         placeholder="Формула ширины" 
+                        aria-label={`Формула ширины детали ${idx + 1}`}
                       />
                       <input 
                         value={d.formula_height || ''} 
                         onChange={e => update(['details', idx, 'formula_height'], e.target.value)} 
                         placeholder="Формула высоты" 
+                        aria-label={`Формула высоты детали ${idx + 1}`}
                       />
                       <input 
                         value={d.count_formula || ''} 
                         onChange={e => update(['details', idx, 'count_formula'], e.target.value)} 
                         placeholder="Формула количества" 
+                        aria-label={`Формула количества детали ${idx + 1}`}
                       />
                       <select 
                         value={d.if_condition || ''} 
+                        aria-label={`Условие детали ${idx + 1}`}
                         onChange={e => update(['details', idx, 'if_condition'], e.target.value)}
                       >
                         <option value="">Без условия</option>

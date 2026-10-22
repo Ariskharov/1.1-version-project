@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { evaluate } from 'mathjs';
+import { evaluateFormula, evaluateReady } from '../../../utils/formulaEval';
 import './order_editor.scss';
 import { CustomContext } from '../../../Context';
 import LoadingSpinner, { LoadingPage } from '../../../components/ui/LoadingSpinner';
@@ -34,9 +34,9 @@ const calculateDetails = (product) => {
     return (product.details || []).map(detail => {
         if (detail.if_condition && !nums[detail.if_condition]) return null;
         try {
-            const w = evaluate(detail.formula_width || '0', nums);
-            const h = detail.formula_height ? evaluate(detail.formula_height, nums) : null;
-            const cnt = evaluate(detail.count_formula || '1', nums);
+            const w = evaluateFormula(detail.formula_width || '0', nums);
+            const h = detail.formula_height ? evaluateFormula(detail.formula_height, nums) : null;
+            const cnt = evaluateFormula(detail.count_formula || '1', nums);
 
             const size = h ? `${Math.round(w)} × ${Math.round(h)} мм` : `${Math.round(w)} мм`;
             return { key: detail.key, label: detail.label, size, count: Math.max(0, Math.round(cnt)) };
@@ -71,6 +71,7 @@ const getEffectiveStatus = (status, customStatus) => {
 };
 
 const PRESET_STATUSES = [
+    'Заявка',
     'Оформлен',
     'Пилится',
     'Собирается',
@@ -157,7 +158,11 @@ const OrderEditor = () => {
 
         const fetchOrder = async () => {
             try {
-                const res = await fetch(`${API_BASE}/order/${id}`);
+                const orderPromise = fetch(`${API_BASE}/order/${id}`);
+                await evaluateReady.catch((err) => {
+                    console.error('Не удалось загрузить модуль расчёта', err);
+                });
+                const res = await orderPromise;
                 if (!res.ok) throw new Error('Заказ не найден');
                 const data = await res.json();
                 let loaded = data.order?.[0] || data;
@@ -368,7 +373,8 @@ const OrderEditor = () => {
         if (!confirmed) return;
         setIsDeleting(true);
         try {
-            await fetch(`${API_BASE}/order/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE}/order/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Не удалось удалить заказ');
             setIsDirty(false);
             showToast('success', 'Заказ удалён');
             navigate('/view_orders');
@@ -670,7 +676,7 @@ const OrderEditor = () => {
                 </aside>
 
                 {/* Центральная часть */}
-                <main className="order_editor__center">
+                <section className="order_editor__center" aria-label="Выбранная позиция">
                     {selectedProduct ? (
                         <div className="order_editor__center-body" key={selectedProductId}>
                             <div className="order_editor__center-head">
@@ -707,8 +713,9 @@ const OrderEditor = () => {
                                     <h4>{selectedProduct.isCustom ? 'Параметры позиции' : 'Параметры изделия'}</h4>
                                     <div className="order_editor__sizes-grid">
                                         <div className="size-input">
-                                            <label>Количество</label>
+                                            <label htmlFor="order-item-qty">Количество</label>
                                             <input
+                                                id="order-item-qty"
                                                 type="number"
                                                 min="1"
                                                 value={selectedProduct.quantity || selectedProduct.userInputs?.coll || 1}
@@ -725,8 +732,8 @@ const OrderEditor = () => {
                                         </div>
 
                                         <div className="size-input">
-                                            <label>Цена за единицу (сом)</label>
-                                            <input type="number" value={selectedProduct.price || ''} onChange={e => handleItemPrice(e.target.value)} />
+                                            <label htmlFor="order-item-price">Цена за единицу (сом)</label>
+                                            <input id="order-item-price" type="number" value={selectedProduct.price || ''} onChange={e => handleItemPrice(e.target.value)} />
                                         </div>
 
                                         <div className="size-input size-input--full">
@@ -756,11 +763,13 @@ const OrderEditor = () => {
                                                 <label>Цвета (текстом)</label>
                                                 <div className="colors-row order_editor__colors-row">
                                                     <input
+                                                        aria-label="Цвет корпуса"
                                                         placeholder="Цвет корпуса"
                                                         value={selectedProduct.bodyColor || ''}
                                                         onChange={e => updateProduct(p => ({ ...p, bodyColor: e.target.value }))}
                                                     />
                                                     <input
+                                                        aria-label="Цвет фасадов"
                                                         placeholder="Цвет фасадов"
                                                         value={selectedProduct.facadeColor || ''}
                                                         onChange={e => updateProduct(p => ({ ...p, facadeColor: e.target.value }))}
@@ -776,19 +785,22 @@ const OrderEditor = () => {
                                             </label>
                                         ))}
 
-                                        {!selectedProduct.isCustom && selectedProduct.variables?.map(v => (
-                                            <div className="size-input" key={v.name}>
-                                                <label>{v.label}</label>
-                                                <input type="number" value={selectedProduct.userInputs?.[v.name] ?? v.default ?? ''}
+                                        {!selectedProduct.isCustom && selectedProduct.variables?.map((v, idx) => {
+                                            const fieldId = `order-item-var-${idx}`;
+                                            return (
+                                            <div className="size-input" key={fieldId}>
+                                                <label htmlFor={fieldId}>{v.label}</label>
+                                                <input id={fieldId} type="number" aria-label={v.label || 'Параметр изделия'} value={selectedProduct.userInputs?.[v.name] ?? v.default ?? ''}
                                                        onChange={e => handleItemInput(v.name, e.target.value)} />
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </article>
 
                                 <article>
                                     <h4>Описание позиции</h4>
-                                    <textarea className="nice-textarea" value={selectedProduct.description || ''}
+                                    <textarea className="nice-textarea" aria-label="Описание позиции" value={selectedProduct.description || ''}
                                               onChange={e => handleItemDescri(e.target.value)} placeholder="Дополнительное описание..." />
                                 </article>
                             </div>
@@ -837,7 +849,7 @@ const OrderEditor = () => {
                     ) : (
                         <p className="no-selection">Выберите позицию слева для редактирования</p>
                     )}
-                </main>
+                </section>
 
                 {/* Правая панель */}
                 <aside className="order_editor__right">
@@ -845,11 +857,11 @@ const OrderEditor = () => {
                         <h3>Сводка</h3>
                         <div className="order_editor__summary-rows">
                             <p><span>Сумма товаров:</span><strong>{subtotal.toLocaleString()} сом</strong></p>
-                            <p><span>НДС / Налог:</span>
-                                <input type="number" value={order.taxAmount || 0} onChange={e => handleFinanceChange('taxAmount', e.target.value)} className="finance-input" />
+                            <p><span id="order-tax-label">НДС / Налог:</span>
+                                <input type="number" aria-labelledby="order-tax-label" value={order.taxAmount || 0} onChange={e => handleFinanceChange('taxAmount', e.target.value)} className="finance-input" />
                             </p>
-                            <p><span>Скидка:</span>
-                                <input type="number" value={order.discountAmount || 0} onChange={e => handleFinanceChange('discountAmount', e.target.value)} className="finance-input" />
+                            <p><span id="order-discount-label">Скидка:</span>
+                                <input type="number" aria-labelledby="order-discount-label" value={order.discountAmount || 0} onChange={e => handleFinanceChange('discountAmount', e.target.value)} className="finance-input" />
                             </p>
                         </div>
                         <div className="order_editor__total">
@@ -866,10 +878,10 @@ const OrderEditor = () => {
 
                     <section className="order_editor__client">
                         <h4>Клиент</h4>
-                        <input className="nice-input" value={order.name_client || ''} onChange={e => handleOrderInput('name_client', e.target.value)} placeholder="ФИО клиента" />
-                        <input className="nice-input" value={order.phone || ''} onChange={e => handleOrderInput('phone', e.target.value)} placeholder="Телефон" />
-                        <input className="nice-input" value={order.email || ''} onChange={e => handleOrderInput('email', e.target.value)} placeholder="Email" />
-                        <textarea className="nice-textarea" value={order.order_note || ''} onChange={e => handleOrderInput('order_note', e.target.value)} placeholder="Примечание к заказу" />
+                        <input className="nice-input" aria-label="ФИО клиента" value={order.name_client || ''} onChange={e => handleOrderInput('name_client', e.target.value)} placeholder="ФИО клиента" />
+                        <input className="nice-input" aria-label="Телефон клиента" value={order.phone || ''} onChange={e => handleOrderInput('phone', e.target.value)} placeholder="Телефон" />
+                        <input className="nice-input" aria-label="Email клиента" value={order.email || ''} onChange={e => handleOrderInput('email', e.target.value)} placeholder="Email" />
+                        <textarea className="nice-textarea" aria-label="Примечание к заказу" value={order.order_note || ''} onChange={e => handleOrderInput('order_note', e.target.value)} placeholder="Примечание к заказу" />
                     </section>
 
                     <section className="order_editor__contract">

@@ -99,7 +99,8 @@ const ViewOrders = () => {
     }, []);
 
     const calculateOrderTotal = (order) => {
-        if (order.total && order.total > 0) return order.total;
+        const stored = Number(order.total);
+        if (order.total != null && order.total !== '' && Number.isFinite(stored)) return stored;
         return order.product_order?.reduce((sum, item) => {
             const price = Number(item.price || 0);
             const qty = Number(item.quantity || item.userInputs?.coll || 1) || 1;
@@ -109,7 +110,7 @@ const ViewOrders = () => {
 
     const stats = {
         total: orders.length,
-        new: orders.filter(o => o.status === 'Оформлен' || o.status === 'Черновик' || !o.status).length,
+        new: orders.filter(o => o.status === 'Оформлен' || o.status === 'Черновик' || o.status === 'Заявка' || !o.status).length,
         saw: orders.filter(o => o.status === 'Пилится').length,
         assembly: orders.filter(o => o.status === 'Собирается').length,
         delivery: orders.filter(o => o.status === 'Ожидание доставки' || o.status === 'Установка').length,
@@ -162,6 +163,7 @@ const ViewOrders = () => {
                     return ['Пилится', 'Собирается', 'Ожидание доставки', 'Установка'].includes(order.status);
                 }
                 if (workFilter === 'draft') return order.status === 'Черновик';
+                if (workFilter === 'request') return order.status === 'Заявка';
                 return true;
             })
             .filter((order) => {
@@ -179,7 +181,8 @@ const ViewOrders = () => {
                 const company = (order.name_compony || '').toLowerCase();
                 const client = (order.name_client || '').toLowerCase();
                 const address = (order.address || '').toLowerCase();
-                return idString.includes(term) || company.includes(term) || client.includes(term) || address.includes(term);
+                const phone = (order.phone || '').toLowerCase();
+                return idString.includes(term) || company.includes(term) || client.includes(term) || address.includes(term) || phone.includes(term);
             })
             .sort((a, b) => {
                 if (sortBy === 'id-desc') return b.id - a.id;
@@ -199,6 +202,8 @@ const ViewOrders = () => {
     const getStatusInfo = (status) => {
         const normalized = status || 'Оформлен';
         switch (normalized) {
+            case 'Заявка':
+                return { className: 'status--request', text: 'Заявка' };
             case 'Черновик':
                 return { className: 'status--draft', text: 'Черновик' };
             case 'Оформлен':
@@ -237,7 +242,7 @@ const ViewOrders = () => {
         );
     }
 
-    const allStatuses = ['Все', 'Черновик', 'Оформлен', 'Пилится', 'Собирается', 'Ожидание доставки', 'Установка', 'Завершено'];
+    const allStatuses = ['Все', 'Заявка', 'Черновик', 'Оформлен', 'Пилится', 'Собирается', 'Ожидание доставки', 'Установка', 'Завершено'];
 
     return (
         <div className={`view-orders-container view-orders--theme-${resolvedTheme}`}>
@@ -255,7 +260,7 @@ const ViewOrders = () => {
                     </div>
                     <div className="stat-card stat-card--new">
                         <span className="stat-value">{stats.new}</span>
-                        <span className="stat-label">Новые / Черновики</span>
+                        <span className="stat-label">Новые и заявки</span>
                     </div>
                     <div className="stat-card stat-card--progress">
                         <span className="stat-value">{stats.saw}</span>
@@ -281,20 +286,25 @@ const ViewOrders = () => {
                 <div className="filters-bar__left">
                     <div className="search-box">
                         <SearchIcon />
+                        <label className="visually-hidden" htmlFor="orders-search">Поиск заказов</label>
                         <input
+                            id="orders-search"
                             type="text"
                             placeholder="Клиент, компания, адрес или ID"
+                            aria-label="Поиск по клиенту, компании, адресу или номеру заказа"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                         {searchTerm && (
-                            <button className="clear-btn" onClick={() => setSearchTerm('')}>✕</button>
+                            <button type="button" className="clear-btn" onClick={() => setSearchTerm('')} aria-label="Очистить поиск">
+                                <span aria-hidden="true">✕</span>
+                            </button>
                         )}
                     </div>
 
                     <div className="sort-box">
-                        <label>Сортировка:</label>
-                        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                        <label htmlFor="orders-sort">Сортировка:</label>
+                        <select id="orders-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                             <option value="id-desc">Сначала новые (ID)</option>
                             <option value="id-asc">Сначала старые (ID)</option>
                             <option value="client-asc">По имени клиента</option>
@@ -303,35 +313,41 @@ const ViewOrders = () => {
                     </div>
                 </div>
 
-                <div className="view-toggle">
+                <div className="view-toggle" role="group" aria-label="Вид списка заказов">
                     <button
+                        type="button"
                         className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
                         onClick={() => setViewMode('grid')}
-                        title="Сетка"
+                        aria-pressed={viewMode === 'grid'}
+                        aria-label="Показать заказы карточками"
                     >
                         <GridIcon />
                     </button>
                     <button
+                        type="button"
                         className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
                         onClick={() => setViewMode('list')}
-                        title="Таблица"
+                        aria-pressed={viewMode === 'list'}
+                        aria-label="Показать заказы таблицей"
                     >
                         <ListIcon />
                     </button>
                 </div>
             </div>
 
-            <div className="work-filters">
+            <div className="work-filters" role="group" aria-label="Срок и состояние заказа">
                 {[
                     ['all', 'Все заказы'],
                     ['today', 'Сегодня'],
                     ['progress', 'В работе'],
+                    ['request', 'Заявки'],
                     ['draft', 'Черновики'],
                 ].map(([id, label]) => (
                     <button
                         key={id}
                         type="button"
                         className={`work-filter ${workFilter === id ? 'active' : ''}`}
+                        aria-pressed={workFilter === id}
                         onClick={() => setWorkFilter(id)}
                     >
                         {label}
@@ -340,7 +356,7 @@ const ViewOrders = () => {
             </div>
 
             {/* Status tabs */}
-            <div className="status-tabs">
+            <div className="status-tabs" role="group" aria-label="Статус заказа">
                 {allStatuses.map((status) => {
                     const count = status === 'Все'
                         ? orders.length
@@ -350,7 +366,9 @@ const ViewOrders = () => {
                     return (
                         <button
                             key={status}
+                            type="button"
                             className={`status-tab-btn ${selectedStatus === status ? 'active' : ''}`}
+                            aria-pressed={selectedStatus === status}
                             onClick={() => setSelectedStatus(status)}
                         >
                             {status}

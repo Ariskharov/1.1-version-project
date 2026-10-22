@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database/pg');
 const { authenticate } = require('../middleware/auth');
+const { bishkekNow, closeShiftClock } = require('../utils/shiftTime');
 
 router.post('/api/qr-checkin', authenticate, async (req, res) => {
     try {
@@ -27,32 +28,33 @@ router.post('/api/qr-checkin', authenticate, async (req, res) => {
 
         const employee = employeeRes.rows[0];
 
-        // 3. Get current local date and time
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        const seconds = String(d.getSeconds()).padStart(2, '0');
-
-        const todayDate = `${year}-${month}-${day}`;
-        const timeHM = `${hours}:${minutes}`;
-        const timeHMS = `${hours}:${minutes}:${seconds}`;
+        // 3. Время всегда по Бишкеку, даже если процесс на Vercel живёт в UTC
+        const { date: todayDate, timeHM, timeHMS } = bishkekNow();
 
         // 4. Check for active work session for this employee
         const activeSessionRes = await pool.query(
-            'SELECT * FROM "workSessions" WHERE "userId" = $1 AND "status" = \'active\' ORDER BY id DESC LIMIT 1',
+            `SELECT * FROM "workSessions"
+             WHERE "userId" = $1 AND ("endTime" IS NULL OR "endTime" = '')
+             ORDER BY id DESC LIMIT 1`,
             [employee.id]
         );
 
         if (activeSessionRes.rows.length === 0) {
             // Start shift
-            const insertRes = await pool.query(
-                `INSERT INTO "workSessions" ("userId", "date", "startTime", "endTime", "durationMinutes", "status", "source") 
-                 VALUES ($1, $2, $3, NULL, NULL, 'active', 'qr') RETURNING *`,
-                [employee.id, todayDate, timeHMS]
-            );
+            try {
+                await pool.query(
+                    `INSERT INTO "workSessions" ("userId", "date", "startTime", "endTime", "durationMinutes", "status", "source") 
+                     VALUES ($1, $2, $3, NULL, NULL, 'active', 'qr') RETURNING *`,
+                    [employee.id, todayDate, timeHMS]
+                );
+            } catch (insertErr) {
+                if (!/source/i.test(insertErr.message || '')) throw insertErr;
+                await pool.query(
+                    `INSERT INTO "workSessions" ("userId", "date", "startTime", "endTime", "durationMinutes", "status") 
+                     VALUES ($1, $2, $3, NULL, NULL, 'active') RETURNING *`,
+                    [employee.id, todayDate, timeHMS]
+                );
+            }
 
             // Sync sequence to avoid serial issues
             try {
@@ -71,36 +73,40 @@ router.post('/api/qr-checkin', authenticate, async (req, res) => {
             // End shift
             const activeSession = activeSessionRes.rows[0];
             
-            // Calculate duration in minutes
-            const startDateTime = new Date(`${activeSession.date}T${activeSession.startTime}`);
-            let endDateTime = new Date(`${todayDate}T${timeHMS}`);
-            
-            if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+            const closed = closeShiftClock({
+                startDate: activeSession.date,
+                startTime: activeSession.startTime,
+                endDate: todayDate,
+                endTime: timeHMS,
+            });
+            if (!closed) {
                 return res.status(500).json({ error: 'Invalid shift date or time format in DB' });
             }
 
-            // Adjust end date if the end time is before the start time (crossing midnight)
-            if (endDateTime < startDateTime) {
-                endDateTime.setDate(endDateTime.getDate() + 1);
+            try {
+                await pool.query(
+                    `UPDATE "workSessions" 
+                     SET "endTime" = $1, "endDate" = $2, "durationMinutes" = $3, "status" = 'completed', "source" = 'qr' 
+                     WHERE id = $4`,
+                    [timeHMS, closed.endDate, closed.durationMinutes, activeSession.id]
+                );
+            } catch (updateErr) {
+                if (!/endDate|source/i.test(updateErr.message || '')) throw updateErr;
+                await pool.query(
+                    `UPDATE "workSessions" 
+                     SET "endTime" = $1, "durationMinutes" = $2, "status" = 'completed' 
+                     WHERE id = $3`,
+                    [timeHMS, closed.durationMinutes, activeSession.id]
+                );
             }
-
-            const diffMs = endDateTime - startDateTime;
-            const durationMinutes = Math.max(0, Math.round(diffMs / 1000 / 60));
-
-            await pool.query(
-                `UPDATE "workSessions" 
-                 SET "endTime" = $1, "durationMinutes" = $2, "status" = 'completed', "source" = 'qr' 
-                 WHERE id = $3`,
-                [timeHMS, durationMinutes, activeSession.id]
-            );
 
             return res.json({
                 success: true,
                 action: 'end',
                 fullName: employee.fullName,
-                startTime: activeSession.startTime.slice(0, 5),
+                startTime: String(activeSession.startTime || '').slice(0, 5),
                 endTime: timeHM,
-                durationMinutes
+                durationMinutes: closed.durationMinutes
             });
         }
     } catch (err) {

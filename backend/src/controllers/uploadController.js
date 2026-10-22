@@ -8,7 +8,10 @@ const uploadImage = (req, res) => {
     upload.single('file')(req, res, async (err) => {
         if (err || !req.file) {
             console.error('[UPLOAD] Error or no file received:', err);
-            return res.status(400).json({ error: 'Ошибка загрузки файла' });
+            const message = err?.code === 'LIMIT_FILE_SIZE'
+                ? 'Файл больше 8 МБ'
+                : (err?.message || 'Ошибка загрузки файла');
+            return res.status(400).json({ error: message });
         }
 
         // Generate a unique filename

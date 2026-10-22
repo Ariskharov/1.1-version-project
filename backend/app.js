@@ -7,9 +7,11 @@ const cors = require('cors');
 const authRoutes = require('./src/routes/authRoutes');
 const qrCheckinRoutes = require('./src/routes/qrCheckin');
 const collectionRoutes = require('./src/routes/collectionRoutes');
+const orderRequestRoutes = require('./src/routes/orderRequest');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const pushRoutes = require('./src/routes/pushRoutes');
 const { ensureTable: ensurePushTable, ensureConfigured: ensurePushConfigured } = require('./src/services/pushService');
+const { ensureAppSchema } = require('./src/database/schema');
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -17,9 +19,32 @@ const port = process.env.PORT || 8080;
 // CORS — разрешаем все источники (Vercel генерирует разные URL для каждого деплоя)
 app.use(cors());
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
-// Middleware для замера производительности (нефункциональное требование: время ответа API < 500 мс)
+let schemaPromise = null;
+let schemaReady = false;
+let schemaFailedAt = 0;
+
+const ensureSchemaOnce = () => {
+    if (schemaReady) return Promise.resolve();
+    if (schemaPromise) return schemaPromise;
+    if (Date.now() - schemaFailedAt < 30000) return Promise.resolve();
+
+    schemaPromise = ensureAppSchema()
+        .then(() => {
+            schemaReady = true;
+        })
+        .catch((err) => {
+            schemaFailedAt = Date.now();
+            console.error('[schema] ensure failed:', err.message);
+        })
+        .finally(() => {
+            schemaPromise = null;
+        });
+    return schemaPromise;
+};
+
+// Замер включает ожидание схемы: иначе журнал показывает только хвост запроса.
 app.use((req, res, next) => {
     const start = process.hrtime();
     
@@ -39,6 +64,9 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use((req, res, next) => {
+    ensureSchemaOnce().then(() => next()).catch(next);
+});
 
 // Static file serving for images (for local development/compatibility)
 const path = require('path');
@@ -50,14 +78,28 @@ app.use('/upload', uploadRoutes);
 // Web Push
 app.use('/', pushRoutes);
 
+// Публичная заявка должна стоять раньше /:collection
+app.use('/', orderRequestRoutes);
+
 // Auth and collection routes
 app.use('/', authRoutes);
 app.use('/', qrCheckinRoutes);
 app.use('/', collectionRoutes);
 
+app.use((err, req, res, next) => {
+    if (err.type === 'entity.too.large' || err.status === 413) {
+        return res.status(413).json({ error: 'Слишком большой запрос' });
+    }
+    if (err instanceof SyntaxError && err.status === 400 && Object.prototype.hasOwnProperty.call(err, 'body')) {
+        return res.status(400).json({ error: 'Некорректный JSON' });
+    }
+    return next(err);
+});
+
 if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => {
         console.log(`Backend server started on http://localhost:${port}`);
+        ensureSchemaOnce();
         ensurePushConfigured();
         ensurePushTable()
             .then(() => console.log('[push] subscriptions table ready'))

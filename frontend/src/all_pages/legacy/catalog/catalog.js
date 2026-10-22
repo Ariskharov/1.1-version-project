@@ -9,9 +9,11 @@ import { resolveImageUrl } from '../../../config/api';
 import { CustomContext } from '../../../Context';
 import DraftBanner from '../../../components/ui/DraftBanner';
 import {
+    appendClientRequestPosition,
     appendPositionToDraft,
     buildCatalogPosition,
     calculatePositionDetails,
+    readClientRequest,
 } from '../../../utils/orderConvenience';
 
 const SORT_OPTIONS = [
@@ -28,7 +30,7 @@ const CatalogCard = memo(({ product, index, onOpen }) => (
             className="catalog-card"
             style={{ '--card-delay': `${Math.min(index, 12) * 50}ms` }}
             onClick={() => onOpen(product)}
-            aria-labelledby={`catalog-card-title-${product.id}`}
+            aria-labelledby={`catalog-card-title-${product.id} catalog-card-action-${product.id}`}
             aria-describedby={product.price ? `catalog-card-price-${product.id}` : undefined}
         >
             <div className="catalog-card__shine" aria-hidden="true" />
@@ -45,6 +47,7 @@ const CatalogCard = memo(({ product, index, onOpen }) => (
                 </div>
             </div>
             <div className="catalog-card__body">
+                <span id={`catalog-card-action-${product.id}`} className="visually-hidden">Рассчитать</span>
                 <span id={`catalog-card-title-${product.id}`} className="catalog-card__title">{product.title}</span>
                 {product.price && (
                     <div id={`catalog-card-price-${product.id}`} className="catalog-card__price">
@@ -104,8 +107,9 @@ const Catalog = () => {
         selectProduct(product);
         setModalVisible(true);
         setCopiedResults(false);
-        setDraftCount(0);
-    }, [selectProduct]);
+        const saved = currentUser?.role === 'admin' ? 0 : (readClientRequest()?.positions?.length || 0);
+        setDraftCount(saved);
+    }, [selectProduct, currentUser]);
 
     const addCalculatedToDraft = () => {
         if (!selectedProduct || !resultsArray.length) return;
@@ -114,6 +118,15 @@ const Catalog = () => {
         const count = appendPositionToDraft(position);
         setDraftCount(count);
         showToast?.('success', 'Позиция добавлена в черновик заказа');
+    };
+
+    const addToRequest = () => {
+        if (!selectedProduct) return;
+        const details = resultsArray.length ? calculatePositionDetails(selectedProduct, inputs) : [];
+        const position = buildCatalogPosition(selectedProduct, inputs, details);
+        const count = appendClientRequestPosition(position);
+        setDraftCount(count);
+        showToast?.('success', 'Позиция добавлена в заявку');
     };
 
     useEffect(() => {
@@ -226,6 +239,7 @@ const Catalog = () => {
                 <p className="catalog-hero__subtitle">
                     Выберите изделие, задайте параметры и получите точный расчёт материалов
                 </p>
+                <Link to="/zayavka" className="catalog-hero__request">Оставить заявку без регистрации</Link>
                 <div className="catalog-hero__stats" role="status" aria-live="polite">
                     <p className="catalog-stat">
                         <span className="catalog-stat__value">{products.length}</span>
@@ -439,6 +453,21 @@ const Catalog = () => {
                                         </div>
                                     )}
 
+                                    {currentUser?.role !== 'admin' && (
+                                        <div className="catalog-request-actions">
+                                            <button type="button" className="catalog-calc-btn catalog-calc-btn--ghost" onClick={addToRequest}>
+                                                Добавить в заявку
+                                            </button>
+                                            {(draftCount === 0 || resultsArray.length === 0) && (
+                                                <Link to="/zayavka" className="catalog-results__draft-link">
+                                                    {draftCount > 0
+                                                        ? `В заявке ${draftCount} поз. — открыть и отправить`
+                                                        : 'Оставить заявку без регистрации'}
+                                                </Link>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <button type="submit" className="catalog-calc-btn">
                                         <span>Рассчитать</span>
                                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -472,16 +501,24 @@ const Catalog = () => {
                                             })}
                                         </div>
                                         <div className="catalog-results__order">
-                                            <button type="button" className="catalog-calc-btn" onClick={addCalculatedToDraft}>
-                                                Добавить в текущий заказ
-                                            </button>
+                                            {currentUser?.role === 'admin' ? (
+                                                <button type="button" className="catalog-calc-btn" onClick={addCalculatedToDraft}>
+                                                    Добавить в текущий заказ
+                                                </button>
+                                            ) : (
+                                                <button type="button" className="catalog-calc-btn catalog-calc-btn--sentence" onClick={addToRequest}>
+                                                    Добавить расчёт в заявку
+                                                </button>
+                                            )}
                                             {draftCount > 0 && currentUser?.role === 'admin' && (
                                                 <Link to="/placing_an_order" className="catalog-results__draft-link">
                                                     В черновике {draftCount} поз. — открыть оформление
                                                 </Link>
                                             )}
                                             {draftCount > 0 && currentUser?.role !== 'admin' && (
-                                                <p className="catalog-results__draft-link">Позиция лежит в черновике оформления</p>
+                                                <Link to="/zayavka" className="catalog-results__draft-link">
+                                                    В заявке {draftCount} поз. — открыть и отправить
+                                                </Link>
                                             )}
                                         </div>
                                     </div>
