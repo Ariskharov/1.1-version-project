@@ -1,16 +1,23 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE, resolveImageUrl } from '../../config/api';
 import { useCatalogTheme } from '../../context/CatalogThemeContext';
 import { CustomContext } from '../../Context';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
+import PhotoUploadSlot from '../../components/ui/PhotoUploadSlot';
+import { uploadPhoto } from '../../utils/uploadService';
+import { evaluateReady } from '../../utils/formulaEval';
 import {
     buildCatalogPosition,
+    calculatePositionDetails,
     clearClientRequest,
     parseMoney,
     readClientRequest,
     writeClientRequest,
 } from '../../utils/orderConvenience';
 import './request.scss';
+import '../legacy/order_form/placing_an_order.scss';
 
 const emptyForm = () => ({
     name_client: '',
@@ -22,7 +29,11 @@ const emptyForm = () => ({
     positions: [],
 });
 
+const emptyCustom = () => ({ title: '', description: '', quantity: 1, img: '' });
+
 const asText = (value) => (typeof value === 'string' ? value : value == null ? '' : String(value));
+
+const clampQty = (value) => Math.min(999, Math.max(1, Math.round(Number(value) || 1)));
 
 const normalizeForm = (draft) => {
     const source = draft && typeof draft === 'object' ? draft : {};
@@ -45,8 +56,6 @@ const normalizeForm = (draft) => {
     };
 };
 
-const clampQty = (value) => Math.min(999, Math.max(1, Math.round(Number(value) || 1)));
-
 const norm = (value) => String(value || '').toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').trim();
 
 const money = (value) => `${Number(value || 0).toLocaleString('ru-RU')} сом`;
@@ -65,53 +74,44 @@ const detailText = (item) => (item.calculatedDetails || [])
     .filter(Boolean)
     .join(' · ');
 
-const publicPosition = (item) => ({
-    productId: item.productId || null,
-    title: item.title || '',
-    quantity: item.quantity || 1,
-    description: item.description || '',
-    userInputs: item.userInputs || {},
-    calculatedDetails: item.calculatedDetails || [],
-});
+const colorText = (item) => [
+    item.bodyColor ? `Корпус: ${item.bodyColor}` : '',
+    item.facadeColor ? `Фасады: ${item.facadeColor}` : '',
+].filter(Boolean).join(' · ');
 
-const withQty = (item, quantity) => {
-    const qty = clampQty(quantity);
-    const price = Number(item.price) || 0;
-    return { ...item, quantity: qty, totalPrice: price * qty };
+const hasCollVariable = (product) => (product?.variables || []).some((variable) => variable.name === 'coll');
+
+const initInputs = (product, saved) => {
+    const init = {};
+    (product?.variables || []).forEach((variable) => {
+        init[variable.name] = variable.default ?? '';
+    });
+    (product?.conditions || []).forEach((condition) => {
+        if (condition.type === 'flag') init[condition.name] = !!condition.default;
+    });
+    if (saved && typeof saved === 'object') {
+        Object.entries(saved).forEach(([key, value]) => {
+            init[key] = value;
+        });
+    }
+    if (init.coll == null || init.coll === '') init.coll = 1;
+    return init;
 };
 
-function QtyStepper({ value, onChange, label }) {
-    const qty = clampQty(value);
-    return (
-        <div className="client-request__stepper">
-            <button
-                type="button"
-                aria-label={`${label}: меньше`}
-                onClick={() => onChange(qty - 1)}
-                disabled={qty <= 1}
-            >
-                −
-            </button>
-            <input
-                type="number"
-                min="1"
-                max="999"
-                inputMode="numeric"
-                aria-label={label}
-                value={qty}
-                onChange={(event) => onChange(clampQty(event.target.value))}
-            />
-            <button
-                type="button"
-                aria-label={`${label}: больше`}
-                onClick={() => onChange(qty + 1)}
-                disabled={qty >= 999}
-            >
-                +
-            </button>
-        </div>
-    );
-}
+const publicPosition = (item) => {
+    const position = {
+        productId: item.isCustom ? null : (item.productId || null),
+        title: item.title || '',
+        quantity: item.quantity || 1,
+        description: item.description || '',
+        userInputs: item.userInputs || {},
+        calculatedDetails: item.calculatedDetails || [],
+        bodyColor: item.bodyColor || '',
+        facadeColor: item.facadeColor || '',
+    };
+    if (item.isCustom) position.img = item.img || null;
+    return position;
+};
 
 function Photo({ src, title }) {
     const photo = resolveImageUrl(src);
@@ -121,13 +121,11 @@ function Photo({ src, title }) {
 
 const ClientRequest = () => {
     const { resolvedTheme } = useCatalogTheme();
-    const { showToast, currentUser, products, dataLoaded } = useContext(CustomContext);
+    const { showToast, confirm, currentUser, products, dataLoaded } = useContext(CustomContext);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [form, setForm] = useState(() => normalizeForm(readClientRequest()));
-    const [query, setQuery] = useState('');
-    const [showAll, setShowAll] = useState(false);
-    const [customItem, setCustomItem] = useState({ title: '', description: '', quantity: 1 });
+    const [customItem, setCustomItem] = useState(emptyCustom);
     const [customError, setCustomError] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
     const [error, setError] = useState('');
@@ -135,12 +133,24 @@ const ClientRequest = () => {
     const [created, setCreated] = useState(null);
     const [copied, setCopied] = useState('');
     const [trap, setTrap] = useState('');
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalType, setModalType] = useState('catalog');
+    const [editingItemId, setEditingItemId] = useState(null);
+    const [productSearch, setProductSearch] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [inputs, setInputs] = useState({});
+    const [customDesc, setCustomDesc] = useState('');
+    const [bodyColor, setBodyColor] = useState('');
+    const [facadeColor, setFacadeColor] = useState('');
+    const [calcReady, setCalcReady] = useState(false);
     const trapRef = useRef(null);
     const nameRef = useRef(null);
     const phoneRef = useRef(null);
     const emailRef = useRef(null);
     const noteRef = useRef(null);
     const listRef = useRef(null);
+    const addModalRef = useRef(null);
+    const openedFromQuery = useRef(false);
 
     const pageLink = typeof window !== 'undefined' ? `${window.location.origin}/zayavka` : '/zayavka';
     const catalog = useMemo(
@@ -149,43 +159,105 @@ const ClientRequest = () => {
     );
 
     useEffect(() => {
+        let active = true;
+        evaluateReady
+            .then(() => { if (active) setCalcReady(true); })
+            .catch(() => {});
+        return () => { active = false; };
+    }, []);
+
+    useEffect(() => {
         if (created) return;
         writeClientRequest(form);
     }, [form, created]);
 
+    const closeModal = useCallback(() => {
+        setModalOpen(false);
+        setEditingItemId(null);
+        setSelectedProduct(null);
+        setInputs({});
+        setCustomDesc('');
+        setBodyColor('');
+        setFacadeColor('');
+        setProductSearch('');
+        setCustomItem(emptyCustom());
+        setCustomError('');
+    }, []);
+
+    useDialogA11y(modalOpen, closeModal, addModalRef);
+
+    const selectCatalogProduct = (product, savedItem = null) => {
+        setSelectedProduct(product);
+        setInputs(initInputs(product, savedItem?.userInputs));
+        setCustomDesc(savedItem?.description || '');
+        setBodyColor(savedItem?.bodyColor || '');
+        setFacadeColor(savedItem?.facadeColor || '');
+    };
+
+    const openModal = (type, itemToEdit = null) => {
+        setCustomError('');
+        setProductSearch('');
+        if (itemToEdit && !itemToEdit.isCustom) {
+            const product = catalog.find((item) => Number(item.id) === Number(itemToEdit.productId));
+            if (!product) {
+                showToast?.('error', 'Этого изделия уже нет в каталоге. Добавьте его как своё.');
+                return;
+            }
+            setModalType('catalog');
+            setEditingItemId(itemToEdit.id);
+            selectCatalogProduct(product, itemToEdit);
+            setModalOpen(true);
+            return;
+        }
+        setModalType(type);
+        setModalOpen(true);
+        setSelectedProduct(null);
+        setInputs({});
+        setCustomDesc('');
+        setBodyColor('');
+        setFacadeColor('');
+        if (itemToEdit) {
+            setEditingItemId(itemToEdit.id);
+            setCustomItem({
+                title: itemToEdit.title || '',
+                description: itemToEdit.description || '',
+                quantity: clampQty(itemToEdit.quantity),
+                img: itemToEdit.img || '',
+            });
+            return;
+        }
+        setEditingItemId(null);
+        setCustomItem(emptyCustom());
+    };
+
     useEffect(() => {
         const productId = Number(searchParams.get('product'));
-        if (!productId || !catalog.length) return;
+        if (!productId || !catalog.length || openedFromQuery.current) return;
         const product = catalog.find((item) => Number(item.id) === productId);
         if (!product) return;
-        setForm((prev) => {
-            if (prev.positions.some((item) => Number(item.productId) === productId)) return prev;
-            return {
-                ...prev,
-                positions: [...prev.positions, buildCatalogPosition(product, { coll: 1 }, [])],
-            };
-        });
+        openedFromQuery.current = true;
+        setModalType('catalog');
+        setEditingItemId(null);
+        setCustomItem(emptyCustom());
+        selectCatalogProduct(product);
+        setModalOpen(true);
         navigate('/zayavka', { replace: true });
     }, [catalog, searchParams, navigate]);
 
-    const visibleProducts = useMemo(() => {
-        const needle = norm(query);
-        const list = needle
-            ? catalog.filter((product) => norm(product.title).includes(needle))
-            : catalog;
-        if (needle || showAll) return list;
-        return list.slice(0, 8);
-    }, [catalog, query, showAll]);
+    const filteredProducts = useMemo(() => {
+        const needle = norm(productSearch);
+        if (!needle) return catalog;
+        return catalog.filter((product) => norm(product.title).includes(needle));
+    }, [catalog, productSearch]);
 
-    const counts = useMemo(() => {
-        const map = {};
-        form.positions.forEach((item) => {
-            if (!item.productId) return;
-            const key = String(item.productId);
-            map[key] = (map[key] || 0) + (Number(item.quantity) || 1);
-        });
-        return map;
-    }, [form.positions]);
+    const previewDetails = useMemo(() => {
+        if (!calcReady || !selectedProduct) return [];
+        try {
+            return calculatePositionDetails(selectedProduct, inputs);
+        } catch {
+            return [];
+        }
+    }, [calcReady, selectedProduct, inputs]);
 
     const estimate = useMemo(
         () => form.positions.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0),
@@ -203,88 +275,77 @@ const ClientRequest = () => {
         setError('');
     };
 
-    const addCatalogProduct = (product) => {
-        setForm((prev) => {
-            const existing = prev.positions.find((item) => (
-                !item.isCustom
-                && Number(item.productId) === Number(product.id)
-                && !asText(item.description).trim()
-                && !(Array.isArray(item.calculatedDetails) && item.calculatedDetails.length)
-            ));
-            if (existing) {
-                return {
-                    ...prev,
-                    positions: prev.positions.map((item) => (
-                        item.id === existing.id ? withQty(item, (Number(item.quantity) || 1) + 1) : item
-                    )),
-                };
-            }
-            return {
-                ...prev,
-                positions: [...prev.positions, buildCatalogPosition(product, { coll: 1 }, [])],
-            };
-        });
+    const putPosition = (position) => {
+        setForm((prev) => ({
+            ...prev,
+            positions: editingItemId
+                ? prev.positions.map((item) => (item.id === editingItemId ? position : item))
+                : [...prev.positions, position],
+        }));
         setFieldErrors((prev) => (prev.order_note ? { ...prev, order_note: '' } : prev));
         setError('');
+        closeModal();
     };
 
-    const addCustomItem = () => {
+    const savePosition = async () => {
+        if (modalType === 'catalog') {
+            if (!selectedProduct) {
+                showToast?.('error', 'Выберите изделие слева');
+                return;
+            }
+            try {
+                await evaluateReady;
+            } catch {
+                showToast?.('error', 'Не удалось рассчитать размеры');
+                return;
+            }
+            const quantity = clampQty(inputs.coll);
+            const nextInputs = { ...inputs, coll: quantity };
+            let details = [];
+            try {
+                details = calculatePositionDetails(selectedProduct, nextInputs);
+            } catch {
+                showToast?.('error', 'Не удалось рассчитать размеры');
+                return;
+            }
+            const position = buildCatalogPosition(selectedProduct, nextInputs, details);
+            putPosition({
+                ...position,
+                id: editingItemId || position.id,
+                description: customDesc.trim(),
+                bodyColor: bodyColor.trim(),
+                facadeColor: facadeColor.trim(),
+            });
+            return;
+        }
+
         const title = customItem.title.trim();
         if (!title) {
             setCustomError('Напишите, какое изделие нужно');
             return;
         }
-        const description = customItem.description.trim();
         const quantity = clampQty(customItem.quantity);
-        setForm((prev) => {
-            const existing = prev.positions.find((item) => (
-                item.isCustom
-                && norm(item.title) === norm(title)
-                && (item.description || '') === description
-            ));
-            if (existing) {
-                return {
-                    ...prev,
-                    positions: prev.positions.map((item) => (
-                        item.id === existing.id ? withQty(item, (Number(item.quantity) || 1) + quantity) : item
-                    )),
-                };
-            }
-            return {
-                ...prev,
-                positions: [...prev.positions, {
-                    id: `${Date.now()}-custom-${Math.random().toString(36).slice(2, 7)}`,
-                    isCustom: true,
-                    title,
-                    description,
-                    quantity,
-                    price: 0,
-                    totalPrice: 0,
-                }],
-            };
+        putPosition({
+            id: editingItemId || `${Date.now()}-custom-${Math.random().toString(36).slice(2, 7)}`,
+            isCustom: true,
+            title,
+            description: customItem.description.trim(),
+            quantity,
+            price: 0,
+            totalPrice: 0,
+            img: customItem.img || null,
         });
-        setCustomItem({ title: '', description: '', quantity: 1 });
-        setCustomError('');
-        setFieldErrors((prev) => (prev.order_note ? { ...prev, order_note: '' } : prev));
-        setError('');
     };
 
-    const removePosition = (id) => {
+    const removePosition = async (id) => {
+        const confirmed = await confirm?.({
+            message: 'Удалить эту позицию из заявки?',
+            confirmLabel: 'Удалить',
+            danger: true,
+        });
+        if (!confirmed) return false;
         setForm((prev) => ({ ...prev, positions: prev.positions.filter((item) => item.id !== id) }));
-    };
-
-    const setPositionQty = (id, value) => {
-        setForm((prev) => ({
-            ...prev,
-            positions: prev.positions.map((item) => (item.id === id ? withQty(item, value) : item)),
-        }));
-    };
-
-    const setPositionNote = (id, description) => {
-        setForm((prev) => ({
-            ...prev,
-            positions: prev.positions.map((item) => (item.id === id ? { ...item, description } : item)),
-        }));
+        return true;
     };
 
     const copyText = async (text, key) => {
@@ -354,12 +415,9 @@ const ClientRequest = () => {
     };
 
     const startAnother = () => {
+        closeModal();
         setCreated(null);
         setForm(emptyForm());
-        setQuery('');
-        setShowAll(false);
-        setCustomItem({ title: '', description: '', quantity: 1 });
-        setCustomError('');
         setFieldErrors({});
         setError('');
         setCopied('');
@@ -372,7 +430,7 @@ const ClientRequest = () => {
 
     const canShare = Boolean(currentUser && currentUser.role !== 'scanner');
     const pageClass = ['client-request', `client-request--theme-${resolvedTheme}`].join(' ');
-    const hiddenCount = !norm(query) && !showAll ? Math.max(0, catalog.length - visibleProducts.length) : 0;
+    const modalClass = ['pao-modal', `pao-modal--theme-${resolvedTheme}`].join(' ');
 
     return (
         <section className={pageClass}>
@@ -414,7 +472,8 @@ const ClientRequest = () => {
                         <p className="client-request__badge">Без регистрации</p>
                         <h1>Заявка на заказ</h1>
                         <p>
-                            Напишите, как с вами связаться и какая мебель нужна. Сотрудник увидит заявку и перезвонит.
+                            Напишите, как с вами связаться. Мебель выбирается из каталога: там же указываются размеры и цвета.
+                            Своё изделие можно описать без цены — её посчитает сотрудник и перезвонит.
                             {canShare ? ' Эту страницу можно отправить клиенту.' : ''}
                         </p>
                         <div className="client-request__steps" aria-label="Шаги заявки">
@@ -517,105 +576,36 @@ const ClientRequest = () => {
                                 <Link to="/catalog">Смотреть каталог</Link>
                             </div>
 
-                            {catalogLoading && (
-                                <div className="client-request__skeleton" aria-hidden="true">
-                                    <span /><span /><span /><span />
-                                </div>
-                            )}
-
-                            {catalogEmpty && (
-                                <p className="client-request__empty">Каталог сейчас пуст или не открылся. Опишите изделие своими словами.</p>
-                            )}
-
-                            {catalog.length > 0 && (
-                                <div className="client-request__catalog">
-                                    <label className="client-request__field">
-                                        <span className="client-request__label">Найти в каталоге</span>
-                                        <input
-                                            type="search"
-                                            value={query}
-                                            onChange={(event) => setQuery(event.target.value)}
-                                            placeholder="Шкаф, стол, кухня"
-                                            aria-label="Поиск изделия"
-                                        />
-                                    </label>
-                                    {visibleProducts.length === 0 ? (
-                                        <p className="client-request__empty">В каталоге нет такого названия. Добавьте изделие своими словами ниже.</p>
-                                    ) : (
-                                        <ul className="client-request__picker">
-                                            {visibleProducts.map((product) => {
-                                                const price = parseMoney(product.price);
-                                                const count = counts[String(product.id)] || 0;
-                                                return (
-                                                    <li key={product.id}>
-                                                        <button
-                                                            type="button"
-                                                            className={`client-request__pick${count ? ' is-in' : ''}`}
-                                                            onClick={() => addCatalogProduct(product)}
-                                                            aria-label={`Добавить ${product.title}${price > 0 ? `, ${money(price)}` : ''}`}
-                                                        >
-                                                            <Photo src={product.img} title={product.title} />
-                                                            <span className="client-request__pick-title">{product.title}</span>
-                                                            <span className="client-request__pick-price">
-                                                                {price > 0 ? money(price) : 'цену уточним'}
-                                                            </span>
-                                                            {count > 0 && <span className="client-request__pick-count">{count}</span>}
-                                                        </button>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    )}
-                                    {hiddenCount > 0 && (
-                                        <button type="button" className="client-request__text-btn" onClick={() => setShowAll(true)}>
-                                            Показать ещё {hiddenCount}
-                                        </button>
-                                    )}
-                                    <p className="client-request__note">Нажмите на изделие, чтобы добавить его. Повторное нажатие увеличивает количество.</p>
-                                </div>
-                            )}
-
-                            <div className="client-request__compose">
-                                <label className={`client-request__field client-request__compose-title${customError ? ' is-invalid' : ''}`}>
-                                    <span className="client-request__label">Своё изделие</span>
-                                    <input
-                                        value={customItem.title}
-                                        onChange={(event) => {
-                                            setCustomItem((prev) => ({ ...prev, title: event.target.value }));
-                                            setCustomError('');
-                                        }}
-                                        placeholder="Шкаф, стол, тумба"
-                                        aria-invalid={customError ? 'true' : undefined}
-                                    />
-                                    {customError && <span className="client-request__hint">{customError}</span>}
-                                </label>
-                                <label className="client-request__field client-request__compose-qty">
-                                    <span className="client-request__label">Количество</span>
-                                    <QtyStepper
-                                        value={customItem.quantity}
-                                        label="Количество своего изделия"
-                                        onChange={(quantity) => setCustomItem((prev) => ({ ...prev, quantity }))}
-                                    />
-                                </label>
-                                <label className="client-request__field client-request__compose-note">
-                                    <span className="client-request__label">Размеры и пожелания</span>
-                                    <input
-                                        value={customItem.description}
-                                        onChange={(event) => setCustomItem((prev) => ({ ...prev, description: event.target.value }))}
-                                        placeholder="Ширина 1200, белый корпус"
-                                    />
-                                </label>
-                                <button type="button" className="client-request__secondary client-request__compose-action" onClick={addCustomItem}>
-                                    Добавить своё изделие
+                            <div className="client-request__add-wrap">
+                                <button
+                                    type="button"
+                                    className="client-request__add-button client-request__add-button--catalog"
+                                    onClick={() => openModal('catalog')}
+                                    disabled={catalogLoading || catalogEmpty}
+                                >
+                                    ＋ Добавить из каталога
+                                </button>
+                                <button
+                                    type="button"
+                                    className="client-request__add-button client-request__add-button--custom"
+                                    onClick={() => openModal('custom')}
+                                >
+                                    ＋ Добавить своё изделие
                                 </button>
                             </div>
+                            {catalogLoading && <p className="client-request__note">Каталог открывается…</p>}
+                            {catalogEmpty && <p className="client-request__note">Каталог сейчас пуст. Опишите изделие своими словами.</p>}
 
                             {form.positions.length === 0 ? (
-                                <p className="client-request__empty client-request__empty--box">Пока нет изделий. Можно описать заказ в комментарии.</p>
+                                <p className="client-request__empty client-request__empty--box">
+                                    Пока нет изделий. Можно описать заказ в комментарии.
+                                </p>
                             ) : (
                                 <ul className="client-request__list">
                                     {form.positions.map((item) => {
                                         const line = (Number(item.price) || 0) * (Number(item.quantity) || 1);
+                                        const colors = colorText(item);
+                                        const details = detailText(item);
                                         return (
                                             <li key={item.id}>
                                                 <div className="client-request__line-photo">
@@ -623,24 +613,19 @@ const ClientRequest = () => {
                                                 </div>
                                                 <div className="client-request__line-body">
                                                     <strong>{item.title}</strong>
-                                                    <input
-                                                        className="client-request__line-note"
-                                                        value={item.description || ''}
-                                                        placeholder="Размеры, цвет, комментарий"
-                                                        aria-label={`Комментарий: ${item.title}`}
-                                                        onChange={(event) => setPositionNote(item.id, event.target.value)}
-                                                    />
-                                                    {detailText(item) ? <small className="client-request__line-details">{detailText(item)}</small> : null}
+                                                    {item.description ? <small className="client-request__line-details">{item.description}</small> : null}
+                                                    {colors ? <small className="client-request__line-details">{colors}</small> : null}
+                                                    {details ? <small className="client-request__line-details">{details}</small> : null}
                                                     <span className={line > 0 ? 'client-request__line-price' : 'client-request__line-later'}>
+                                                        {item.quantity} шт
+                                                        {' · '}
                                                         {line > 0 ? money(line) : 'цену назовёт сотрудник'}
                                                     </span>
                                                 </div>
                                                 <div className="client-request__line-actions">
-                                                    <QtyStepper
-                                                        value={item.quantity}
-                                                        label={`Количество: ${item.title}`}
-                                                        onChange={(quantity) => setPositionQty(item.id, quantity)}
-                                                    />
+                                                    <button type="button" onClick={() => openModal(item.isCustom ? 'custom' : 'catalog', item)}>
+                                                        Изменить
+                                                    </button>
                                                     <button type="button" onClick={() => removePosition(item.id)} aria-label={`Удалить ${item.title}`}>
                                                         Удалить
                                                     </button>
@@ -685,6 +670,305 @@ const ClientRequest = () => {
                         </div>
                     </form>
                 </>
+            )}
+
+            {modalOpen && createPortal(
+                <div className={modalClass} role="presentation">
+                    <div className="pao-modal__overlay" onClick={closeModal}>
+                        <div
+                            ref={addModalRef}
+                            className="pao-modal__dialog"
+                            onClick={(event) => event.stopPropagation()}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="request-add-modal-title"
+                            tabIndex={-1}
+                        >
+                            <div className="pao-modal__header">
+                                <h3 id="request-add-modal-title">
+                                    {editingItemId
+                                        ? 'Изменение позиции'
+                                        : modalType === 'catalog'
+                                            ? 'Добавить из каталога'
+                                            : 'Своё изделие'}
+                                </h3>
+                                <button type="button" className="pao-modal__close" onClick={closeModal} aria-label="Закрыть">×</button>
+                            </div>
+
+                            {modalType === 'catalog' ? (
+                                <div className="pao-modal__body pao-modal__body--catalog">
+                                    <div className="pao-modal__search">
+                                        <input
+                                            type="search"
+                                            placeholder="Поиск по названию мебели..."
+                                            value={productSearch}
+                                            onChange={(event) => setProductSearch(event.target.value)}
+                                            aria-label="Поиск мебели в каталоге"
+                                        />
+                                        {productSearch && (
+                                            <button
+                                                type="button"
+                                                className="pao-modal__search-clear"
+                                                onClick={() => setProductSearch('')}
+                                                aria-label="Очистить поиск"
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="pao-modal__split">
+                                        <div className="pao-modal__products-pane">
+                                            {filteredProducts.length === 0 ? (
+                                                <div className="pao-modal__products-empty">Ничего не найдено</div>
+                                            ) : (
+                                                <div className="pao-modal__products-list">
+                                                    {filteredProducts.map((product) => {
+                                                        const isActive = Number(selectedProduct?.id) === Number(product.id);
+                                                        const price = parseMoney(product.price);
+                                                        const photo = resolveImageUrl(product.img);
+                                                        return (
+                                                            <div
+                                                                key={product.id}
+                                                                className={`pao-modal__catalog-card${isActive ? ' is-active' : ''}`}
+                                                                onClick={() => {
+                                                                    if (isActive) return;
+                                                                    selectCatalogProduct(product);
+                                                                }}
+                                                                role="button"
+                                                                tabIndex={0}
+                                                                onKeyDown={(event) => {
+                                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                                        event.preventDefault();
+                                                                        if (!isActive) selectCatalogProduct(product);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <div className="pao-modal__catalog-card-img">
+                                                                    {photo
+                                                                        ? <img src={photo} alt="" />
+                                                                        : <div className="pao-modal__catalog-card-placeholder">🪑</div>}
+                                                                </div>
+                                                                <div className="pao-modal__catalog-card-info">
+                                                                    <div className="pao-modal__catalog-card-title">{product.title}</div>
+                                                                    <div className="pao-modal__catalog-card-price">
+                                                                        {price > 0 ? money(price) : 'цену уточним'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="pao-modal__config-pane">
+                                            {selectedProduct ? (
+                                                <div className="pao-modal__config-content">
+                                                    <div className="pao-modal__config-header">
+                                                        <h4>{selectedProduct.title}</h4>
+                                                        <div className="pao-modal__config-price">
+                                                            {parseMoney(selectedProduct.price) > 0
+                                                                ? `${money(parseMoney(selectedProduct.price))} / шт`
+                                                                : 'цену уточним'}
+                                                        </div>
+                                                    </div>
+                                                    {(selectedProduct.variables || []).length > 0 && (
+                                                        <div className="pao-modal__config-section">
+                                                            <div className="pao-modal__section-label">Параметры</div>
+                                                            <div className="pao-modal__inputs">
+                                                                {(selectedProduct.variables || []).map((variable) => (
+                                                                    <label key={variable.name} className="pao-modal__field">
+                                                                        <span>{variable.label}</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={inputs[variable.name] ?? ''}
+                                                                            onChange={(event) => setInputs((prev) => ({
+                                                                                ...prev,
+                                                                                [variable.name]: event.target.value,
+                                                                            }))}
+                                                                        />
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {!hasCollVariable(selectedProduct) && (
+                                                        <div className="pao-modal__config-section">
+                                                            <label className="pao-modal__field">
+                                                                <span>Количество</span>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    max="999"
+                                                                    value={inputs.coll ?? 1}
+                                                                    onChange={(event) => setInputs((prev) => ({
+                                                                        ...prev,
+                                                                        coll: event.target.value,
+                                                                    }))}
+                                                                />
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                    {(selectedProduct.conditions || []).some((condition) => condition.type === 'flag') && (
+                                                        <div className="pao-modal__config-section">
+                                                            <div className="pao-modal__section-label">Опции</div>
+                                                            <div className="pao-modal__checkboxes">
+                                                                {(selectedProduct.conditions || []).map((condition) => condition.type === 'flag' && (
+                                                                    <label key={condition.name} className="pao-modal__checkbox">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={!!inputs[condition.name]}
+                                                                            onChange={() => setInputs((prev) => ({
+                                                                                ...prev,
+                                                                                [condition.name]: !prev[condition.name],
+                                                                            }))}
+                                                                        />
+                                                                        {condition.label}
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    <div className="pao-modal__config-section">
+                                                        <div className="pao-modal__section-label">Цвета</div>
+                                                        <div className="pao-modal__colors-row">
+                                                            <label className="pao-modal__field">
+                                                                <span>Цвет корпуса</span>
+                                                                <input
+                                                                    value={bodyColor}
+                                                                    onChange={(event) => setBodyColor(event.target.value)}
+                                                                    placeholder="Дуб Сонома, Венге..."
+                                                                />
+                                                            </label>
+                                                            <label className="pao-modal__field">
+                                                                <span>Цвет фасадов</span>
+                                                                <input
+                                                                    value={facadeColor}
+                                                                    onChange={(event) => setFacadeColor(event.target.value)}
+                                                                    placeholder="Белый, ЛДСП..."
+                                                                />
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div className="pao-modal__config-section">
+                                                        <label className="pao-modal__field">
+                                                            <span>Описание позиции / примечание</span>
+                                                            <textarea
+                                                                value={customDesc}
+                                                                onChange={(event) => setCustomDesc(event.target.value)}
+                                                                placeholder="Дополнительные пожелания..."
+                                                            />
+                                                        </label>
+                                                    </div>
+                                                    {previewDetails.length > 0 && (
+                                                        <p className="pao-modal__preview">
+                                                            {previewDetails.slice(0, 4).map((detail) => (
+                                                                [detail.label, detail.size].filter(Boolean).join(': ')
+                                                            )).filter(Boolean).join(' · ')}
+                                                        </p>
+                                                    )}
+                                                    <div className="pao-modal__config-actions">
+                                                        {editingItemId && (
+                                                            <button
+                                                                type="button"
+                                                                className="pao-modal__delete-btn"
+                                                                onClick={() => {
+                                                                    setForm((prev) => ({
+                                                                        ...prev,
+                                                                        positions: prev.positions.filter((item) => item.id !== editingItemId),
+                                                                    }));
+                                                                    closeModal();
+                                                                }}
+                                                            >
+                                                                Удалить позицию
+                                                            </button>
+                                                        )}
+                                                        <button type="button" className="pao-modal__save-btn" onClick={savePosition}>
+                                                            {editingItemId ? 'Сохранить изменения' : 'Добавить в заявку'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="pao-modal__config-placeholder">
+                                                    <div className="pao-modal__placeholder-icon">🛠️</div>
+                                                    <p>Выберите изделие слева</p>
+                                                    <small>Укажите размеры, цвета и примечание</small>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="pao-modal__body">
+                                    <div className="pao-modal__form">
+                                        <PhotoUploadSlot
+                                            inputId="request-custom-position-photo"
+                                            label="Фото"
+                                            hint="Можно приложить фото изделия или места"
+                                            variant="card"
+                                            className="pao-modal__photo-slot"
+                                            previewUrl={customItem.img ? resolveImageUrl(customItem.img) : ''}
+                                            onFileChange={async (event) => {
+                                                const file = event.target.files?.[0];
+                                                event.target.value = '';
+                                                if (!file) return;
+                                                try {
+                                                    const path = await uploadPhoto(file);
+                                                    setCustomItem((prev) => ({ ...prev, img: path }));
+                                                    showToast?.('success', 'Фото загружено');
+                                                } catch (err) {
+                                                    showToast?.('error', `Ошибка загрузки фото: ${err.message}`);
+                                                }
+                                            }}
+                                            onRemove={() => setCustomItem((prev) => ({ ...prev, img: '' }))}
+                                        />
+                                        <label className={`pao-modal__field pao-modal__field--full${customError ? ' is-invalid' : ''}`}>
+                                            <span>Название *</span>
+                                            <input
+                                                value={customItem.title}
+                                                onChange={(event) => {
+                                                    setCustomItem((prev) => ({ ...prev, title: event.target.value }));
+                                                    setCustomError('');
+                                                }}
+                                                placeholder="Например: Стол обеденный"
+                                                aria-invalid={customError ? 'true' : undefined}
+                                            />
+                                            {customError && <small className="pao-modal__field-error">{customError}</small>}
+                                        </label>
+                                        <label className="pao-modal__field">
+                                            <span>Количество</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="999"
+                                                value={customItem.quantity}
+                                                onChange={(event) => setCustomItem((prev) => ({
+                                                    ...prev,
+                                                    quantity: event.target.value,
+                                                }))}
+                                            />
+                                        </label>
+                                        <label className="pao-modal__field pao-modal__field--full">
+                                            <span>Размеры и пожелания</span>
+                                            <textarea
+                                                value={customItem.description}
+                                                onChange={(event) => setCustomItem((prev) => ({
+                                                    ...prev,
+                                                    description: event.target.value,
+                                                }))}
+                                                placeholder="Ширина 1200, белый корпус, без цены"
+                                            />
+                                        </label>
+                                        <p className="pao-modal__price-note">Цену укажет сотрудник, когда примет заявку.</p>
+                                        <button type="button" className="pao-modal__save-btn pao-modal__save-btn--spaced" onClick={savePosition}>
+                                            {editingItemId ? 'Сохранить изменения' : 'Добавить в заявку'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </section>
     );

@@ -28,6 +28,19 @@ const sanitizeDetails = (list) => {
     })).filter((detail) => detail.label);
 };
 
+const safeImage = (value) => {
+    const text = clip(value, 500);
+    if (!text || text.includes('..') || /\s/.test(text)) return null;
+    if (text.startsWith('/utilse/')) return text;
+    try {
+        const url = new URL(text);
+        if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+        return text;
+    } catch {
+        return null;
+    }
+};
+
 /**
  * Собирает заявку только из разрешённых полей.
  * Цену каталожной позиции берёт из базы, а не из письма клиента.
@@ -73,6 +86,8 @@ function buildOrderRequest(body, products) {
                 variables: product.variables || [],
                 conditions: product.conditions || [],
                 details: product.details || [],
+                bodyColor: clip(item.bodyColor, 80),
+                facadeColor: clip(item.facadeColor, 80),
             });
             return;
         }
@@ -87,7 +102,7 @@ function buildOrderRequest(body, products) {
             price: 0,
             quantity,
             totalPrice: 0,
-            img: null,
+            img: safeImage(item.img),
         });
     });
 
