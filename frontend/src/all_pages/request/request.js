@@ -5,6 +5,7 @@ import { API_BASE, resolveImageUrl } from '../../config/api';
 import { useCatalogTheme } from '../../context/CatalogThemeContext';
 import { CustomContext } from '../../Context';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import '../legacy/order_form/placing_an_order.scss';
 import PhotoUploadSlot from '../../components/ui/PhotoUploadSlot';
 import { uploadPhoto } from '../../utils/uploadService';
 import { evaluateReady } from '../../utils/formulaEval';
@@ -17,7 +18,6 @@ import {
     writeClientRequest,
 } from '../../utils/orderConvenience';
 import './request.scss';
-import '../legacy/order_form/placing_an_order.scss';
 
 const emptyForm = () => ({
     name_client: '',
