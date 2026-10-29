@@ -13,6 +13,7 @@ import {
     buildCatalogPosition,
     calculatePositionDetails,
     clearClientRequest,
+    MAX_REQUEST_POSITIONS,
     parseMoney,
     readClientRequest,
     writeClientRequest,
@@ -99,12 +100,15 @@ const initInputs = (product, saved) => {
 };
 
 const publicPosition = (item) => {
+    const quantity = clampQty(item.quantity);
+    const userInputs = { ...(item.userInputs || {}) };
+    if (!item.isCustom) userInputs.coll = quantity;
     const position = {
         productId: item.isCustom ? null : (item.productId || null),
         title: item.title || '',
-        quantity: item.quantity || 1,
+        quantity,
         description: item.description || '',
-        userInputs: item.userInputs || {},
+        userInputs,
         calculatedDetails: item.calculatedDetails || [],
         bodyColor: item.bodyColor || '',
         facadeColor: item.facadeColor || '',
@@ -115,7 +119,10 @@ const publicPosition = (item) => {
 
 function Photo({ src, title }) {
     const photo = resolveImageUrl(src);
-    if (photo) return <img src={photo} alt="" />;
+    const [failedSrc, setFailedSrc] = useState('');
+    if (photo && failedSrc !== photo) {
+        return <img src={photo} alt="" onError={() => setFailedSrc(photo)} />;
+    }
     return <span className="client-request__no-photo" aria-hidden="true">{(title || '◇').slice(0, 1)}</span>;
 }
 
@@ -143,6 +150,7 @@ const ClientRequest = () => {
     const [bodyColor, setBodyColor] = useState('');
     const [facadeColor, setFacadeColor] = useState('');
     const [calcReady, setCalcReady] = useState(false);
+    const [deleteArmed, setDeleteArmed] = useState(false);
     const trapRef = useRef(null);
     const nameRef = useRef(null);
     const phoneRef = useRef(null);
@@ -150,7 +158,13 @@ const ClientRequest = () => {
     const noteRef = useRef(null);
     const listRef = useRef(null);
     const addModalRef = useRef(null);
+    const customTitleRef = useRef(null);
     const openedFromQuery = useRef(false);
+    const modalOpenRef = useRef(false);
+    const copiedTimerRef = useRef(0);
+    const saveLockRef = useRef(false);
+    const savingRef = useRef(false);
+    modalOpenRef.current = modalOpen;
 
     const pageLink = typeof window !== 'undefined' ? `${window.location.origin}/zayavka` : '/zayavka';
     const catalog = useMemo(
@@ -185,6 +199,111 @@ const ClientRequest = () => {
     }, []);
 
     useDialogA11y(modalOpen, closeModal, addModalRef);
+
+    useEffect(() => {
+        setDeleteArmed(false);
+    }, [modalOpen, editingItemId, selectedProduct]);
+
+    useEffect(() => () => window.clearTimeout(copiedTimerRef.current), []);
+
+    useEffect(() => {
+        if (!modalOpen) return undefined;
+        const root = document.documentElement;
+        const body = document.body;
+        const scrollY = window.scrollY || root.scrollTop || 0;
+        const previous = {
+            overflow: body.style.overflow,
+            position: body.style.position,
+            top: body.style.top,
+            left: body.style.left,
+            right: body.style.right,
+            width: body.style.width,
+            paddingRight: body.style.paddingRight,
+            rootOverflow: root.style.overflow,
+        };
+        const scrollbar = Math.max(0, window.innerWidth - root.clientWidth);
+        root.style.overflow = 'hidden';
+        body.style.overflow = 'hidden';
+        body.style.position = 'fixed';
+        body.style.top = `-${scrollY}px`;
+        body.style.left = '0';
+        body.style.right = '0';
+        body.style.width = '100%';
+        if (scrollbar) body.style.paddingRight = `${scrollbar}px`;
+
+        const dialog = addModalRef.current;
+        const viewport = window.visualViewport;
+        const narrowQuery = window.matchMedia('(max-width: 820px), (max-height: 540px)');
+        const applyViewport = () => {
+            if (!dialog) return;
+            const keyboardOpen = Boolean(viewport) && viewport.height < window.innerHeight - 80;
+            if (!narrowQuery.matches && !keyboardOpen) {
+                dialog.style.height = '';
+                dialog.style.maxHeight = '';
+                dialog.style.transform = '';
+                return;
+            }
+            const height = Math.max(240, Math.round((viewport || window).height || window.innerHeight));
+            const offset = viewport ? Math.round(viewport.offsetTop) : 0;
+            dialog.style.height = `${height}px`;
+            dialog.style.maxHeight = `${height}px`;
+            dialog.style.transform = offset ? `translateY(${offset}px)` : '';
+        };
+        applyViewport();
+        viewport?.addEventListener('resize', applyViewport);
+        viewport?.addEventListener('scroll', applyViewport);
+        narrowQuery.addEventListener?.('change', applyViewport);
+
+        let focusTimer = 0;
+        const onFocusIn = (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement) || !dialog?.contains(target)) return;
+            window.clearTimeout(focusTimer);
+            focusTimer = window.setTimeout(() => {
+                if (!dialog.isConnected || !dialog.contains(target)) return;
+                let scroller = target.parentElement;
+                while (scroller && scroller !== dialog) {
+                    const style = window.getComputedStyle(scroller);
+                    const scrolls = /(auto|scroll)/.test(style.overflowY)
+                        && scroller.scrollHeight > scroller.clientHeight + 1;
+                    if (scrolls) break;
+                    scroller = scroller.parentElement;
+                }
+                if (!scroller || scroller === dialog) return;
+                const field = target.closest('label') || target;
+                const fieldRect = field.getBoundingClientRect();
+                const box = scroller.getBoundingClientRect();
+                if (fieldRect.bottom > box.bottom - 8) {
+                    scroller.scrollTop += fieldRect.bottom - box.bottom + 16;
+                } else if (fieldRect.top < box.top + 8) {
+                    scroller.scrollTop -= box.top - fieldRect.top + 16;
+                }
+            }, 280);
+        };
+        dialog?.addEventListener('focusin', onFocusIn);
+
+        return () => {
+            window.clearTimeout(focusTimer);
+            viewport?.removeEventListener('resize', applyViewport);
+            viewport?.removeEventListener('scroll', applyViewport);
+            narrowQuery.removeEventListener?.('change', applyViewport);
+            dialog?.removeEventListener('focusin', onFocusIn);
+            if (dialog) {
+                dialog.style.height = '';
+                dialog.style.maxHeight = '';
+                dialog.style.transform = '';
+            }
+            body.style.overflow = previous.overflow;
+            body.style.position = previous.position;
+            body.style.top = previous.top;
+            body.style.left = previous.left;
+            body.style.right = previous.right;
+            body.style.width = previous.width;
+            body.style.paddingRight = previous.paddingRight;
+            root.style.overflow = previous.rootOverflow;
+            window.scrollTo(0, scrollY);
+        };
+    }, [modalOpen]);
 
     const selectCatalogProduct = (product, savedItem = null) => {
         setSelectedProduct(product);
@@ -231,18 +350,23 @@ const ClientRequest = () => {
     };
 
     useEffect(() => {
-        const productId = Number(searchParams.get('product'));
-        if (!productId || !catalog.length || openedFromQuery.current) return;
-        const product = catalog.find((item) => Number(item.id) === productId);
-        if (!product) return;
+        const raw = searchParams.get('product');
+        if (!raw || openedFromQuery.current) return;
+        if (!dataLoaded && catalog.length === 0) return;
+        const product = catalog.find((item) => Number(item.id) === Number(raw));
         openedFromQuery.current = true;
+        if (!product) {
+            showToast?.('error', 'Этого изделия нет в каталоге');
+            navigate('/zayavka', { replace: true });
+            return;
+        }
         setModalType('catalog');
         setEditingItemId(null);
         setCustomItem(emptyCustom());
         selectCatalogProduct(product);
         setModalOpen(true);
         navigate('/zayavka', { replace: true });
-    }, [catalog, searchParams, navigate]);
+    }, [catalog, dataLoaded, searchParams, navigate, showToast]);
 
     const filteredProducts = useMemo(() => {
         const needle = norm(productSearch);
@@ -288,53 +412,65 @@ const ClientRequest = () => {
     };
 
     const savePosition = async () => {
-        if (modalType === 'catalog') {
-            if (!selectedProduct) {
-                showToast?.('error', 'Выберите изделие слева');
+        if (saveLockRef.current) return;
+        saveLockRef.current = true;
+        try {
+            if (!editingItemId && form.positions.length >= MAX_REQUEST_POSITIONS) {
+                showToast?.('error', 'В одной заявке не больше 30 изделий');
                 return;
             }
-            try {
-                await evaluateReady;
-            } catch {
-                showToast?.('error', 'Не удалось рассчитать размеры');
+            if (modalType === 'catalog') {
+                if (!selectedProduct) {
+                    showToast?.('error', 'Сначала выберите изделие');
+                    return;
+                }
+                try {
+                    await evaluateReady;
+                } catch {
+                    showToast?.('error', 'Не удалось рассчитать размеры');
+                    return;
+                }
+                if (!modalOpenRef.current) return;
+                const quantity = clampQty(inputs.coll);
+                const nextInputs = { ...inputs, coll: quantity };
+                let details = [];
+                try {
+                    details = calculatePositionDetails(selectedProduct, nextInputs);
+                } catch {
+                    showToast?.('error', 'Не удалось рассчитать размеры');
+                    return;
+                }
+                const position = buildCatalogPosition(selectedProduct, nextInputs, details);
+                putPosition({
+                    ...position,
+                    id: editingItemId || position.id,
+                    description: customDesc.trim().slice(0, 1000),
+                    bodyColor: bodyColor.trim().slice(0, 80),
+                    facadeColor: facadeColor.trim().slice(0, 80),
+                });
                 return;
             }
-            const quantity = clampQty(inputs.coll);
-            const nextInputs = { ...inputs, coll: quantity };
-            let details = [];
-            try {
-                details = calculatePositionDetails(selectedProduct, nextInputs);
-            } catch {
-                showToast?.('error', 'Не удалось рассчитать размеры');
-                return;
-            }
-            const position = buildCatalogPosition(selectedProduct, nextInputs, details);
-            putPosition({
-                ...position,
-                id: editingItemId || position.id,
-                description: customDesc.trim(),
-                bodyColor: bodyColor.trim(),
-                facadeColor: facadeColor.trim(),
-            });
-            return;
-        }
 
-        const title = customItem.title.trim();
-        if (!title) {
-            setCustomError('Напишите, какое изделие нужно');
-            return;
+            const title = customItem.title.trim();
+            if (!title) {
+                setCustomError('Напишите, какое изделие нужно');
+                customTitleRef.current?.focus();
+                return;
+            }
+            const quantity = clampQty(customItem.quantity);
+            putPosition({
+                id: editingItemId || `${Date.now()}-custom-${Math.random().toString(36).slice(2, 7)}`,
+                isCustom: true,
+                title: title.slice(0, 200),
+                description: customItem.description.trim().slice(0, 1000),
+                quantity,
+                price: 0,
+                totalPrice: 0,
+                img: customItem.img || null,
+            });
+        } finally {
+            saveLockRef.current = false;
         }
-        const quantity = clampQty(customItem.quantity);
-        putPosition({
-            id: editingItemId || `${Date.now()}-custom-${Math.random().toString(36).slice(2, 7)}`,
-            isCustom: true,
-            title,
-            description: customItem.description.trim(),
-            quantity,
-            price: 0,
-            totalPrice: 0,
-            img: customItem.img || null,
-        });
     };
 
     const removePosition = async (id) => {
@@ -352,7 +488,8 @@ const ClientRequest = () => {
         try {
             await navigator.clipboard.writeText(text);
             setCopied(key);
-            window.setTimeout(() => setCopied(''), 2000);
+            window.clearTimeout(copiedTimerRef.current);
+            copiedTimerRef.current = window.setTimeout(() => setCopied(''), 2000);
         } catch {
             showToast?.('error', 'Не удалось скопировать. Выделите ссылку и скопируйте её вручную.');
         }
@@ -360,7 +497,7 @@ const ClientRequest = () => {
 
     const submit = async (event) => {
         event.preventDefault();
-        if (saving) return;
+        if (savingRef.current) return;
         const next = {};
         if (form.name_client.trim().length < 2) next.name_client = 'Укажите имя';
         if (form.phone.replace(/\D/g, '').length < 6) next.phone = 'Укажите телефон';
@@ -371,6 +508,11 @@ const ClientRequest = () => {
         }
         setFieldErrors(next);
         const firstMessage = Object.values(next)[0] || '';
+        if (form.positions.length > MAX_REQUEST_POSITIONS) {
+            setError('В одной заявке не больше 30 изделий');
+            listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
         setError(firstMessage);
         if (firstMessage) {
             const target = next.name_client ? nameRef : next.phone ? phoneRef : next.email ? emailRef : noteRef;
@@ -379,6 +521,7 @@ const ClientRequest = () => {
             return;
         }
 
+        savingRef.current = true;
         setSaving(true);
         try {
             const trapValue = trapRef.current?.value || trap;
@@ -398,11 +541,12 @@ const ClientRequest = () => {
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Не удалось отправить заявку');
-            clearClientRequest();
             if (!data.id) {
-                setCreated({ id: null, link: '' });
-                return;
+                setTrap('');
+                if (trapRef.current) trapRef.current.value = '';
+                throw new Error('Не удалось отправить заявку. Попробуйте ещё раз.');
             }
+            clearClientRequest();
             setCreated({
                 id: data.id,
                 link: `${window.location.origin}/order/${data.id}`,
@@ -410,6 +554,7 @@ const ClientRequest = () => {
         } catch (err) {
             setError(err.message);
         } finally {
+            savingRef.current = false;
             setSaving(false);
         }
     };
@@ -430,7 +575,7 @@ const ClientRequest = () => {
 
     const canShare = Boolean(currentUser && currentUser.role !== 'scanner');
     const pageClass = ['client-request', `client-request--theme-${resolvedTheme}`].join(' ');
-    const modalClass = ['pao-modal', `pao-modal--theme-${resolvedTheme}`].join(' ');
+    const modalClass = ['pao-modal', 'pao-modal--request', `pao-modal--theme-${resolvedTheme}`].join(' ');
 
     return (
         <section className={pageClass}>
@@ -519,6 +664,7 @@ const ClientRequest = () => {
                                         value={form.name_client}
                                         onChange={(event) => setField('name_client', event.target.value)}
                                         autoComplete="name"
+                                        maxLength={200}
                                         aria-invalid={fieldErrors.name_client ? 'true' : undefined}
                                         required
                                     />
@@ -534,6 +680,7 @@ const ClientRequest = () => {
                                         inputMode="tel"
                                         autoComplete="tel"
                                         placeholder="0555 00 00 00"
+                                        maxLength={40}
                                         aria-invalid={fieldErrors.phone ? 'true' : undefined}
                                         required
                                     />
@@ -545,6 +692,7 @@ const ClientRequest = () => {
                                         value={form.name_compony}
                                         onChange={(event) => setField('name_compony', event.target.value)}
                                         autoComplete="organization"
+                                        maxLength={200}
                                     />
                                 </label>
                                 <label className={`client-request__field${fieldErrors.email ? ' is-invalid' : ''}`}>
@@ -555,6 +703,7 @@ const ClientRequest = () => {
                                         onChange={(event) => setField('email', event.target.value)}
                                         type="email"
                                         autoComplete="email"
+                                        maxLength={120}
                                         aria-invalid={fieldErrors.email ? 'true' : undefined}
                                     />
                                     {fieldErrors.email && <span className="client-request__hint">{fieldErrors.email}</span>}
@@ -565,6 +714,7 @@ const ClientRequest = () => {
                                         value={form.address}
                                         onChange={(event) => setField('address', event.target.value)}
                                         autoComplete="street-address"
+                                        maxLength={300}
                                     />
                                 </label>
                             </div>
@@ -647,6 +797,7 @@ const ClientRequest = () => {
                                     onChange={(event) => setField('order_note', event.target.value)}
                                     rows={4}
                                     placeholder="Срок, доставка, особенности помещения"
+                                    maxLength={2000}
                                     aria-invalid={fieldErrors.order_note ? 'true' : undefined}
                                 />
                                 {fieldErrors.order_note && <span className="client-request__hint">{fieldErrors.order_note}</span>}
@@ -822,7 +973,7 @@ const ClientRequest = () => {
                                                                                 [condition.name]: !prev[condition.name],
                                                                             }))}
                                                                         />
-                                                                        {condition.label}
+                                                                        <span>{condition.label}</span>
                                                                     </label>
                                                                 ))}
                                                             </div>
@@ -837,6 +988,7 @@ const ClientRequest = () => {
                                                                     value={bodyColor}
                                                                     onChange={(event) => setBodyColor(event.target.value)}
                                                                     placeholder="Дуб Сонома, Венге..."
+                                                                    maxLength={80}
                                                                 />
                                                             </label>
                                                             <label className="pao-modal__field">
@@ -845,6 +997,7 @@ const ClientRequest = () => {
                                                                     value={facadeColor}
                                                                     onChange={(event) => setFacadeColor(event.target.value)}
                                                                     placeholder="Белый, ЛДСП..."
+                                                                    maxLength={80}
                                                                 />
                                                             </label>
                                                         </div>
@@ -856,6 +1009,7 @@ const ClientRequest = () => {
                                                                 value={customDesc}
                                                                 onChange={(event) => setCustomDesc(event.target.value)}
                                                                 placeholder="Дополнительные пожелания..."
+                                                                maxLength={1000}
                                                             />
                                                         </label>
                                                     </div>
@@ -866,32 +1020,12 @@ const ClientRequest = () => {
                                                             )).filter(Boolean).join(' · ')}
                                                         </p>
                                                     )}
-                                                    <div className="pao-modal__config-actions">
-                                                        {editingItemId && (
-                                                            <button
-                                                                type="button"
-                                                                className="pao-modal__delete-btn"
-                                                                onClick={() => {
-                                                                    setForm((prev) => ({
-                                                                        ...prev,
-                                                                        positions: prev.positions.filter((item) => item.id !== editingItemId),
-                                                                    }));
-                                                                    closeModal();
-                                                                }}
-                                                            >
-                                                                Удалить позицию
-                                                            </button>
-                                                        )}
-                                                        <button type="button" className="pao-modal__save-btn" onClick={savePosition}>
-                                                            {editingItemId ? 'Сохранить изменения' : 'Добавить в заявку'}
-                                                        </button>
-                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="pao-modal__config-placeholder">
                                                     <div className="pao-modal__placeholder-icon">🛠️</div>
-                                                    <p>Выберите изделие слева</p>
-                                                    <small>Укажите размеры, цвета и примечание</small>
+                                                    <p>Выберите изделие</p>
+                                                    <small>Затем укажите размеры, цвета и примечание</small>
                                                 </div>
                                             )}
                                         </div>
@@ -924,12 +1058,14 @@ const ClientRequest = () => {
                                         <label className={`pao-modal__field pao-modal__field--full${customError ? ' is-invalid' : ''}`}>
                                             <span>Название *</span>
                                             <input
+                                                ref={customTitleRef}
                                                 value={customItem.title}
                                                 onChange={(event) => {
                                                     setCustomItem((prev) => ({ ...prev, title: event.target.value }));
                                                     setCustomError('');
                                                 }}
                                                 placeholder="Например: Стол обеденный"
+                                                maxLength={200}
                                                 aria-invalid={customError ? 'true' : undefined}
                                             />
                                             {customError && <small className="pao-modal__field-error">{customError}</small>}
@@ -956,13 +1092,38 @@ const ClientRequest = () => {
                                                     description: event.target.value,
                                                 }))}
                                                 placeholder="Ширина 1200, белый корпус, без цены"
+                                                maxLength={1000}
                                             />
                                         </label>
                                         <p className="pao-modal__price-note">Цену укажет сотрудник, когда примет заявку.</p>
-                                        <button type="button" className="pao-modal__save-btn pao-modal__save-btn--spaced" onClick={savePosition}>
-                                            {editingItemId ? 'Сохранить изменения' : 'Добавить в заявку'}
-                                        </button>
                                     </div>
+                                </div>
+                            )}
+                            {((modalType === 'catalog' && selectedProduct) || modalType === 'custom') && (
+                                <div className="pao-modal__footer">
+                                    {editingItemId && (
+                                        <button
+                                            type="button"
+                                            className={`pao-modal__delete-btn${deleteArmed ? ' is-armed' : ''}`}
+                                            onClick={() => {
+                                                if (!deleteArmed) {
+                                                    setDeleteArmed(true);
+                                                    return;
+                                                }
+                                                const id = editingItemId;
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    positions: prev.positions.filter((item) => item.id !== id),
+                                                }));
+                                                closeModal();
+                                            }}
+                                        >
+                                            {deleteArmed ? 'Точно удалить?' : 'Удалить позицию'}
+                                        </button>
+                                    )}
+                                    <button type="button" className="pao-modal__save-btn" onClick={savePosition}>
+                                        {editingItemId ? 'Сохранить изменения' : 'Добавить в заявку'}
+                                    </button>
                                 </div>
                             )}
                         </div>

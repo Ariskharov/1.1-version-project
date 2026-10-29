@@ -2,6 +2,13 @@ import { evaluateFormula } from './formulaEval';
 
 export const ORDER_DRAFT_KEY = 'order_draft';
 export const CLIENT_REQUEST_KEY = 'client_request_draft';
+export const MAX_REQUEST_POSITIONS = 30;
+
+const finiteOr = (value, fallback) => {
+    if (value === '' || value == null) return fallback;
+    const num = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(num) ? num : fallback;
+};
 
 const emptyClientRequest = () => ({
     name_client: '',
@@ -43,8 +50,11 @@ export function writeClientRequest(draft) {
 }
 
 export function appendClientRequestPosition(position) {
+    if (!position || typeof position !== 'object') return null;
     const draft = readClientRequest() || emptyClientRequest();
-    const positions = [...(draft.positions || []), position];
+    const current = Array.isArray(draft.positions) ? draft.positions : [];
+    if (current.length >= MAX_REQUEST_POSITIONS) return null;
+    const positions = [...current, position];
     writeClientRequest({ ...draft, positions });
     return positions.length;
 }
@@ -178,7 +188,8 @@ export function calculatePositionDetails(product, userInputs = {}) {
     if (!product?.details?.length) return [];
     const nums = { ...userInputs };
     (product.variables || []).forEach((variable) => {
-        nums[variable.name] = Number(nums[variable.name]) || variable.default || 0;
+        const fallback = finiteOr(variable.default, 0);
+        nums[variable.name] = finiteOr(nums[variable.name], fallback);
     });
     (product.conditions || []).forEach((condition) => {
         if (condition.type === 'flag') nums[condition.name] = !!nums[condition.name];
@@ -190,6 +201,10 @@ export function calculatePositionDetails(product, userInputs = {}) {
             const width = evaluateFormula(detail.formula_width || '0', nums);
             const height = detail.formula_height ? evaluateFormula(detail.formula_height, nums) : null;
             const count = evaluateFormula(detail.count_formula || '1', nums);
+            const finite = (value) => typeof value === 'number' && Number.isFinite(value);
+            if (!finite(width) || !finite(count) || (height != null && !finite(height))) {
+                return { key: detail.key, label: detail.label, size: 'Ошибка', count: 0 };
+            }
             const size = height
                 ? `${Math.round(width)} × ${Math.round(height)} мм`
                 : `${Math.round(width)} мм`;
@@ -212,7 +227,7 @@ export const parseMoney = (value) => {
 };
 
 export function buildCatalogPosition(product, inputs, calculatedDetails) {
-    const quantity = Math.max(1, Number(inputs?.coll) || 1);
+    const quantity = Math.min(999, Math.max(1, Math.round(Number(inputs?.coll) || 1)));
     const price = parseMoney(product?.price);
     return {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -224,7 +239,7 @@ export function buildCatalogPosition(product, inputs, calculatedDetails) {
         price,
         quantity,
         totalPrice: price * quantity,
-        userInputs: { ...inputs },
+        userInputs: { ...inputs, coll: quantity },
         calculatedDetails,
         variables: product.variables,
         conditions: product.conditions,

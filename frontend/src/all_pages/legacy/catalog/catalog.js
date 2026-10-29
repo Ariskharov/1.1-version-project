@@ -8,6 +8,7 @@ import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { resolveImageUrl } from '../../../config/api';
 import { CustomContext } from '../../../Context';
 import DraftBanner from '../../../components/ui/DraftBanner';
+import { evaluateReady } from '../../../utils/formulaEval';
 import {
     appendClientRequestPosition,
     appendPositionToDraft,
@@ -92,6 +93,7 @@ const Catalog = () => {
     const [draftCount, setDraftCount] = useState(0);
     const modalRef = useRef(null);
     const lightboxRef = useRef(null);
+    const requestAddLock = useRef(false);
 
     const catalogClassName = (extra = '') =>
         ['catalog', `catalog--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
@@ -120,13 +122,25 @@ const Catalog = () => {
         showToast?.('success', 'Позиция добавлена в черновик заказа');
     };
 
-    const addToRequest = () => {
-        if (!selectedProduct) return;
-        const details = resultsArray.length ? calculatePositionDetails(selectedProduct, inputs) : [];
-        const position = buildCatalogPosition(selectedProduct, inputs, details);
-        const count = appendClientRequestPosition(position);
-        setDraftCount(count);
-        showToast?.('success', 'Позиция добавлена в заявку');
+    const addToRequest = async () => {
+        if (!selectedProduct || requestAddLock.current) return;
+        requestAddLock.current = true;
+        try {
+            await evaluateReady;
+            const details = calculatePositionDetails(selectedProduct, inputs);
+            const position = buildCatalogPosition(selectedProduct, inputs, details);
+            const count = appendClientRequestPosition(position);
+            if (count == null) {
+                showToast?.('error', 'В одной заявке не больше 30 изделий');
+                return;
+            }
+            setDraftCount(count);
+            showToast?.('success', 'Позиция добавлена в заявку');
+        } catch {
+            showToast?.('error', 'Не удалось рассчитать размеры');
+        } finally {
+            requestAddLock.current = false;
+        }
     };
 
     useEffect(() => {

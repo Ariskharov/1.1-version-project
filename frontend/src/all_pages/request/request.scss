@@ -26,8 +26,8 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   h1 {
     font-size: clamp(34px, 5vw, 52px);
-    line-height: 1.15;
-    padding-bottom: 0.08em;
+    line-height: 1.2;
+    padding-bottom: 0.14em;
     background: var(--req-title-gradient);
     -webkit-background-clip: text;
     background-clip: text;
@@ -245,6 +245,7 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   input, textarea {
     width: 100%;
+    min-width: 0;
     box-sizing: border-box;
     min-height: 48px;
     padding: 12px 14px;
@@ -578,12 +579,16 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color: var(--req-muted);
   font-size: 13px;
   line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .client-request__line-price {
   color: var(--req-gold);
   font-size: 14px;
   font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .client-request__stepper {
@@ -641,6 +646,7 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
   margin: 0;
   color: var(--req-muted);
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .client-request__empty--box {
@@ -729,6 +735,112 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
   border-color: #c45c4a;
 }
 
+// Подвал модалки заявки. Кнопки вне прокрутки, чтобы «Добавить» не уезжало вниз.
+.pao-modal--request {
+  .pao-modal__footer {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 12px 22px max(12px, env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--pao-border-soft);
+    background: var(--pao-modal-bg);
+
+    .pao-modal__save-btn,
+    .pao-modal__delete-btn {
+      width: 100%;
+      margin-top: 0;
+    }
+  }
+
+  @media (min-width: 821px) and (min-height: 541px) {
+    .pao-modal__footer {
+      flex-direction: row;
+      justify-content: flex-end;
+
+      .pao-modal__save-btn,
+      .pao-modal__delete-btn {
+        width: auto;
+        flex: 0 1 280px;
+      }
+    }
+  }
+
+  .pao-modal__delete-btn.is-armed {
+    background: rgba(248, 113, 113, 0.22);
+  }
+
+  .pao-modal__close {
+    flex-shrink: 0;
+  }
+
+  .pao-modal__header h3,
+  .pao-modal__config-header h4,
+  .pao-modal__preview,
+  .pao-modal__field span,
+  .pao-modal__checkbox span,
+  .pao-modal__catalog-card-title,
+  .pao-modal__catalog-card-price {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .pao-modal__config-header {
+    flex-wrap: wrap;
+
+    h4 {
+      flex: 1 1 140px;
+    }
+  }
+
+  .pao-modal__config-price {
+    white-space: normal;
+  }
+
+  .pao-modal__checkbox {
+    align-items: flex-start;
+    max-width: 100%;
+    min-width: 0;
+
+    input {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+  }
+
+  .pao-modal__field {
+    min-width: 0;
+
+    input,
+    textarea {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+  }
+
+  .pao-modal__search input {
+    padding-right: 44px;
+
+    &::-webkit-search-decoration,
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-results-button,
+    &::-webkit-search-results-decoration {
+      display: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+  }
+
+  // Иначе список на 62vh плюс подвал не влезают в 92vh и нижняя кнопка обрезается.
+  .pao-modal__split {
+    max-height: calc(92vh - 320px);
+    min-height: min(240px, calc(92vh - 320px));
+  }
+}
+
 .client-request__card--success {
   p {
     color: var(--req-muted);
@@ -741,9 +853,8 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .client-request__submit {
-  position: sticky;
-  bottom: 16px;
-  z-index: 5;
+  // В потоке страницы. Липкий блок накрывал комментарий при прокрутке.
+  position: static;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -824,6 +935,12 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
     flex-direction: column;
   }
 
+  // flex-basis 220px в колонке становится высотой кнопки.
+  .client-request__add-button {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
   .client-request__share button,
   .client-request__section-head {
     width: 100%;
@@ -839,10 +956,151 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
+@media (max-width: 820px), (max-height: 540px) {
+  // Модалка заявки на весь экран, в том числе на широком, но низком экране.
+  // Высота 100% от оверлея: 100dvh выше него и даёт вторую прокрутку.
+  .pao-modal--request {
+    .pao-modal__overlay {
+      align-items: stretch;
+      justify-content: flex-start;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .pao-modal__dialog {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      height: 100%;
+      max-height: 100%;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .pao-modal__header {
+      padding-top: max(12px, env(safe-area-inset-top, 0px));
+
+      h3 {
+        min-width: 0;
+      }
+    }
+
+    .pao-modal__body,
+    .pao-modal__body--catalog {
+      min-width: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding-bottom: 16px;
+    }
+
+    .pao-modal__dialog:not(:has(.pao-modal__footer)) .pao-modal__body,
+    .pao-modal__dialog:not(:has(.pao-modal__footer)) .pao-modal__body--catalog {
+      padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .pao-modal__footer {
+      padding-right: 14px;
+      padding-left: 14px;
+    }
+
+    .pao-modal__split {
+      flex: none;
+      min-height: 0;
+      max-height: none;
+      overflow: visible;
+    }
+
+    .pao-modal__products-pane {
+      flex: none;
+      width: 100%;
+      min-width: 0;
+      max-height: min(240px, 38vh);
+    }
+
+    .pao-modal__products-list {
+      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    }
+
+    .pao-modal__catalog-card {
+      min-width: 0;
+      aspect-ratio: auto;
+    }
+
+    .pao-modal__catalog-card-img {
+      flex: none;
+      height: 88px;
+    }
+
+    .pao-modal__catalog-card-title {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .pao-modal__catalog-card-price {
+      font-size: 12px;
+    }
+
+    .pao-modal__config-pane,
+    .pao-modal__config-content {
+      flex: none;
+      width: 100%;
+      min-width: 0;
+      max-height: none;
+      overflow: visible;
+    }
+
+    .pao-modal__inputs {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+  }
+}
+
 @media (max-width: 650px) {
-  // Нижняя панель шапки фиксирована. Sticky считается от окна, поэтому кнопку поднимаем над ней.
-  .client-request__submit {
-    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  .client-request {
+    padding: 8px 12px 12px;
+
+    h1 {
+      overflow-wrap: anywhere;
+      font-size: 32px;
+    }
+  }
+
+  .client-request__steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .client-request__steps button {
+    flex-direction: column;
+    gap: 2px;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 6px 4px;
+    border-radius: 14px;
+    font-size: 12px;
+    line-height: 1.15;
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .client-request__line-actions {
+    flex-wrap: wrap;
+  }
+
+  .client-request__line-actions > button {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
   }
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { evaluateFormula, evaluateReady } from '../../../utils/formulaEval';
+import { evaluateReady } from '../../../utils/formulaEval';
 import './order_editor.scss';
 import { CustomContext } from '../../../Context';
 import LoadingSpinner, { LoadingPage } from '../../../components/ui/LoadingSpinner';
@@ -17,33 +17,14 @@ import { uploadPhoto } from '../../../utils/uploadService';
 
 import { API_BASE, resolveImageUrl } from '../../../config/api';
 import OrganizationSuggest from '../../../components/ui/OrganizationSuggest';
-import { applyOrganization, buildOrganizationCards } from '../../../utils/orderConvenience';
+import { applyOrganization, buildOrganizationCards, calculatePositionDetails } from '../../../utils/orderConvenience';
 
 const getLineTotal = (item) =>
     Number(item.price || 0) * (Number(item.quantity || item.userInputs?.coll || 1) || 1);
 
 const calculateDetails = (product) => {
-    if (!product || product.isCustom || !product.details) return [];
-
-    const nums = { ...product.userInputs };
-    (product.variables || []).forEach(v => { nums[v.name] = Number(nums[v.name]) || v.default || 0; });
-    (product.conditions || []).forEach(c => {
-        if (c.type === 'flag') nums[c.name] = !!nums[c.name];
-    });
-
-    return (product.details || []).map(detail => {
-        if (detail.if_condition && !nums[detail.if_condition]) return null;
-        try {
-            const w = evaluateFormula(detail.formula_width || '0', nums);
-            const h = detail.formula_height ? evaluateFormula(detail.formula_height, nums) : null;
-            const cnt = evaluateFormula(detail.count_formula || '1', nums);
-
-            const size = h ? `${Math.round(w)} × ${Math.round(h)} мм` : `${Math.round(w)} мм`;
-            return { key: detail.key, label: detail.label, size, count: Math.max(0, Math.round(cnt)) };
-        } catch {
-            return { key: detail.key, label: detail.label, size: 'Ошибка', count: 0 };
-        }
-    }).filter(Boolean);
+    if (!product || product.isCustom) return [];
+    return calculatePositionDetails(product, product.userInputs || {});
 };
 
 const recalcOrderTotals = (orderLike) => {

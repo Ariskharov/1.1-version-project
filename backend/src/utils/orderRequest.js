@@ -6,11 +6,15 @@ const money = (value) => {
     return Number.isFinite(num) ? num : 0;
 };
 
+const asList = (value) => (Array.isArray(value) ? value : []);
+
 const sanitizeInputs = (raw) => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
     const out = {};
     for (const [key, value] of Object.entries(raw).slice(0, 40)) {
-        if (!/^[a-zA-Z0-9_]{1,40}$/.test(key)) continue;
+        if (key.length < 1 || key.length > 40) continue;
+        if (key === '__proto__' || key === 'prototype' || key === 'constructor') continue;
+        if (/[^\p{L}\p{N}_]/u.test(key)) continue;
         if (typeof value === 'boolean') out[key] = value;
         else if (typeof value === 'number' && Number.isFinite(value)) out[key] = value;
         else if (typeof value === 'string') out[key] = value.slice(0, 80);
@@ -60,7 +64,8 @@ function buildOrderRequest(body, products) {
     }
 
     const byId = new Map((Array.isArray(products) ? products : []).map((product) => [Number(product.id), product]));
-    const rawItems = Array.isArray(source.positions) ? source.positions.slice(0, 30) : [];
+    const rawItems = Array.isArray(source.positions) ? source.positions : [];
+    if (rawItems.length > 30) return { error: 'В одной заявке не больше 30 изделий' };
     const positions = [];
 
     rawItems.forEach((item, index) => {
@@ -83,9 +88,9 @@ function buildOrderRequest(body, products) {
                 totalPrice: safePrice * quantity,
                 userInputs: sanitizeInputs(item.userInputs),
                 calculatedDetails: sanitizeDetails(item.calculatedDetails),
-                variables: product.variables || [],
-                conditions: product.conditions || [],
-                details: product.details || [],
+                variables: asList(product.variables),
+                conditions: asList(product.conditions),
+                details: asList(product.details),
                 bodyColor: clip(item.bodyColor, 80),
                 facadeColor: clip(item.facadeColor, 80),
             });
