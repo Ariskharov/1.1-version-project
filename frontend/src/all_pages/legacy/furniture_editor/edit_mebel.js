@@ -5,7 +5,7 @@ import { LoadingPage } from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 
-import { API_BASE, resolveImageUrl } from '../../../config/api';
+import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
 
 const API_URL = `${API_BASE}/product`;
 const UPLOAD_URL = `${API_BASE}/upload`;
@@ -147,7 +147,7 @@ function FurnitureEditor() {
         try {
             const response = await fetch(`${API_URL}/${selected.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(selected),
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -169,7 +169,7 @@ function FurnitureEditor() {
         try {
             const response = await fetch(`${API_URL}/${product.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(product),
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -205,7 +205,7 @@ function FurnitureEditor() {
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(newProduct),
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -232,7 +232,7 @@ function FurnitureEditor() {
         setPending(`delete-${id}`, true);
 
         try {
-            const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE', headers: authHeaders() });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             showToast('success', 'Мебель удалена!');

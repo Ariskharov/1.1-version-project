@@ -1,5 +1,6 @@
 const pool = require('../database/pg');
 const { notifyAnnouncement } = require('../services/pushService');
+const { isPublicToken, newPublicToken } = require('../utils/publicToken');
 
 const parseId = (value) => {
     const id = Number(value);
@@ -89,6 +90,9 @@ const createCollectionItem = async (req, res) => {
                 filteredData[key] = req.body[key];
             }
         });
+        if (collection === 'order' && availableColumns.includes('public_token')) {
+            filteredData.public_token = newPublicToken();
+        }
 
         const keys = Object.keys(filteredData);
         const values = keys.map(k => {
@@ -152,7 +156,11 @@ const updateCollectionItem = async (req, res) => {
             }
         }
 
-        const keys = Object.keys(req.body).filter(k => k !== 'id' && availableColumns.includes(k));
+        const keys = Object.keys(req.body).filter((k) => {
+            if (k === 'id' || !availableColumns.includes(k)) return false;
+            if (k === 'public_token' && !isPublicToken(req.body[k])) return false;
+            return true;
+        });
         
         if (keys.length === 0) {
             console.log(`[DEBUG] No valid keys for update in ${collection}. Available:`, availableColumns);

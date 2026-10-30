@@ -1,4 +1,4 @@
-import { API_BASE } from '../config/api';
+import { API_BASE, authHeaders } from '../config/api';
 
 export const ANNOUNCEMENT_TYPES = {
     urgent: { key: 'urgent', label: 'Срочная', hint: 'Показывается баннером сверху в кабинете' },
@@ -47,7 +47,7 @@ export const fetchAnnouncements = async () => {
 export const createAnnouncement = async (payload) => {
     const res = await fetch(`${API_BASE}/announcements`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
     if (!res.ok) {
@@ -60,7 +60,7 @@ export const createAnnouncement = async (payload) => {
 export const updateAnnouncement = async (id, payload) => {
     const res = await fetch(`${API_BASE}/announcements/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
     });
     if (!res.ok) {
@@ -71,7 +71,7 @@ export const updateAnnouncement = async (id, payload) => {
 };
 
 export const deleteAnnouncement = async (id) => {
-    const res = await fetch(`${API_BASE}/announcements/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API_BASE}/announcements/${id}`, { method: 'DELETE', headers: authHeaders() });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Не удалось удалить объявление');

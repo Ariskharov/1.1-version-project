@@ -39,3 +39,18 @@ SET "contract_no" = "contract_number"
 WHERE ("contract_no" IS NULL OR btrim("contract_no") = '')
   AND "contract_number" IS NOT NULL
   AND btrim("contract_number") <> '';
+
+ALTER TABLE "order" ADD COLUMN IF NOT EXISTS "public_token" TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS order_public_token_uidx
+  ON "order" (public_token)
+  WHERE public_token IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS request_hits (
+  id SERIAL PRIMARY KEY,
+  ip TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS request_hits_ip_created_idx
+  ON request_hits (ip, created_at);

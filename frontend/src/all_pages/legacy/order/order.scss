@@ -91,6 +91,13 @@ $ord-radius: 18px;
     animation: ord-rise-in 0.42s $ord-ease both;
   }
 
+  &__nav-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+  }
+
   &__back,
   &__edit-link {
     display: inline-flex;
@@ -100,6 +107,8 @@ $ord-radius: 18px;
     border-radius: 10px;
     font-size: 13px;
     font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
     text-decoration: none;
     transition: all 0.2s $ord-ease;
   }

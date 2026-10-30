@@ -6,7 +6,7 @@ import { CustomContext } from '../../../Context';
 import DraftBanner from '../../../components/ui/DraftBanner';
 import { ORDER_STATUSES, isTodayOrder, repeatOrderPayload } from '../../../utils/orderConvenience';
 
-import { API_BASE } from '../../../config/api';
+import { API_BASE, authHeaders } from '../../../config/api';
 
 const SearchIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -66,7 +66,7 @@ const ViewOrders = () => {
     useEffect(() => {
         const fetchOrders = async () => {
             try {
-                const response = await fetch(`${API_BASE}/order`);
+                const response = await fetch(`${API_BASE}/order`, { headers: authHeaders() });
                 if (!response.ok) {
                     throw new Error(`Ошибка HTTP: ${response.status}`);
                 }
@@ -108,6 +108,27 @@ const ViewOrders = () => {
         }, 0) || 0;
     };
 
+    const orderLines = (order) => {
+        const value = order?.product_order;
+        if (Array.isArray(value)) return value;
+        if (typeof value === 'string' && value.trim()) {
+            try {
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+        return [];
+    };
+
+    const orderNeedsPrice = (order) => (
+        order?.status === 'Заявка' && orderLines(order).some((line) => {
+            const price = Number(line?.price);
+            return !Number.isFinite(price) || price === 0;
+        })
+    );
+
     const stats = {
         total: orders.length,
         new: orders.filter(o => o.status === 'Оформлен' || o.status === 'Черновик' || o.status === 'Заявка' || !o.status).length,
@@ -121,7 +142,7 @@ const ViewOrders = () => {
         try {
             const res = await fetch(`${API_BASE}/order/${orderId}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ status }),
             });
             if (!res.ok) throw new Error('Не удалось сменить статус');
@@ -138,7 +159,7 @@ const ViewOrders = () => {
         try {
             const res = await fetch(`${API_BASE}/order`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(repeatOrderPayload(order)),
             });
             if (!res.ok) throw new Error('Не удалось повторить заказ');
@@ -418,6 +439,9 @@ const ViewOrders = () => {
                                             {statusInfo.text}
                                         </span>
                                     )}
+                                    {orderNeedsPrice(order) && (
+                                        <span className="status-badge-new status--price">Нужна цена</span>
+                                    )}
                                 </div>
 
                                 <div className="card-middle">
@@ -582,6 +606,9 @@ const ViewOrders = () => {
                                                 <span className={`status-badge-new ${statusInfo.className}`}>
                                                     {statusInfo.text}
                                                 </span>
+                                            )}
+                                            {orderNeedsPrice(order) && (
+                                                <span className="status-badge-new status--price">Нужна цена</span>
                                             )}
                                             {order.phone && (
                                                 <a className="phone-link" href={phoneHref(order.phone)}>{order.phone}</a>

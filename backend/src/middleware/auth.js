@@ -22,4 +22,13 @@ const authenticate = async (req, res, next) => {
     }
 };
 
-module.exports = { authenticate };
+const requireRole = (...roles) => (req, res, next) => {
+    const role = String(req.userRole || '').toLowerCase();
+    const allowed = roles.map((item) => String(item).toLowerCase());
+    if (!allowed.includes(role)) {
+        return res.status(403).json({ error: 'Недостаточно прав' });
+    }
+    return next();
+};
+
+module.exports = { authenticate, requireRole };

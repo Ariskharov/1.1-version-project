@@ -96,16 +96,47 @@ function buildAnnouncementPayload(announcement) {
     };
 }
 
-async function sendPushToAll(payload) {
-    if (!ensureConfigured()) {
-        return { sent: 0, failed: 0, skipped: true };
-    }
+async function listAdminSubscriptions() {
+    await ensureTable();
+    const result = await pool.query(
+        `SELECT s.id, s.endpoint, s.p256dh, s.auth, s."userId"
+         FROM push_subscriptions s
+         INNER JOIN "users" u ON u.id = s."userId"
+         WHERE lower(u.role) = 'admin'`
+    );
+    return result.rows;
+}
 
-    const subs = await listSubscriptions();
-    if (!subs.length) {
-        return { sent: 0, failed: 0, total: 0 };
-    }
+function positionWord(count) {
+    const n = Math.abs(Number(count) || 0) % 100;
+    const n1 = n % 10;
+    if (n > 10 && n < 20) return 'позиций';
+    if (n1 > 1 && n1 < 5) return 'позиции';
+    if (n1 === 1) return 'позиция';
+    return 'позиций';
+}
 
+function buildOrderRequestPayload(order) {
+    const positions = Array.isArray(order.product_order) ? order.product_order : [];
+    const needsPrice = positions.some((line) => {
+        const price = Number(line?.price);
+        return !Number.isFinite(price) || price === 0;
+    });
+    const name = String(order.name_client || 'Клиент').trim().slice(0, 80) || 'Клиент';
+    const count = positions.length;
+    const pieces = [`${name}`, count ? `${count} ${positionWord(count)}` : 'без позиций'];
+    if (needsPrice) pieces.push('Нужна цена');
+    return {
+        title: 'Новая заявка',
+        body: pieces.join(' · ').slice(0, 180),
+        url: `/order/${order.id}`,
+        tag: `order-request-${order.id}`,
+        type: 'request',
+    };
+}
+
+async function deliver(subs, payload) {
+    if (!subs.length) return { sent: 0, failed: 0, total: 0 };
     const data = JSON.stringify(payload);
     let sent = 0;
     let failed = 0;
@@ -126,7 +157,6 @@ async function sendPushToAll(payload) {
                 failed += 1;
                 const status = err.statusCode || err.status;
                 console.error('[push] send failed', status, err.message);
-                // 404/410 — подписка мертва
                 if (status === 404 || status === 410) {
                     try {
                         await removeSubscription(sub.endpoint);
@@ -140,6 +170,25 @@ async function sendPushToAll(payload) {
 
     console.log(`[push] sent=${sent} failed=${failed} total=${subs.length}`);
     return { sent, failed, total: subs.length };
+}
+
+async function sendPushToAll(payload) {
+    if (!ensureConfigured()) {
+        return { sent: 0, failed: 0, skipped: true };
+    }
+    return deliver(await listSubscriptions(), payload);
+}
+
+async function notifyOrderRequest(order) {
+    if (!order?.id) return { sent: 0 };
+    if (!ensureConfigured()) return { sent: 0, failed: 0, skipped: true };
+    try {
+        const subs = await listAdminSubscriptions();
+        return deliver(subs, buildOrderRequestPayload(order));
+    } catch (err) {
+        console.error('[push] admin subscriptions failed:', err.message);
+        return { sent: 0, failed: 0, error: 'push failed' };
+    }
 }
 
 async function notifyAnnouncement(announcement) {
@@ -165,5 +214,6 @@ module.exports = {
     saveSubscription,
     removeSubscription,
     notifyAnnouncement,
+    notifyOrderRequest,
     sendPushToAll,
 };

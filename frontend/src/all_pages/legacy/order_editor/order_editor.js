@@ -15,7 +15,7 @@ import {
 } from '../../../utils/contractDocuments';
 import { uploadPhoto } from '../../../utils/uploadService';
 
-import { API_BASE, resolveImageUrl } from '../../../config/api';
+import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
 import OrganizationSuggest from '../../../components/ui/OrganizationSuggest';
 import { applyOrganization, buildOrganizationCards, calculatePositionDetails } from '../../../utils/orderConvenience';
 
@@ -139,7 +139,7 @@ const OrderEditor = () => {
 
         const fetchOrder = async () => {
             try {
-                const orderPromise = fetch(`${API_BASE}/order/${id}`);
+                const orderPromise = fetch(`${API_BASE}/order/${id}`, { headers: authHeaders() });
                 await evaluateReady.catch((err) => {
                     console.error('Не удалось загрузить модуль расчёта', err);
                 });
@@ -210,7 +210,7 @@ const OrderEditor = () => {
     }, [order, status, customStatus, loading]);
 
     useEffect(() => {
-        fetch(`${API_BASE}/order`)
+        fetch(`${API_BASE}/order`, { headers: authHeaders() })
             .then((res) => res.json())
             .then((data) => {
                 const list = Array.isArray(data) ? data : data.order || [];
@@ -354,7 +354,7 @@ const OrderEditor = () => {
         if (!confirmed) return;
         setIsDeleting(true);
         try {
-            const res = await fetch(`${API_BASE}/order/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE}/order/${id}`, { method: 'DELETE', headers: authHeaders() });
             if (!res.ok) throw new Error('Не удалось удалить заказ');
             setIsDirty(false);
             showToast('success', 'Заказ удалён');
@@ -378,7 +378,7 @@ const OrderEditor = () => {
             const product_order = (snapshot.product_order || []).map(syncItemTotal);
             const res = await fetch(`${API_BASE}/order/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     ...snapshot,
                     product_order,

@@ -547,9 +547,11 @@ const ClientRequest = () => {
                 throw new Error('Не удалось отправить заявку. Попробуйте ещё раз.');
             }
             clearClientRequest();
+            const publicToken = data.publicToken || '';
             setCreated({
                 id: data.id,
-                link: `${window.location.origin}/order/${data.id}`,
+                token: publicToken,
+                link: `${window.location.origin}/order/${publicToken || data.id}`,
             });
         } catch (err) {
             setError(err.message);
@@ -589,9 +591,9 @@ const ClientRequest = () => {
                     <p className="client-request__badge">Заявка принята</p>
                     <h1>{created.id ? `Заявка №${created.id}` : 'Мы получили заявку'}</h1>
                     <p>
-                        {created.id
+                        {created.token
                             ? 'Мы свяжемся с вами по телефону. Сохраните ссылку: по ней открывается эта заявка, вход не нужен.'
-                            : 'Мы свяжемся с вами по телефону.'}
+                            : 'Мы свяжемся с вами по телефону. Ссылку на карточку пришлёт сотрудник.'}
                     </p>
                     {created.id && (
                         <>
@@ -603,7 +605,15 @@ const ClientRequest = () => {
                                 <button type="button" className="client-request__primary" onClick={() => copyText(created.link, 'order')}>
                                     {copied === 'order' ? 'Ссылка скопирована' : 'Скопировать ссылку'}
                                 </button>
-                                <Link className="client-request__secondary" to={`/order/${created.id}`}>Открыть заявку</Link>
+                                <Link className="client-request__secondary" to={`/order/${created.token || created.id}`}>Открыть заявку</Link>
+                                <a
+                                    className="client-request__secondary client-request__whatsapp"
+                                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Заявка №${created.id}\n${created.link}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Отправить в WhatsApp
+                                </a>
                             </div>
                         </>
                     )}

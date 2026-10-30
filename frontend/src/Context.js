@@ -121,38 +121,62 @@ export const Context = ({ children }) => {
     // Одинаковый ответ сервера не меняет ссылку и не перерисовывает страницы.
     const refreshData = useCallback(async () => {
         try {
-            const [usersRes, sessionsRes, productsRes] = await Promise.all([
-                axios.get(`${API_BASE}/users`),
-                axios.get(`${API_BASE}/workSessions`),
-                axios.get(`${API_BASE}/product`)
-            ]);
-            setIfChanged(setUsers, usersRes.data);
-            setIfChanged(setWorkSessions, sessionsRes.data);
+            const productsRes = await axios.get(`${API_BASE}/product`);
             setIfChanged(setProducts, productsRes.data);
-            setCurrentUser((prev) => {
-                if (!prev) return prev;
-                const list = Array.isArray(usersRes.data) ? usersRes.data : [];
-                const fresh = list.find((user) => sameUserId(user.id, prev.id));
-                if (!fresh) return prev;
-                const next = {
-                    ...prev,
-                    login: fresh.login,
-                    email: fresh.email,
-                    fullName: fresh.fullName,
-                    role: fresh.role,
-                    avatar: fresh.avatar || '',
-                    phone: fresh.phone || '',
-                    position: fresh.position || '',
-                    badgeId: fresh.badgeId || '',
-                    description: fresh.description || '',
-                };
-                if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
-                localStorage.setItem('currentUser', JSON.stringify(next));
-                return next;
-            });
         } catch (err) {
-            console.error('Ошибка обновления данных:', err);
+            console.error('Ошибка обновления каталога:', err);
         }
+
+        let token = '';
+        try {
+            token = localStorage.getItem('token') || '';
+        } catch {
+            token = '';
+        }
+        if (!token) {
+            setIfChanged(setUsers, []);
+            setIfChanged(setWorkSessions, []);
+            return;
+        }
+
+        let usersData = null;
+        try {
+            const usersRes = await axios.get(`${API_BASE}/users`);
+            usersData = usersRes.data;
+            setIfChanged(setUsers, usersData);
+        } catch (err) {
+            console.error('Ошибка обновления сотрудников:', err);
+            if (err.response?.status === 401) setIfChanged(setUsers, []);
+        }
+        try {
+            const sessionsRes = await axios.get(`${API_BASE}/workSessions`);
+            setIfChanged(setWorkSessions, sessionsRes.data);
+        } catch (err) {
+            console.error('Ошибка обновления смен:', err);
+            if (err.response?.status === 401) setIfChanged(setWorkSessions, []);
+        }
+
+        if (!Array.isArray(usersData)) return;
+        setCurrentUser((prev) => {
+            if (!prev) return prev;
+            const fresh = usersData.find((user) => sameUserId(user.id, prev.id));
+            if (!fresh) return prev;
+            const next = {
+                ...prev,
+                login: fresh.login,
+                email: fresh.email,
+                fullName: fresh.fullName,
+                role: fresh.role,
+                avatar: fresh.avatar || '',
+                phone: fresh.phone || '',
+                position: fresh.position || '',
+                badgeId: fresh.badgeId || '',
+                description: fresh.description || '',
+            };
+            if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+            localStorage.setItem('currentUser', JSON.stringify(next));
+            return next;
+        });
     }, []);
 
     // Загрузка данных при старте: не блокируем каталог ожиданием всех API
@@ -225,6 +249,8 @@ export const Context = ({ children }) => {
 
     const logout = useCallback(() => {
         setCurrentUser(null);
+        setUsers([]);
+        setWorkSessions([]);
         localStorage.removeItem('currentUser');
         localStorage.removeItem('token');
     }, []);
@@ -360,7 +386,7 @@ export const Context = ({ children }) => {
         const now = new Date();
         const endDate = format(now, 'yyyy-MM-dd');
         const endTime = format(now, 'HH:mm:ss');
-
+закаинь вс на
         const durationMinutes = calculateShiftDuration(
             session.date, 
             session.startTime, 

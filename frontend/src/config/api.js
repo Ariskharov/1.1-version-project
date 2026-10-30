@@ -2,7 +2,41 @@
  * Единая конфигурация API и утилиты работы с медиа-ресурсами.
  */
 
+import axios from 'axios';
+
 export const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
+export const authHeaders = (extra = {}) => {
+    const headers = { ...extra };
+    try {
+        const token = localStorage.getItem('token');
+        if (token && !headers.Authorization && !headers.authorization) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+    } catch {
+        /* приватный режим */
+    }
+    return headers;
+};
+
+axios.interceptors.request.use((config) => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return config;
+        const headers = config.headers || {};
+        const existing = typeof headers.get === 'function'
+            ? (headers.get('Authorization') || headers.get('authorization'))
+            : (headers.Authorization || headers.authorization);
+        if (!existing) {
+            if (typeof headers.set === 'function') headers.set('Authorization', `Bearer ${token}`);
+            else headers.Authorization = `Bearer ${token}`;
+            config.headers = headers;
+        }
+    } catch {
+        /* приватный режим */
+    }
+    return config;
+});
 
 /**
  * Нормализует путь к изображению для корректного отображения как локально, так и в проде на Vercel/мобильных устройствах.
@@ -43,6 +77,7 @@ export const resolveImageUrl = (img) => {
 
 const apiConfig = {
     API_BASE,
+    authHeaders,
     resolveImageUrl,
 };
 

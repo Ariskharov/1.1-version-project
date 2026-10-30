@@ -20,12 +20,18 @@ const emptyClientRequest = () => ({
     positions: [],
 });
 
-export function readClientRequest() {
+const storageGet = (store, key) => {
     try {
-        const raw = sessionStorage.getItem(CLIENT_REQUEST_KEY);
-        if (!raw) return null;
+        return store.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const parseClientRequest = (raw) => {
+    try {
         const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return null;
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
         return {
             ...emptyClientRequest(),
             ...parsed,
@@ -34,18 +40,46 @@ export function readClientRequest() {
     } catch {
         return null;
     }
+};
+
+export function readClientRequest() {
+    const localRaw = storageGet(localStorage, CLIENT_REQUEST_KEY);
+    if (localRaw) {
+        const parsedLocal = parseClientRequest(localRaw);
+        if (parsedLocal) return parsedLocal;
+    }
+    const sessionRaw = storageGet(sessionStorage, CLIENT_REQUEST_KEY);
+    if (!sessionRaw) return null;
+    const parsed = parseClientRequest(sessionRaw);
+    if (parsed) {
+        try {
+            localStorage.setItem(CLIENT_REQUEST_KEY, JSON.stringify(parsed));
+        } catch {
+            // Старый черновик вкладки остаётся, даже если постоянное хранилище закрыто.
+        }
+    }
+    return parsed;
 }
 
 export function writeClientRequest(draft) {
+    let payload = '';
     try {
-        const payload = {
+        payload = JSON.stringify({
             ...emptyClientRequest(),
             ...draft,
             positions: draft?.positions || [],
-        };
-        sessionStorage.setItem(CLIENT_REQUEST_KEY, JSON.stringify(payload));
+        });
     } catch {
-        // Приватный режим и переполненное хранилище не должны ронять форму.
+        return;
+    }
+    try {
+        localStorage.setItem(CLIENT_REQUEST_KEY, payload);
+    } catch {
+        try {
+            sessionStorage.setItem(CLIENT_REQUEST_KEY, payload);
+        } catch {
+            // Приватный режим и переполненное хранилище не должны ронять форму.
+        }
     }
 }
 
@@ -60,7 +94,8 @@ export function appendClientRequestPosition(position) {
 }
 
 export function clearClientRequest() {
-    sessionStorage.removeItem(CLIENT_REQUEST_KEY);
+    try { localStorage.removeItem(CLIENT_REQUEST_KEY); } catch { /* приватный режим */ }
+    try { sessionStorage.removeItem(CLIENT_REQUEST_KEY); } catch { /* приватный режим */ }
 }
 
 export const BUYER_FIELDS = [

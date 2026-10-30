@@ -10,7 +10,7 @@ import PhotoUploadSlot from '../../../components/ui/PhotoUploadSlot';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { uploadPhoto } from '../../../utils/uploadService';
 
-import { API_BASE, resolveImageUrl } from '../../../config/api';
+import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
 import OrganizationSuggest from '../../../components/ui/OrganizationSuggest';
 import {
     ORDER_DRAFT_KEY,
@@ -96,7 +96,7 @@ const PlacingAnOrder = () => {
     }, []);
 
     useEffect(() => {
-        fetch(`${API_BASE}/order`)
+        fetch(`${API_BASE}/order`, { headers: authHeaders() })
             .then((res) => res.json())
             .then((data) => {
                 const list = Array.isArray(data) ? data : data.order || [];
@@ -437,7 +437,7 @@ const PlacingAnOrder = () => {
         try {
             const res = await fetch(`${API_BASE}/order`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(payload)
             });
 

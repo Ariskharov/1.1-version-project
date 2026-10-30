@@ -12,7 +12,7 @@ import {
     downloadSpecification,
 } from '../../../utils/contractDocuments';
 
-import { API_BASE, resolveImageUrl } from '../../../config/api';
+import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
 import { calculatePositionDetails } from '../../../utils/orderConvenience';
 import { evaluateReady } from '../../../utils/formulaEval';
 
@@ -105,6 +105,7 @@ const Order = () => {
     const { resolvedTheme } = useCatalogTheme();
     const { currentUser, showToast } = useContext(CustomContext);
     const isAdmin = currentUser?.role === 'admin';
+    const [linkCopied, setLinkCopied] = useState(false);
 
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -162,10 +163,16 @@ const Order = () => {
     }, [photoOpen, detailsItem]);
 
     useEffect(() => {
-        fetch(`${API_BASE}/order/${id}`)
-            .then((res) => {
-                if (!res.ok) throw new Error('Заказ не найден');
-                return res.json();
+        const numeric = /^\d{1,9}$/.test(String(id || ''));
+        const url = numeric
+            ? `${API_BASE}/order/${id}`
+            : `${API_BASE}/order-card/${encodeURIComponent(id)}`;
+        fetch(url, numeric ? { headers: authHeaders() } : undefined)
+            .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
+                if (res.status === 401) throw new Error('Войдите, чтобы открыть заказ');
+                if (!res.ok) throw new Error(data.error || 'Заказ не найден');
+                return data;
             })
             .then(async (data) => {
                 const loaded = data.order?.[0] || data;
@@ -191,8 +198,8 @@ const Order = () => {
                 setOrder(loaded);
                 setLoading(false);
             })
-            .catch(() => {
-                setError('Не удалось загрузить заказ');
+            .catch((err) => {
+                setError(err.message || 'Не удалось загрузить заказ');
                 setLoading(false);
             });
     }, [id]);
@@ -266,6 +273,21 @@ const Order = () => {
     const isRequest = order.status === 'Заявка';
     const backLink = currentUser ? '/view_orders' : (isRequest ? '/zayavka' : '/');
     const backLabel = currentUser ? '← Все заказы' : (isRequest ? '← Новая заявка' : '← Каталог мебели');
+    const copyClientLink = () => {
+        const link = `${window.location.origin}/order/${order.public_token}`;
+        const write = navigator.clipboard?.writeText?.(link);
+        if (!write) {
+            showToast?.('error', 'Не удалось скопировать ссылку');
+            return;
+        }
+        write.then(() => {
+            setLinkCopied(true);
+            window.setTimeout(() => setLinkCopied(false), 2000);
+        }).catch(() => {
+            showToast?.('error', 'Не удалось скопировать ссылку');
+        });
+    };
+
     const totalLabel = isRequest ? (orderTotal > 0 ? 'Ориентир' : 'Сумма') : 'К оплате';
     const totalText = isRequest && orderTotal <= 0 ? 'Уточняется' : `${orderTotal.toLocaleString('ru-RU')} сом`;
     const subtotalText = isRequest && subtotal <= 0 ? 'Уточняется' : `${subtotal.toLocaleString('ru-RU')} сом`;
@@ -281,11 +303,24 @@ const Order = () => {
             <div className="order-page__content">
                 <nav className="order-page__nav">
                     <Link to={backLink} className="order-page__back">{backLabel}</Link>
-                    {isAdmin && (
-                        <Link to={`/order_editor/${order.id}`} className="order-page__edit-link">
-                            Редактировать заказ
-                        </Link>
-                    )}
+                    {(currentUser && order.public_token) || isAdmin ? (
+                        <div className="order-page__nav-actions">
+                            {currentUser && order.public_token && (
+                                <button
+                                    type="button"
+                                    className="order-page__edit-link"
+                                    onClick={copyClientLink}
+                                >
+                                    {linkCopied ? 'Ссылка скопирована' : 'Ссылка для клиента'}
+                                </button>
+                            )}
+                            {isAdmin && (
+                                <Link to={`/order_editor/${order.id}`} className="order-page__edit-link">
+                                    Редактировать заказ
+                                </Link>
+                            )}
+                        </div>
+                    ) : null}
                 </nav>
 
                 <header className="order-page__hero">
