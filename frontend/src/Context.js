@@ -386,7 +386,6 @@ export const Context = ({ children }) => {
         const now = new Date();
         const endDate = format(now, 'yyyy-MM-dd');
         const endTime = format(now, 'HH:mm:ss');
-закаинь вс на
         const durationMinutes = calculateShiftDuration(
             session.date, 
             session.startTime, 
