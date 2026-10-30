@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { differenceInMinutes, parseISO, addDays, format } from 'date-fns';
+import { differenceInMinutes, parseISO, addDays } from 'date-fns';
 import AppUi from './components/ui/AppUi';
 import { API_BASE } from './config/api';
 
@@ -59,6 +59,25 @@ const calculateShiftDuration = (startDate, startTime, endDate, endTime) => {
     console.error('Ошибка расчёта продолжительности смены:', e);
     return null;
   }
+};
+
+const bishkekNow = () => {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bishkek',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((part) => [part.type, part.value]));
+  const hour = parts.hour === '24' ? '00' : parts.hour;
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${hour}:${parts.minute}:${parts.second}`,
+  };
 };
 
 /** Форматирование продолжительности в читаемый вид */
@@ -139,6 +158,18 @@ export const Context = ({ children }) => {
             return;
         }
 
+        const dropExpiredSession = () => {
+            setCurrentUser(null);
+            setUsers([]);
+            setWorkSessions([]);
+            try {
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('token');
+            } catch {
+                /* приватный режим */
+            }
+        };
+
         let usersData = null;
         try {
             const usersRes = await axios.get(`${API_BASE}/users`);
@@ -146,14 +177,17 @@ export const Context = ({ children }) => {
             setIfChanged(setUsers, usersData);
         } catch (err) {
             console.error('Ошибка обновления сотрудников:', err);
-            if (err.response?.status === 401) setIfChanged(setUsers, []);
+            if (err.response?.status === 401) {
+                dropExpiredSession();
+                return;
+            }
         }
         try {
             const sessionsRes = await axios.get(`${API_BASE}/workSessions`);
             setIfChanged(setWorkSessions, sessionsRes.data);
         } catch (err) {
             console.error('Ошибка обновления смен:', err);
-            if (err.response?.status === 401) setIfChanged(setWorkSessions, []);
+            if (err.response?.status === 401) dropExpiredSession();
         }
 
         if (!Array.isArray(usersData)) return;
@@ -342,9 +376,9 @@ export const Context = ({ children }) => {
 
     // Начать новую смену
     const manualStartShift = useCallback(async (userId) => {
-        const now = new Date();
-        const today = format(now, 'yyyy-MM-dd');
-        const nowTime = format(now, 'HH:mm:ss');
+        const clock = bishkekNow();
+        const today = clock.date;
+        const nowTime = clock.time;
 
         // Проверяем открытые смены
         const openShifts = workSessions.filter(s =>
@@ -383,9 +417,9 @@ export const Context = ({ children }) => {
         const session = workSessions.find(s => s.id === sessionId);
         if (!session || session.endTime) return;
 
-        const now = new Date();
-        const endDate = format(now, 'yyyy-MM-dd');
-        const endTime = format(now, 'HH:mm:ss');
+        const clock = bishkekNow();
+        const endDate = clock.date;
+        const endTime = clock.time;
         const durationMinutes = calculateShiftDuration(
             session.date, 
             session.startTime, 

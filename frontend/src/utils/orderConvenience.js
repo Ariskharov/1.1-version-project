@@ -219,18 +219,32 @@ export function discountFromPercent(subtotal, percent) {
     };
 }
 
+const asList = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
+
 export function calculatePositionDetails(product, userInputs = {}) {
-    if (!product?.details?.length) return [];
+    const details = asList(product?.details);
+    if (!details.length) return [];
     const nums = { ...userInputs };
-    (product.variables || []).forEach((variable) => {
+    asList(product.variables).forEach((variable) => {
         const fallback = finiteOr(variable.default, 0);
         nums[variable.name] = finiteOr(nums[variable.name], fallback);
     });
-    (product.conditions || []).forEach((condition) => {
+    asList(product.conditions).forEach((condition) => {
         if (condition.type === 'flag') nums[condition.name] = !!nums[condition.name];
     });
 
-    return product.details.map((detail) => {
+    return details.map((detail) => {
         if (detail.if_condition && !nums[detail.if_condition]) return null;
         try {
             const width = evaluateFormula(detail.formula_width || '0', nums);
@@ -312,8 +326,22 @@ export function lineSum(items) {
     }, 0);
 }
 
+export function readProductOrder(value) {
+    let current = value;
+    for (let i = 0; i < 2; i += 1) {
+        if (Array.isArray(current)) return current;
+        if (typeof current !== 'string' || !current.trim()) return [];
+        try {
+            current = JSON.parse(current);
+        } catch {
+            return [];
+        }
+    }
+    return Array.isArray(current) ? current : [];
+}
+
 export function repeatOrderPayload(order) {
-    const productOrder = (order.product_order || []).map((item, index) => ({
+    const productOrder = readProductOrder(order.product_order).map((item, index) => ({
         ...item,
         id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
     }));

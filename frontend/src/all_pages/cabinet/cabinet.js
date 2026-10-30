@@ -206,7 +206,7 @@ const PersonalCabinet = () => {
     if (pushBusy) return;
     setPushBusy(true);
     try {
-      await enablePushNotifications(currentUser?.id ?? null);
+      await enablePushNotifications();
       await refreshPushStatus();
       setShowPushBanner(false);
       showToast('success', 'Уведомления включены. Новые объявления придут на телефон.');

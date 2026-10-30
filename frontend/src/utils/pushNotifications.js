@@ -1,4 +1,4 @@
-import { API_BASE } from '../config/api';
+import { API_BASE, authHeaders } from '../config/api';
 
 const SEEN_KEY = 'tt_seen_announcement_ids';
 const PROMPT_DISMISS_KEY = 'tt_push_prompt_dismissed';
@@ -76,7 +76,7 @@ export async function fetchVapidPublicKey() {
 /**
  * Запрашивает разрешение, регистрирует SW и сохраняет push-подписку на бэкенде.
  */
-export async function enablePushNotifications(userId = null) {
+export async function enablePushNotifications() {
     if (!isPushSupported()) {
         throw new Error('Уведомления не поддерживаются этим браузером');
     }
@@ -105,10 +105,9 @@ export async function enablePushNotifications(userId = null) {
 
     const res = await fetch(`${API_BASE}/push/subscribe`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
             subscription: subscription.toJSON(),
-            userId,
         }),
     });
 

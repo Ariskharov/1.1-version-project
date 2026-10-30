@@ -7,7 +7,8 @@ const { bishkekNow, closeShiftClock } = require('../utils/shiftTime');
 router.post('/api/qr-checkin', authenticate, async (req, res) => {
     try {
         // 1. Verify role
-        if (req.userRole !== 'scanner' && req.userRole !== 'admin') {
+        const role = String(req.userRole || '').toLowerCase();
+        if (role !== 'scanner' && role !== 'admin') {
             return res.status(403).json({ error: 'Access denied: insufficient permissions' });
         }
 

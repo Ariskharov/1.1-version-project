@@ -1,4 +1,5 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const { authenticate } = require('../middleware/auth');
 const {
     getPublicKey,
@@ -17,16 +18,28 @@ router.get('/push/vapid-public-key', (req, res) => {
     res.json({ publicKey: key, enabled: ensureConfigured() });
 });
 
+const actorId = (req) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return null;
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        const id = Number(decoded.id);
+        return Number.isInteger(id) && id > 0 ? id : null;
+    } catch {
+        return null;
+    }
+};
+
 router.post('/push/subscribe', async (req, res) => {
     try {
-        const { subscription, userId } = req.body || {};
+        const { subscription } = req.body || {};
         if (!subscription?.endpoint || !subscription?.keys) {
             return res.status(400).json({ error: 'subscription required' });
         }
         const saved = await saveSubscription({
             endpoint: subscription.endpoint,
             keys: subscription.keys,
-            userId: userId != null ? Number(userId) : null,
+            userId: actorId(req),
             userAgent: req.headers['user-agent'] || null,
         });
         res.json({ success: true, id: saved.id });
@@ -53,7 +66,7 @@ router.post('/push/unsubscribe', async (req, res) => {
 /** Тестовая отправка только для администратора */
 router.post('/push/test', authenticate, async (req, res) => {
     try {
-        if (req.userRole !== 'admin') {
+        if (String(req.userRole || '').toLowerCase() !== 'admin') {
             return res.status(403).json({ error: 'Access denied' });
         }
         const { notifyAnnouncement } = require('../services/pushService');

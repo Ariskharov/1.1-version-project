@@ -595,7 +595,7 @@ const ClientRequest = () => {
                             ? 'Мы свяжемся с вами по телефону. Сохраните ссылку: по ней открывается эта заявка, вход не нужен.'
                             : 'Мы свяжемся с вами по телефону. Ссылку на карточку пришлёт сотрудник.'}
                     </p>
-                    {created.id && (
+                    {created.token && (
                         <>
                             <label className="client-request__field">
                                 <span className="client-request__label">Ссылка на заявку</span>
@@ -605,7 +605,7 @@ const ClientRequest = () => {
                                 <button type="button" className="client-request__primary" onClick={() => copyText(created.link, 'order')}>
                                     {copied === 'order' ? 'Ссылка скопирована' : 'Скопировать ссылку'}
                                 </button>
-                                <Link className="client-request__secondary" to={`/order/${created.token || created.id}`}>Открыть заявку</Link>
+                                <Link className="client-request__secondary" to={`/order/${created.token}`}>Открыть заявку</Link>
                                 <a
                                     className="client-request__secondary client-request__whatsapp"
                                     href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Заявка №${created.id}\n${created.link}`)}`}

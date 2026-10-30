@@ -17,7 +17,7 @@ import { uploadPhoto } from '../../../utils/uploadService';
 
 import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
 import OrganizationSuggest from '../../../components/ui/OrganizationSuggest';
-import { applyOrganization, buildOrganizationCards, calculatePositionDetails } from '../../../utils/orderConvenience';
+import { applyOrganization, buildOrganizationCards, calculatePositionDetails, readProductOrder } from '../../../utils/orderConvenience';
 
 const getLineTotal = (item) =>
     Number(item.price || 0) * (Number(item.quantity || item.userInputs?.coll || 1) || 1);
@@ -148,7 +148,7 @@ const OrderEditor = () => {
                 const data = await res.json();
                 let loaded = data.order?.[0] || data;
 
-                loaded.product_order = (loaded.product_order || []).map(item => syncItemTotal({
+                loaded.product_order = readProductOrder(loaded.product_order).map(item => syncItemTotal({
                     ...item,
                     userInputs: { ...item.userInputs },
                     bodyColor: typeof item.bodyColor === 'string' ? item.bodyColor : '',

@@ -13,25 +13,12 @@ import {
 } from '../../../utils/contractDocuments';
 
 import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
-import { calculatePositionDetails } from '../../../utils/orderConvenience';
+import { calculatePositionDetails, readProductOrder } from '../../../utils/orderConvenience';
 import { evaluateReady } from '../../../utils/formulaEval';
 
 const getQty = (item) => Number(item.quantity || item.userInputs?.coll || 1) || 1;
 
 const getLineTotal = (item) => Number(item.price || 0) * getQty(item);
-
-const readPositions = (value) => {
-    if (Array.isArray(value)) return value;
-    if (typeof value === 'string' && value.trim()) {
-        try {
-            const parsed = JSON.parse(value);
-            return Array.isArray(parsed) ? parsed : [];
-        } catch {
-            return [];
-        }
-    }
-    return [];
-};
 
 const getItemImageSrc = (item) => resolveImageUrl(item?.img);
 
@@ -170,13 +157,23 @@ const Order = () => {
         fetch(url, numeric ? { headers: authHeaders() } : undefined)
             .then(async (res) => {
                 const data = await res.json().catch(() => ({}));
-                if (res.status === 401) throw new Error('Войдите, чтобы открыть заказ');
+                if (res.status === 401) {
+                    try {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('currentUser');
+                    } catch {
+                        /* приватный режим */
+                    }
+                    window.location.assign('/signin');
+                    return null;
+                }
                 if (!res.ok) throw new Error(data.error || 'Заказ не найден');
                 return data;
             })
             .then(async (data) => {
+                if (!data) return;
                 const loaded = data.order?.[0] || data;
-                const items = readPositions(loaded.product_order);
+                const items = readProductOrder(loaded.product_order);
                 if (items.some((item) => !item.calculatedDetails?.length && item.details?.length)) {
                     try {
                         await evaluateReady;

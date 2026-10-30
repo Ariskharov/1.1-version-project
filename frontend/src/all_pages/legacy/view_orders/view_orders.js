@@ -4,7 +4,7 @@ import './view_orders.scss';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { CustomContext } from '../../../Context';
 import DraftBanner from '../../../components/ui/DraftBanner';
-import { ORDER_STATUSES, isTodayOrder, repeatOrderPayload } from '../../../utils/orderConvenience';
+import { ORDER_STATUSES, isTodayOrder, readProductOrder, repeatOrderPayload } from '../../../utils/orderConvenience';
 
 import { API_BASE, authHeaders } from '../../../config/api';
 
@@ -67,12 +67,25 @@ const ViewOrders = () => {
         const fetchOrders = async () => {
             try {
                 const response = await fetch(`${API_BASE}/order`, { headers: authHeaders() });
+                if (response.status === 401) {
+                    try {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('currentUser');
+                    } catch {
+                        /* приватный режим */
+                    }
+                    window.location.assign('/signin');
+                    return;
+                }
                 if (!response.ok) {
                     throw new Error(`Ошибка HTTP: ${response.status}`);
                 }
                 const data = await response.json();
                 const ordersData = Array.isArray(data) ? data : data.order || [];
-                setOrders(ordersData);
+                setOrders(ordersData.map((order) => ({
+                    ...order,
+                    product_order: readProductOrder(order.product_order),
+                })));
             } catch (err) {
                 console.error('Ошибка при fetch:', err);
                 setError(err.message);
@@ -98,28 +111,16 @@ const ViewOrders = () => {
         return () => mq.removeListener(apply);
     }, []);
 
+    const orderLines = (order) => readProductOrder(order?.product_order);
+
     const calculateOrderTotal = (order) => {
         const stored = Number(order.total);
         if (order.total != null && order.total !== '' && Number.isFinite(stored)) return stored;
-        return order.product_order?.reduce((sum, item) => {
+        return orderLines(order).reduce((sum, item) => {
             const price = Number(item.price || 0);
             const qty = Number(item.quantity || item.userInputs?.coll || 1) || 1;
             return sum + (price * qty);
         }, 0) || 0;
-    };
-
-    const orderLines = (order) => {
-        const value = order?.product_order;
-        if (Array.isArray(value)) return value;
-        if (typeof value === 'string' && value.trim()) {
-            try {
-                const parsed = JSON.parse(value);
-                return Array.isArray(parsed) ? parsed : [];
-            } catch {
-                return [];
-            }
-        }
-        return [];
     };
 
     const orderNeedsPrice = (order) => (
@@ -414,7 +415,8 @@ const ViewOrders = () => {
                     {filteredOrders.map((order) => {
                         const statusInfo = getStatusInfo(order.status);
                         const totalCost = calculateOrderTotal(order);
-                        const itemsCount = order.product_order?.length || 0;
+                        const lines = orderLines(order);
+                        const itemsCount = lines.length;
 
                         return (
                             <div key={order.id} className="order-card-new">
@@ -476,8 +478,8 @@ const ViewOrders = () => {
                                         <span>Содержимое ({itemsCount})</span>
                                     </div>
                                     <div className="items-preview">
-                                        {order.product_order && order.product_order.length > 0 ? (
-                                            order.product_order.slice(0, 3).map((item, index) => (
+                                        {lines.length > 0 ? (
+                                            lines.slice(0, 3).map((item, index) => (
                                                 <div key={index} className="item-preview-row">
                                                     <span className="item-title">{item.title}</span>
                                                     <span className="item-qty">
@@ -507,10 +509,12 @@ const ViewOrders = () => {
                                             <EyeIcon />
                                             <span>Детали</span>
                                         </Link>
-                                        <Link to={`/order_editor/${order.id}`} className="action-btn action-btn--edit" title="Редактировать">
-                                            <EditIcon />
-                                            <span>Изменить</span>
-                                        </Link>
+                                        {isAdmin && (
+                                            <Link to={`/order_editor/${order.id}`} className="action-btn action-btn--edit" title="Редактировать">
+                                                <EditIcon />
+                                                <span>Изменить</span>
+                                            </Link>
+                                        )}
                                         {isAdmin && (
                                             <button
                                                 type="button"
@@ -545,7 +549,8 @@ const ViewOrders = () => {
                             {filteredOrders.map((order) => {
                                 const statusInfo = getStatusInfo(order.status);
                                 const totalCost = calculateOrderTotal(order);
-                                const itemsCount = order.product_order?.length || 0;
+                                const lines = orderLines(order);
+                                const itemsCount = lines.length;
 
                                 return (
                                     <tr key={order.id}>
@@ -567,8 +572,8 @@ const ViewOrders = () => {
                                         </td>
                                         <td>
                                             <div className="table-items-preview">
-                                                {order.product_order && order.product_order.length > 0 ? (
-                                                    order.product_order.slice(0, 2).map((item, idx) => (
+                                                {lines.length > 0 ? (
+                                                    lines.slice(0, 2).map((item, idx) => (
                                                         <div key={idx} className="table-item-chip">
                                                             {item.title} ({item.quantity || item.userInputs?.coll || 1} шт.)
                                                         </div>
@@ -619,9 +624,11 @@ const ViewOrders = () => {
                                                 <Link to={`/order/${order.id}`} className="table-action-btn view" title="Просмотр">
                                                     <EyeIcon />
                                                 </Link>
-                                                <Link to={`/order_editor/${order.id}`} className="table-action-btn edit" title="Редактировать">
-                                                    <EditIcon />
-                                                </Link>
+                                                {isAdmin && (
+                                                    <Link to={`/order_editor/${order.id}`} className="table-action-btn edit" title="Редактировать">
+                                                        <EditIcon />
+                                                    </Link>
+                                                )}
                                                 {isAdmin && (
                                                     <button
                                                         type="button"

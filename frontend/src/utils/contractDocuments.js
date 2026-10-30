@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { amountToWordsRu, numberToWordsRu } from './numberToWordsRu';
 import { CONTRACT_BODY_TEMPLATE } from './contractBodyTemplate';
+import { readProductOrder } from './orderConvenience';
 import officeLogoUrl from './officeLogo.png';
 
 const FONT = 'Times New Roman';
@@ -83,7 +84,7 @@ const wordsLower = (value) => {
 
 export const buildOrderDocData = (order, orderTotal) => {
     const { day, month, year } = parseContractDate(order);
-    const positions = order.product_order || [];
+    const positions = readProductOrder(order.product_order);
     const total = Math.round(orderTotal || positions.reduce((s, p) => s + getLineTotal(p), 0));
     const deliveryDays = String(order.delivery_days || '30').trim() || '30';
     const deliveryNum = Number(deliveryDays) || 30;
