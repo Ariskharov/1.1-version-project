@@ -1,12 +1,10 @@
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import './header.scss';
-import logoLight from '../img_layout/logo-light-ui.jpg';
-import logoDark from '../img_layout/лого_темное.jpg';
+import logo from '../img_layout/logo-light-ui.jpg';
 import exitImg from '../img_layout/exit_img.svg';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { CustomContext } from '../../Context';
 import ThemeToggle from '../../components/ui/ThemeToggle';
-import { useCatalogTheme } from '../../context/CatalogThemeContext';
 import { resolveImageUrl } from '../../config/api';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 
@@ -25,8 +23,6 @@ const Header = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { currentUser, logout } = useContext(CustomContext);
-    const { resolvedTheme } = useCatalogTheme();
-    const logo = resolvedTheme === 'dark' ? logoLight : logoDark;
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [qrOpen, setQrOpen] = useState(false);
