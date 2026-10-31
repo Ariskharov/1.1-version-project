@@ -10,15 +10,16 @@ export function useFurnitureCalculator() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
-    const { products: liveProducts, dataLoaded } = useContext(CustomContext);
+    const { products: liveProducts, dataLoaded, catalogLoadError } = useContext(CustomContext);
 
     useEffect(() => {
         if (!dataLoaded) return undefined;
-        setProducts(Array.isArray(liveProducts) ? liveProducts : []);
-        setError(null);
+        const list = Array.isArray(liveProducts) ? liveProducts : [];
+        setProducts(list);
+        setError(catalogLoadError && list.length === 0 ? catalogLoadError : null);
         setIsLoading(false);
         return undefined;
-    }, [liveProducts, dataLoaded]);
+    }, [liveProducts, dataLoaded, catalogLoadError]);
 
     // Инициализация inputs для выбранного продукта
     const initializeInputs = useCallback((product) => {

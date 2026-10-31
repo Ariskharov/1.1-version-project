@@ -128,7 +128,7 @@ function Photo({ src, title }) {
 
 const ClientRequest = () => {
     const { resolvedTheme } = useCatalogTheme();
-    const { showToast, confirm, currentUser, products, dataLoaded } = useContext(CustomContext);
+    const { showToast, confirm, currentUser, products, dataLoaded, catalogLoadError } = useContext(CustomContext);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [form, setForm] = useState(() => normalizeForm(readClientRequest()));
@@ -391,7 +391,8 @@ const ClientRequest = () => {
     const contactsReady = form.name_client.trim().length >= 2 && form.phone.replace(/\D/g, '').length >= 6;
     const itemsReady = form.positions.length > 0 || form.order_note.trim().length >= 5;
     const catalogLoading = !dataLoaded && catalog.length === 0;
-    const catalogEmpty = dataLoaded && catalog.length === 0;
+    const catalogFailed = dataLoaded && catalog.length === 0 && !!catalogLoadError;
+    const catalogEmpty = dataLoaded && catalog.length === 0 && !catalogLoadError;
 
     const setField = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -741,7 +742,7 @@ const ClientRequest = () => {
                                     type="button"
                                     className="client-request__add-button client-request__add-button--catalog"
                                     onClick={() => openModal('catalog')}
-                                    disabled={catalogLoading || catalogEmpty}
+                                    disabled={catalogLoading || catalogEmpty || catalogFailed}
                                 >
                                     ＋ Добавить из каталога
                                 </button>
@@ -754,6 +755,7 @@ const ClientRequest = () => {
                                 </button>
                             </div>
                             {catalogLoading && <p className="client-request__note">Каталог открывается…</p>}
+                            {catalogFailed && <p className="client-request__note">{catalogLoadError}</p>}
                             {catalogEmpty && <p className="client-request__note">Каталог сейчас пуст. Опишите изделие своими словами.</p>}
 
                             {form.positions.length === 0 ? (

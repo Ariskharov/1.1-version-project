@@ -219,18 +219,40 @@ export function discountFromPercent(subtotal, percent) {
     };
 }
 
-const asList = (value) => {
-    if (Array.isArray(value)) return value;
-    if (typeof value === 'string' && value.trim()) {
+const parseStored = (value) => {
+    let current = value;
+    for (let i = 0; i < 2; i += 1) {
+        if (typeof current !== 'string') break;
+        const trimmed = current.trim();
+        if (!trimmed) break;
         try {
-            const parsed = JSON.parse(value);
-            return Array.isArray(parsed) ? parsed : [];
+            current = JSON.parse(trimmed);
         } catch {
-            return [];
+            break;
         }
     }
-    return [];
+    return current;
 };
+
+// Поля изделия иногда приходят строкой JSON, иногда строкой внутри строки.
+const asList = (value) => {
+    const parsed = parseStored(value);
+    return Array.isArray(parsed) ? parsed : [];
+};
+
+export function normalizeProduct(row) {
+    if (!row || typeof row !== 'object') return row;
+    const next = { ...row };
+    ['variables', 'conditions', 'details'].forEach((key) => {
+        if (next[key] == null) return;
+        next[key] = asList(next[key]);
+    });
+    if (next.details_statik != null) {
+        const parsed = parseStored(next.details_statik);
+        if (Array.isArray(parsed) || (parsed && typeof parsed === 'object')) next.details_statik = parsed;
+    }
+    return next;
+}
 
 export function calculatePositionDetails(product, userInputs = {}) {
     const details = asList(product?.details);

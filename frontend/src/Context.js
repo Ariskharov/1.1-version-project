@@ -3,7 +3,7 @@ import axios from 'axios';
 import { differenceInMinutes, parseISO, addDays } from 'date-fns';
 import AppUi from './components/ui/AppUi';
 import { API_BASE } from './config/api';
-import { readProductOrder } from './utils/orderConvenience';
+import { normalizeProduct, readProductOrder } from './utils/orderConvenience';
 
 export const CustomContext = createContext();
 
@@ -103,6 +103,7 @@ export const Context = ({ children }) => {
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [dataLoaded, setDataLoaded] = useState(false);
+    const [catalogLoadError, setCatalogLoadError] = useState('');
     const stampsRef = useRef({});
     const syncingRef = useRef(false);
     const refreshAgainRef = useRef(false);
@@ -158,7 +159,7 @@ export const Context = ({ children }) => {
     }, []);
 
     const applyCollection = useCallback((name, rows) => {
-        if (name === 'product') setIfChanged(setProducts, rows);
+        if (name === 'product') setIfChanged(setProducts, rows.map((row) => normalizeProduct(row)));
         else if (name === 'users') {
             setIfChanged(setUsers, rows);
             setCurrentUser((prev) => {
@@ -202,6 +203,30 @@ export const Context = ({ children }) => {
         }
     };
 
+    const pullCollection = useCallback(async (name, headers) => {
+        const res = await axios.get(`${API_BASE}/${name}`, {
+            headers,
+            timeout: 20000,
+            params: { t: Date.now() },
+        });
+        const rows = Array.isArray(res.data) ? res.data : [];
+        applyCollection(name, rows);
+        if (name === 'product') setCatalogLoadError('');
+    }, [applyCollection]);
+
+    // Если /sync недоступен, каталог всё равно читаем напрямую: иначе витрина пустая.
+    const pullDirect = useCallback(async (headers, names) => {
+        await Promise.all(names.map(async (name) => {
+            try {
+                await pullCollection(name, headers);
+            } catch (err) {
+                if (err.response?.status === 401) dropExpiredSession();
+                else console.error(`Ошибка обновления ${name}:`, err);
+                if (name === 'product') setCatalogLoadError('Проверьте соединение и обновите страницу.');
+            }
+        }));
+    }, [dropExpiredSession, pullCollection]);
+
     // Сначала крошечный номер версии. Полный список качается только если он вырос.
     const refreshData = useCallback(async () => {
         if (syncingRef.current) {
@@ -210,47 +235,51 @@ export const Context = ({ children }) => {
         }
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         syncingRef.current = true;
+        const token = readToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const publicNames = ['product', 'announcements'];
+        const privateNames = ['order', 'users', 'workSessions'];
         try {
-            const token = readToken();
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
             const syncRes = await axios.get(`${API_BASE}/sync`, {
                 headers,
                 timeout: 8000,
                 params: { t: Date.now() },
             });
-            const stamps = syncRes.data || {};
-            if (!readToken()) {
-                setIfChanged(setOrders, []);
-                setIfChanged(setUsers, []);
-                setIfChanged(setWorkSessions, []);
-                delete stampsRef.current.order;
-                delete stampsRef.current.users;
-                delete stampsRef.current.workSessions;
-            }
-
-            const jobs = Object.entries(stamps).map(async ([name, stamp]) => {
-                if (stampsRef.current[name] === stamp) return;
-                const seen = Number(stampsRef.current[name]);
-                const next = Number(stamp);
-                if (Number.isFinite(seen) && Number.isFinite(next) && next < seen) return;
-                try {
-                    const res = await axios.get(`${API_BASE}/${name}`, {
-                        headers,
-                        timeout: 20000,
-                        params: { t: Date.now() },
-                    });
-                    const rows = Array.isArray(res.data) ? res.data : [];
-                    applyCollection(name, rows);
-                    stampsRef.current[name] = stamp;
-                } catch (err) {
-                    if (err.response?.status === 401) dropExpiredSession();
-                    else console.error(`Ошибка обновления ${name}:`, err);
+            const stamps = syncRes.data;
+            const syncOk = stamps && typeof stamps === 'object' && !Array.isArray(stamps) && stamps.product != null && !stamps.error;
+            if (!syncOk) {
+                await pullDirect(headers, token ? publicNames.concat(privateNames) : publicNames);
+            } else {
+                if (!token) {
+                    setIfChanged(setOrders, []);
+                    setIfChanged(setUsers, []);
+                    setIfChanged(setWorkSessions, []);
+                    delete stampsRef.current.order;
+                    delete stampsRef.current.users;
+                    delete stampsRef.current.workSessions;
                 }
-            });
-            await Promise.all(jobs);
+
+                const jobs = Object.entries(stamps).map(async ([name, stamp]) => {
+                    if (stampsRef.current[name] === stamp) return;
+                    const seen = Number(stampsRef.current[name]);
+                    const next = Number(stamp);
+                    if (Number.isFinite(seen) && Number.isFinite(next) && next < seen) return;
+                    try {
+                        await pullCollection(name, headers);
+                        stampsRef.current[name] = stamp;
+                    } catch (err) {
+                        if (err.response?.status === 401) dropExpiredSession();
+                        else console.error(`Ошибка обновления ${name}:`, err);
+                        if (name === 'product') setCatalogLoadError('Проверьте соединение и обновите страницу.');
+                    }
+                });
+                await Promise.all(jobs);
+            }
         } catch (err) {
             if (err.response?.status === 401) dropExpiredSession();
             else console.error('Ошибка синхронизации:', err);
+            const still = readToken();
+            await pullDirect(still ? { Authorization: `Bearer ${still}` } : {}, still ? publicNames.concat(privateNames) : publicNames);
         } finally {
             syncingRef.current = false;
             setDataLoaded(true);
@@ -259,7 +288,7 @@ export const Context = ({ children }) => {
                 refreshData();
             }
         }
-    }, [applyCollection, dropExpiredSession]);
+    }, [dropExpiredSession, pullCollection, pullDirect]);
 
     // Загрузка данных при старте: не блокируем каталог ожиданием всех API
     useEffect(() => {
@@ -588,6 +617,7 @@ export const Context = ({ children }) => {
         announcements,
         loading,
         dataLoaded,
+        catalogLoadError,
         login,
         logout,
         manualStartShift,
@@ -614,6 +644,7 @@ export const Context = ({ children }) => {
         announcements,
         loading,
         dataLoaded,
+        catalogLoadError,
         login,
         logout,
         manualStartShift,
