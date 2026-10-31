@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const zlib = require('zlib');
 // static upload removed
 
 // Import routes
@@ -22,35 +21,6 @@ const port = process.env.PORT || 8080;
 app.use(cors());
 
 app.use(express.json({ limit: '2mb' }));
-
-// Крупные списки (каталог, заказы) уходят сжатыми. Мелочь не трогаем.
-app.use((req, res, next) => {
-    const accept = String(req.headers['accept-encoding'] || '');
-    if (!/\bgzip\b/.test(accept)) return next();
-    const sendJson = res.json.bind(res);
-    res.json = (body) => {
-        let payload;
-        try {
-            payload = Buffer.from(JSON.stringify(body));
-        } catch {
-            return sendJson(body);
-        }
-        if (payload.length < 1400) return sendJson(body);
-        zlib.gzip(payload, (err, zipped) => {
-            if (err || res.headersSent) {
-                if (!res.headersSent) sendJson(body);
-                return;
-            }
-            res.set('Content-Type', 'application/json; charset=utf-8');
-            res.set('Content-Encoding', 'gzip');
-            res.set('Vary', 'Accept-Encoding');
-            res.set('Content-Length', String(zipped.length));
-            res.end(zipped);
-        });
-        return res;
-    };
-    next();
-});
 
 let schemaPromise = null;
 let schemaReady = false;

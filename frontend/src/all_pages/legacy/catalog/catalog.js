@@ -444,7 +444,7 @@ const Catalog = () => {
                                     <div className="catalog-form-section">
                                         <h3 className="catalog-form-section__title">Параметры</h3>
                                         <div className="catalog-inputs-grid">
-                                            {(selectedProduct.variables || []).map((v) => (
+                                            {(Array.isArray(selectedProduct.variables) ? selectedProduct.variables : []).map((v) => (
                                                 <div key={v.name} className="catalog-input-group">
                                                     <label htmlFor={`catalog-input-${v.name}`}>{v.label}</label>
                                                     <input
@@ -465,11 +465,11 @@ const Catalog = () => {
                                         </div>
                                     </div>
 
-                                    {(selectedProduct.conditions || []).some((c) => c.type === 'flag') && (
+                                    {(Array.isArray(selectedProduct.conditions) ? selectedProduct.conditions : []).some((c) => c.type === 'flag') && (
                                         <div className="catalog-form-section">
                                             <h3 className="catalog-form-section__title">Дополнительные опции</h3>
                                             <div className="catalog-checkbox-grid">
-                                                {(selectedProduct.conditions || []).map((c) => (
+                                                {(Array.isArray(selectedProduct.conditions) ? selectedProduct.conditions : []).map((c) => (
                                                     c.type === 'flag' && (
                                                         <label key={c.name} className="catalog-checkbox">
                                                             <input

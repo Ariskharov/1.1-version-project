@@ -67,7 +67,7 @@ const getPositionFacts = (item) => {
         if (name === 'coll' || seen.has(name)) return;
         const raw = inputs[name];
         if (raw === undefined || raw === null || raw === '' || raw === false) return;
-        const condition = (item?.conditions || []).find((entry) => entry?.name === name);
+        const condition = (Array.isArray(item?.conditions) ? item.conditions : []).find((entry) => entry?.name === name);
         facts.push({
             key: name,
             label: condition?.label || DIMENSION_LABELS[name] || name,

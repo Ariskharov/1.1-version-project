@@ -3,16 +3,17 @@ let readyPromise = null;
 
 // mathjs не качается вместе со страницей: только когда открывают расчёт.
 const loadEvaluate = () => {
-    if (!readyPromise) {
-        readyPromise = import('mathjs').then((mod) => {
-            evaluateFn = mod.evaluate;
-            return evaluateFn;
-        });
-        readyPromise.catch(() => {
-            /* ошибку покажет тот, кто вызвал расчёт */
-        });
-    }
-    return readyPromise;
+    if (readyPromise) return readyPromise;
+    const promise = import('mathjs').then((mod) => {
+        evaluateFn = mod.evaluate;
+        return evaluateFn;
+    });
+    readyPromise = promise;
+    // Сбой сети не должен застревать навсегда: следующий расчёт пробует снова.
+    promise.catch(() => {
+        if (readyPromise === promise) readyPromise = null;
+    });
+    return promise;
 };
 
 export const preloadFormulaEngine = () => loadEvaluate();

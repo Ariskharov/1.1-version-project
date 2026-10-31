@@ -18,9 +18,12 @@ import { uploadPhoto } from '../../../utils/uploadService';
 import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
 import OrganizationSuggest from '../../../components/ui/OrganizationSuggest';
 import { applyOrganization, buildOrganizationCards, calculatePositionDetails, readProductOrder } from '../../../utils/orderConvenience';
+import { evaluateReady, preloadFormulaEngine } from '../../../utils/formulaEval';
 
 const getLineTotal = (item) =>
     Number(item.price || 0) * (Number(item.quantity || item.userInputs?.coll || 1) || 1);
+
+const asArray = (value) => (Array.isArray(value) ? value : []);
 
 const calculateDetails = (product) => {
     if (!product || product.isCustom) return [];
@@ -146,49 +149,72 @@ const OrderEditor = () => {
     }, [liveProducts, dataLoaded]);
 
     useEffect(() => {
-        if (!dataLoaded || isDirty || savingRef.current) return;
+        preloadFormulaEngine();
+    }, []);
+
+    useEffect(() => {
+        if (!dataLoaded || isDirty || savingRef.current) return undefined;
         const fresh = liveOrders.find((item) => String(item.id) === String(id));
         if (!fresh) {
             setError('Заказ не найден');
             setOrder(null);
             setLoading(false);
-            return;
+            return undefined;
         }
         const sig = JSON.stringify(fresh);
         if (appliedSigRef.current === sig) {
             setLoading(false);
             setError(null);
-            return;
+            return undefined;
         }
-        appliedSigRef.current = sig;
-        skipDirtyRef.current = true;
-        const loaded = {
-            ...fresh,
-            product_order: readProductOrder(fresh.product_order).map((item) => syncItemTotal({
-                ...item,
-                userInputs: { ...item.userInputs },
-                bodyColor: typeof item.bodyColor === 'string' ? item.bodyColor : '',
-                facadeColor: typeof item.facadeColor === 'string' ? item.facadeColor : '',
-                calculatedDetails: item.calculatedDetails?.length
-                    ? item.calculatedDetails
-                    : calculateDetails(item),
-            })),
+        let cancelled = false;
+        (async () => {
+            const items = readProductOrder(fresh.product_order);
+            const needsEngine = items.some((item) => (
+                !item?.isCustom && asArray(item?.calculatedDetails).length === 0
+            ));
+            let engineReady = true;
+            if (needsEngine) {
+                try {
+                    await evaluateReady;
+                } catch {
+                    engineReady = false;
+                }
+            }
+            if (cancelled || savingRef.current) return;
+            appliedSigRef.current = sig;
+            skipDirtyRef.current = true;
+            const loaded = {
+                ...fresh,
+                product_order: items.map((item) => syncItemTotal({
+                    ...item,
+                    userInputs: { ...item.userInputs },
+                    bodyColor: typeof item.bodyColor === 'string' ? item.bodyColor : '',
+                    facadeColor: typeof item.facadeColor === 'string' ? item.facadeColor : '',
+                    calculatedDetails: asArray(item.calculatedDetails).length
+                        ? asArray(item.calculatedDetails)
+                        : (engineReady ? calculateDetails(item) : []),
+                })),
+            };
+            if (!loaded.contract_date) loaded.contract_date = new Date().toISOString().slice(0, 10);
+            if (!loaded.contract_city) loaded.contract_city = 'Токмок';
+            if (!loaded.contract_no) loaded.contract_no = String(loaded.id || id);
+            if (!loaded.buyer_rep_title) loaded.buyer_rep_title = 'директора';
+            if (!loaded.delivery_days) loaded.delivery_days = '30';
+            const current = orderRef.current;
+            setOrder(loaded);
+            if (!current && loaded.product_order?.length > 0) {
+                setSelectedProductId(loaded.product_order[0].id);
+            }
+            const loadedStatus = loaded.status || 'Оформлен';
+            setStatus(loadedStatus);
+            setCustomStatus(PRESET_STATUSES.includes(loadedStatus) ? '' : loadedStatus);
+            setLoading(false);
+            setError(null);
+        })();
+        return () => {
+            cancelled = true;
         };
-        if (!loaded.contract_date) loaded.contract_date = new Date().toISOString().slice(0, 10);
-        if (!loaded.contract_city) loaded.contract_city = 'Токмок';
-        if (!loaded.contract_no) loaded.contract_no = String(loaded.id || id);
-        if (!loaded.buyer_rep_title) loaded.buyer_rep_title = 'директора';
-        if (!loaded.delivery_days) loaded.delivery_days = '30';
-        const current = orderRef.current;
-        setOrder(loaded);
-        if (!current && loaded.product_order?.length > 0) {
-            setSelectedProductId(loaded.product_order[0].id);
-        }
-        const loadedStatus = loaded.status || 'Оформлен';
-        setStatus(loadedStatus);
-        setCustomStatus(PRESET_STATUSES.includes(loadedStatus) ? '' : loadedStatus);
-        setLoading(false);
-        setError(null);
     }, [liveOrders, dataLoaded, isDirty, id]);
 
     useEffect(() => {
@@ -269,7 +295,13 @@ const OrderEditor = () => {
         });
     };
 
-    const handleItemInput = (varName, value) => {
+    const handleItemInput = async (varName, value) => {
+        try {
+            await evaluateReady;
+        } catch {
+            showToast('error', 'Не удалось рассчитать деталировку');
+            return;
+        }
         const numVal = isNaN(value) ? value : Number(value);
         updateProduct(p => {
             const newUserInputs = { ...p.userInputs, [varName]: numVal };
@@ -281,7 +313,13 @@ const OrderEditor = () => {
         });
     };
 
-    const handleFlagChange = (flagName) => {
+    const handleFlagChange = async (flagName) => {
+        try {
+            await evaluateReady;
+        } catch {
+            showToast('error', 'Не удалось рассчитать деталировку');
+            return;
+        }
         updateProduct(p => {
             const newUserInputs = { ...p.userInputs, [flagName]: !p.userInputs?.[flagName] };
             return {
@@ -439,7 +477,7 @@ const OrderEditor = () => {
         if (mode === 'catalog') setProductSearch('');
     };
 
-    const savePosition = () => {
+    const savePosition = async () => {
         if (modalMode === 'catalog' && !selectedNewProduct) return;
         if (modalMode === 'custom' && !customItem.title) {
             showToast('error', 'Введите название позиции');
@@ -449,6 +487,12 @@ const OrderEditor = () => {
         let newItem;
 
         if (modalMode === 'catalog') {
+            try {
+                await evaluateReady;
+            } catch {
+                showToast('error', 'Не удалось рассчитать деталировку');
+                return;
+            }
             const catalogProduct = { ...selectedNewProduct, userInputs: { ...newInputs } };
             const details = calculateDetails(catalogProduct);
             const qty = Number(newInputs.coll) || 1;
@@ -763,14 +807,14 @@ const OrderEditor = () => {
                                             </div>
                                         )}
 
-                                        {!selectedProduct.isCustom && selectedProduct.conditions?.map(c => c.type === 'flag' && (
+                                        {!selectedProduct.isCustom && asArray(selectedProduct.conditions).map(c => c.type === 'flag' && (
                                             <label key={c.name} className="checkbox">
                                                 <input type="checkbox" checked={!!selectedProduct.userInputs?.[c.name]} onChange={() => handleFlagChange(c.name)} />
                                                 {c.label}
                                             </label>
                                         ))}
 
-                                        {!selectedProduct.isCustom && selectedProduct.variables?.map((v, idx) => {
+                                        {!selectedProduct.isCustom && asArray(selectedProduct.variables).map((v, idx) => {
                                             const fieldId = `order-item-var-${idx}`;
                                             return (
                                             <div className="size-input" key={fieldId}>
@@ -799,14 +843,14 @@ const OrderEditor = () => {
                                     </button>
                                 </div>
                                 {showDetails && (
-                                    selectedProduct.calculatedDetails?.length > 0 ? (
+                                    asArray(selectedProduct.calculatedDetails).length > 0 ? (
                                         <div className="order_editor__details-table-wrap">
                                             <table className="order_editor__details-table">
                                                 <thead>
                                                     <tr><th>Деталь</th><th>Размер</th><th>Кол-во</th></tr>
                                                 </thead>
                                                 <tbody>
-                                                    {selectedProduct.calculatedDetails.map(d => (
+                                                    {asArray(selectedProduct.calculatedDetails).map(d => (
                                                         <tr key={d.key}>
                                                             <td>{d.label}</td>
                                                             <td>{d.size}</td>
@@ -1026,8 +1070,8 @@ const OrderEditor = () => {
                                                                 onClick={() => {
                                                                     setSelectedNewProduct(p);
                                                                     const init = {};
-                                                                    (p.variables || []).forEach(v => { init[v.name] = v.default; });
-                                                                    (p.conditions || []).forEach(c => {
+                                                                    asArray(p.variables).forEach(v => { init[v.name] = v.default; });
+                                                                    asArray(p.conditions).forEach(c => {
                                                                         if (c.type === 'flag') init[c.name] = !!c.default;
                                                                     });
                                                                     setNewInputs(init);
@@ -1066,11 +1110,11 @@ const OrderEditor = () => {
                                                         )}
                                                     </div>
 
-                                                    {(selectedNewProduct.variables || []).length > 0 && (
+                                                    {asArray(selectedNewProduct.variables).length > 0 && (
                                                         <div className="oed-modal__config-section">
                                                             <div className="oed-modal__section-label">Параметры</div>
                                                             <div className="oed-modal__inputs">
-                                                                {(selectedNewProduct.variables || []).map(v => (
+                                                                {asArray(selectedNewProduct.variables).map(v => (
                                                                     <label key={v.name} className="oed-modal__field">
                                                                         <span>{v.label}</span>
                                                                         <input
@@ -1084,11 +1128,11 @@ const OrderEditor = () => {
                                                         </div>
                                                     )}
 
-                                                    {(selectedNewProduct.conditions || []).some(c => c.type === 'flag') && (
+                                                    {asArray(selectedNewProduct.conditions).some(c => c.type === 'flag') && (
                                                         <div className="oed-modal__config-section">
                                                             <div className="oed-modal__section-label">Опции</div>
                                                             <div className="oed-modal__checkboxes">
-                                                                {(selectedNewProduct.conditions || []).map(c => c.type === 'flag' && (
+                                                                {asArray(selectedNewProduct.conditions).map(c => c.type === 'flag' && (
                                                                     <label key={c.name} className="oed-modal__checkbox">
                                                                         <input
                                                                             type="checkbox"

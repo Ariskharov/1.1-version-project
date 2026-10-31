@@ -134,8 +134,8 @@ const PlacingAnOrder = () => {
     useEffect(() => {
         if (!selectedProduct) return;
         const init = {};
-        (selectedProduct.variables || []).forEach(v => init[v.name] = v.default);
-        (selectedProduct.conditions || []).forEach(c => {
+        (Array.isArray(selectedProduct.variables) ? selectedProduct.variables : []).forEach(v => init[v.name] = v.default);
+        (Array.isArray(selectedProduct.conditions) ? selectedProduct.conditions : []).forEach(c => {
             if (c.type === 'flag') init[c.name] = !!c.default;
         });
         setInputs(init);
@@ -688,7 +688,7 @@ const PlacingAnOrder = () => {
                                                             <div className="pao-modal__config-section">
                                                                 <div className="pao-modal__section-label">Параметры</div>
                                                                 <div className="pao-modal__inputs">
-                                                                    {(selectedProduct.variables || []).map(v => (
+                                                                    {(Array.isArray(selectedProduct.variables) ? selectedProduct.variables : []).map(v => (
                                                                         <label key={v.name} className="pao-modal__field">
                                                                             <span>{v.label}</span>
                                                                             <input
@@ -706,7 +706,7 @@ const PlacingAnOrder = () => {
                                                             <div className="pao-modal__config-section">
                                                                 <div className="pao-modal__section-label">Опции</div>
                                                                 <div className="pao-modal__checkboxes">
-                                                                    {(selectedProduct.conditions || []).map(c => c.type === 'flag' && (
+                                                                    {(Array.isArray(selectedProduct.conditions) ? selectedProduct.conditions : []).map(c => c.type === 'flag' && (
                                                                         <label key={c.name} className="pao-modal__checkbox">
                                                                             <input
                                                                                 type="checkbox"

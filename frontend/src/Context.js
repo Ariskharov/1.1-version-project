@@ -597,7 +597,7 @@ export const Context = ({ children }) => {
     const addProduct = useCallback(async (newProduct) => {
         try {
             const res = await axios.post(`${API_BASE}/product`, newProduct);
-            setProducts(prev => [...prev, res.data]);
+            setProducts(prev => [...prev, normalizeProduct(res.data)]);
         } catch (err) {
             console.error('Ошибка добавления продукта:', err);
         }
@@ -606,7 +606,7 @@ export const Context = ({ children }) => {
     const updateProduct = useCallback(async (productId, updates) => {
         try {
             const res = await axios.patch(`${API_BASE}/product/${productId}`, updates);
-            setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...res.data } : p));
+            setProducts(prev => prev.map(p => p.id === productId ? normalizeProduct({ ...p, ...res.data }) : p));
         } catch (err) {
             console.error('Ошибка обновления продукта:', err);
         }
