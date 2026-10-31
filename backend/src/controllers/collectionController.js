@@ -1,5 +1,6 @@
 const pool = require('../database/pg');
 const { notifyAnnouncement } = require('../services/pushService');
+const { shouldNotifyAnnouncement } = require('../services/pushMessages');
 const { isPublicToken, newPublicToken } = require('../utils/publicToken');
 
 const parseId = (value) => {
@@ -145,12 +146,10 @@ const updateCollectionItem = async (req, res) => {
         const availableColumns = await getTableColumns(collection);
 
         let notifyAfter = false;
-        if (collection === 'announcements' && Object.prototype.hasOwnProperty.call(req.body, 'isActive')) {
+        if (collection === 'announcements') {
             try {
-                const prev = await pool.query('SELECT "isActive" FROM "announcements" WHERE id = $1', [id]);
-                const wasActive = prev.rows[0] ? prev.rows[0].isActive !== false : false;
-                const nextActive = req.body.isActive !== false && req.body.isActive !== 'false' && req.body.isActive !== 0;
-                notifyAfter = !wasActive && nextActive;
+                const prev = await pool.query('SELECT * FROM "announcements" WHERE id = $1', [id]);
+                notifyAfter = shouldNotifyAnnouncement(prev.rows[0], req.body);
             } catch (prevErr) {
                 console.error('[push] previous announcement read failed:', prevErr.message);
             }

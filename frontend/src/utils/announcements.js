@@ -16,6 +16,38 @@ export const isAnnouncementActive = (item, now = new Date()) => {
     return !Number.isNaN(end.getTime()) && end > now;
 };
 
+export const announcementSignature = (item) => [
+    item?.type || '',
+    item?.title || '',
+    item?.message || '',
+    item?.image || item?.img || '',
+].join('\u0001');
+
+export const announcementNotificationText = (item) => {
+    const typeLabel = item?.type === 'persistent' ? 'Актуально' : 'Срочно';
+    const title = item?.title ? `${typeLabel}: ${item.title}` : `${typeLabel} — объявление`;
+    const body = String(item?.message || '').slice(0, 180);
+    return {
+        title,
+        body,
+        text: body ? `${title} — ${body}` : title,
+        tag: `announcement-${item?.id}`,
+    };
+};
+
+// Новое объявление или правка уже виденного. Старые id без подписи не поднимаем заново.
+export const announcementsToNotify = (list, seenIds, signatures = {}) => {
+    const seen = seenIds instanceof Set ? seenIds : new Set((seenIds || []).map(String));
+    return (list || []).filter((item) => {
+        if (!item || item.id == null) return false;
+        const id = String(item.id);
+        if (!seen.has(id)) return true;
+        const prev = signatures[id];
+        if (prev == null) return false;
+        return prev !== announcementSignature(item);
+    });
+};
+
 export const filterActiveAnnouncements = (list, type = null) => {
     const now = new Date();
     return (list || [])

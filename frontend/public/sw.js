@@ -10,39 +10,66 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('push', (event) => {
-  let data = {
-    title: 'TimeTrack',
-    body: 'Новое объявление',
+const readPushData = (event) => {
+  const data = {
+    title: 'ТокмокУПП',
+    body: '',
     url: '/cabinet',
-    tag: 'announcement',
+    tag: 'notice',
   };
-
+  if (!event.data) return data;
   try {
-    if (event.data) {
-      const parsed = event.data.json();
-      data = { ...data, ...parsed };
-    }
+    return { ...data, ...event.data.json() };
   } catch (_) {
     try {
-      data.body = event.data ? event.data.text() : data.body;
+      data.body = event.data.text();
     } catch (__) {
-      /* ignore */
+      /* тело пуша не разобралось */
     }
+    return data;
   }
+};
 
+self.addEventListener('push', (event) => {
+  const data = readPushData(event);
+  const title = data.title || 'ТокмокУПП';
   const options = {
     body: data.body || '',
-    tag: data.tag || 'announcement',
+    tag: data.tag || 'notice',
     renotify: true,
-    requireInteraction: data.type === 'urgent',
     data: { url: data.url || '/cabinet', announcementId: data.announcementId || null },
-    vibrate: data.type === 'urgent' ? [120, 60, 120] : [80],
+    vibrate: [80],
     badge: '/icons/icon-192.png',
     icon: '/icons/icon-192.png',
   };
 
-  event.waitUntil(self.registration.showNotification(data.title || 'TimeTrack', options));
+  // Баннер запускаем сразу, тем же набором опций, что и у рабочей заявки.
+  // Ожидание списка окон до showNotification на части телефонов глушит уведомление.
+  const shown = self.registration.showNotification(title, options).catch(() => (
+    self.registration.showNotification(title, {
+      body: options.body,
+      tag: options.tag,
+      data: options.data,
+    }).catch(() => undefined)
+  ));
+
+  const ping = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+    windows.forEach((client) => {
+      try {
+        client.postMessage({
+          type: 'push',
+          title,
+          body: options.body,
+          url: options.data.url,
+          tag: options.tag,
+        });
+      } catch (_) {
+        /* окно уже закрыто */
+      }
+    });
+  }).catch(() => undefined);
+
+  event.waitUntil(Promise.all([shown, ping]));
 });
 
 self.addEventListener('notificationclick', (event) => {
@@ -50,18 +77,14 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = (event.notification.data && event.notification.data.url) || '/cabinet';
   const absolute = new URL(targetUrl, self.location.origin).href;
 
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url && 'focus' in client) {
-          client.navigate(absolute);
-          return client.focus();
-        }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(absolute);
-      }
-      return undefined;
-    })
-  );
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = windows.find((client) => 'focus' in client);
+    if (open) {
+      open.postMessage({ type: 'notification-click', url: targetUrl });
+      await open.focus();
+      return;
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(absolute);
+  })());
 });

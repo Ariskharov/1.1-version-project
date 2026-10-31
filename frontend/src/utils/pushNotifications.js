@@ -1,6 +1,12 @@
 import { API_BASE, authHeaders } from '../config/api';
+import {
+    announcementNotificationText,
+    announcementSignature,
+    announcementsToNotify,
+} from './announcements';
 
 const SEEN_KEY = 'tt_seen_announcement_ids';
+const SIG_KEY = 'tt_seen_announcement_sigs';
 const PROMPT_DISMISS_KEY = 'tt_push_prompt_dismissed';
 
 export const isPushSupported = () =>
@@ -155,6 +161,19 @@ export async function getPushStatus() {
     return { supported: true, permission, subscribed };
 }
 
+const recentPushTags = new Map();
+
+export function rememberPushTag(tag) {
+    if (!tag) return;
+    recentPushTags.set(String(tag), Date.now());
+}
+
+export function wasPushJustShown(tag) {
+    if (!tag) return false;
+    const at = recentPushTags.get(String(tag));
+    return Boolean(at && Date.now() - at < 20000);
+}
+
 /** Локальное уведомление (когда вкладка открыта / fallback) */
 export function showLocalNotification(title, options = {}) {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
@@ -179,6 +198,29 @@ export function showLocalNotification(title, options = {}) {
     }
 }
 
+/** Показ через service worker: обычный Notification() при активном SW часто молчит. */
+export async function showAppNotification(title, options = {}) {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+    const payload = {
+        body: options.body || '',
+        tag: options.tag || undefined,
+        renotify: Boolean(options.tag),
+        data: options.data || {},
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+    };
+    try {
+        const reg = await navigator.serviceWorker?.getRegistration?.();
+        if (reg?.showNotification) {
+            await reg.showNotification(title, payload);
+            return true;
+        }
+    } catch {
+        /* запасной конструктор ниже */
+    }
+    return showLocalNotification(title, payload);
+}
+
 export function loadSeenAnnouncementIds() {
     try {
         const raw = localStorage.getItem(SEEN_KEY);
@@ -198,44 +240,70 @@ export function saveSeenAnnouncementIds(ids) {
     }
 }
 
-/**
- * Сравнивает список объявлений с уже виденными и показывает local Notification
- * для новых активных (fallback, если push не дошёл).
- */
-export function notifyNewAnnouncementsLocally(list, { onlyUrgent = false } = {}) {
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
-        return 0;
+function loadAnnouncementSignatures() {
+    try {
+        const raw = localStorage.getItem(SIG_KEY);
+        const data = raw ? JSON.parse(raw) : {};
+        return data && typeof data === 'object' ? data : {};
+    } catch {
+        return {};
     }
-    const seen = loadSeenAnnouncementIds();
-    let count = 0;
-    const next = new Set(seen);
+}
 
-    (list || []).forEach((a) => {
-        if (!a || a.id == null) return;
-        const id = String(a.id);
-        next.add(id);
-        if (seen.has(id)) return;
-        if (onlyUrgent && a.type !== 'urgent') return;
-
-        const typeLabel = a.type === 'persistent' ? 'Актуально' : 'Срочно';
-        const title = a.title ? `${typeLabel}: ${a.title}` : `${typeLabel} — объявление`;
-        showLocalNotification(title, {
-            body: String(a.message || '').slice(0, 180),
-            tag: `announcement-${id}`,
-            data: { url: '/cabinet' },
+function saveAnnouncementSignatures(sigs, ids) {
+    try {
+        const keep = {};
+        [...ids].slice(-200).forEach((id) => {
+            if (sigs[id] != null) keep[id] = sigs[id];
         });
-        count += 1;
-    });
+        localStorage.setItem(SIG_KEY, JSON.stringify(keep));
+    } catch {
+        /* ignore */
+    }
+}
 
-    saveSeenAnnouncementIds(next);
-    return count;
+function rememberAnnouncements(list) {
+    const seen = loadSeenAnnouncementIds();
+    const sigs = loadAnnouncementSignatures();
+    (list || []).forEach((item) => {
+        if (item?.id == null) return;
+        const id = String(item.id);
+        seen.add(id);
+        sigs[id] = announcementSignature(item);
+    });
+    saveSeenAnnouncementIds(seen);
+    saveAnnouncementSignatures(sigs, seen);
 }
 
 /** Пометить текущий список как уже просмотренный (без уведомлений) */
 export function markAnnouncementsSeen(list) {
-    const seen = loadSeenAnnouncementIds();
-    (list || []).forEach((a) => {
-        if (a?.id != null) seen.add(String(a.id));
+    rememberAnnouncements(list);
+}
+
+/**
+ * Новые и изменённые объявления: системный баннер и текст для тоста.
+ * Уже показанный push с тем же tag повторно не поднимаем.
+ */
+export function deliverAnnouncementAlerts(list) {
+    const fresh = announcementsToNotify(
+        list,
+        loadSeenAnnouncementIds(),
+        loadAnnouncementSignatures()
+    ).filter((item) => !wasPushJustShown(`announcement-${item.id}`));
+    rememberAnnouncements(list);
+
+    return fresh.map((item) => {
+        const note = announcementNotificationText(item);
+        rememberPushTag(note.tag);
+        showAppNotification(note.title, {
+            body: note.body,
+            tag: note.tag,
+            data: { url: '/cabinet' },
+        });
+        return note;
     });
-    saveSeenAnnouncementIds(seen);
+}
+
+export function notifyNewAnnouncementsLocally(list) {
+    return deliverAnnouncementAlerts(list).length;
 }

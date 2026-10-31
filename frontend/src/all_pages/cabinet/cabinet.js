@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { useContext, useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -28,8 +28,6 @@ import {
   dismissPrompt,
   enablePushNotifications,
   getPushStatus,
-  markAnnouncementsSeen,
-  notifyNewAnnouncementsLocally,
 } from '../../utils/pushNotifications';
 
 // Регистрируем Chart.js один раз
@@ -146,7 +144,6 @@ const PersonalCabinet = () => {
   });
   const [pushBusy, setPushBusy] = useState(false);
   const [showPushBanner, setShowPushBanner] = useState(false);
-  const announcementsSeededRef = useRef(false);
 
   const refreshPushStatus = useCallback(async () => {
     const status = await getPushStatus();
@@ -164,15 +161,8 @@ const PersonalCabinet = () => {
   }, [refreshPushStatus]);
 
   useEffect(() => {
-    const arr = Array.isArray(liveAnnouncements) ? liveAnnouncements : [];
-    setAnnouncements(arr);
-    if (!announcementsSeededRef.current) {
-      if (!dataLoaded) return;
-      markAnnouncementsSeen(filterActiveAnnouncements(arr));
-      announcementsSeededRef.current = true;
-      return;
-    }
-    notifyNewAnnouncementsLocally(filterActiveAnnouncements(arr));
+    if (!dataLoaded) return;
+    setAnnouncements(Array.isArray(liveAnnouncements) ? liveAnnouncements : []);
   }, [liveAnnouncements, dataLoaded]);
 
   const handleEnablePush = async () => {

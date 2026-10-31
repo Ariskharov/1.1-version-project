@@ -7,6 +7,7 @@ import { CustomContext } from './Context';
 import { LoadingPage } from './components/ui/LoadingSpinner';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AdminRoute from './components/routing/AdminRoute';
+import NotificationHost from './components/NotificationHost';
 
 // Ленивый импорт всех страниц для оптимизации сборки и ускорения загрузки
 const SingIn = React.lazy(() => import("./all_pages/auth/auth"));
@@ -143,6 +144,7 @@ function App() {
     return (
         <>
         <RouteAnnouncer />
+        <NotificationHost />
         <Suspense fallback={<PageFallback />}>
             <Routes>
                 <Route path="/signin" element={<SingIn />} />

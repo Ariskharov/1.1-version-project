@@ -1,5 +1,6 @@
 const webpush = require('web-push');
 const pool = require('../database/pg');
+const { buildAnnouncementPayload, buildOrderRequestPayload } = require('./pushMessages');
 
 const DEFAULT_VAPID_PUBLIC_KEY = 'BMCa1KFzwCinml2K6JTMNoYDUu8LVYwxsKRZQNaXH5N6MGSs5c6ZKxWEbsfczBpHqpWrc9wDI5sfNz056Ec-GWc';
 const DEFAULT_VAPID_PRIVATE_KEY = 'Gu6ZzM1aJm3z9WJKCcXezQqCongjTYY1BlNvGcwGTAI';
@@ -80,22 +81,6 @@ async function listSubscriptions() {
     return result.rows;
 }
 
-function buildAnnouncementPayload(announcement) {
-    const typeLabel = announcement.type === 'persistent' ? 'Актуально' : 'Срочно';
-    const title = announcement.title
-        ? `${typeLabel}: ${announcement.title}`
-        : `${typeLabel} — объявление`;
-    const body = String(announcement.message || '').slice(0, 180);
-    return {
-        title,
-        body,
-        url: '/cabinet',
-        tag: `announcement-${announcement.id || Date.now()}`,
-        type: announcement.type || 'urgent',
-        announcementId: announcement.id || null,
-    };
-}
-
 async function listAdminSubscriptions() {
     await ensureTable();
     const result = await pool.query(
@@ -105,34 +90,6 @@ async function listAdminSubscriptions() {
          WHERE lower(u.role) = 'admin'`
     );
     return result.rows;
-}
-
-function positionWord(count) {
-    const n = Math.abs(Number(count) || 0) % 100;
-    const n1 = n % 10;
-    if (n > 10 && n < 20) return 'позиций';
-    if (n1 > 1 && n1 < 5) return 'позиции';
-    if (n1 === 1) return 'позиция';
-    return 'позиций';
-}
-
-function buildOrderRequestPayload(order) {
-    const positions = Array.isArray(order.product_order) ? order.product_order : [];
-    const needsPrice = positions.some((line) => {
-        const price = Number(line?.price);
-        return !Number.isFinite(price) || price === 0;
-    });
-    const name = String(order.name_client || 'Клиент').trim().slice(0, 80) || 'Клиент';
-    const count = positions.length;
-    const pieces = [`${name}`, count ? `${count} ${positionWord(count)}` : 'без позиций'];
-    if (needsPrice) pieces.push('Нужна цена');
-    return {
-        title: 'Новая заявка',
-        body: pieces.join(' · ').slice(0, 180),
-        url: `/order/${order.id}`,
-        tag: `order-request-${order.id}`,
-        type: 'request',
-    };
 }
 
 async function deliver(subs, payload) {

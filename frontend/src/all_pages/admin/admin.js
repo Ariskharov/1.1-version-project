@@ -255,6 +255,7 @@ const Admin = () => {
             type: item.type === 'persistent' ? 'persistent' : 'urgent',
             expiresAt: toDatetimeLocal(item.expiresAt || item.expiresat),
             isActive: item.isActive !== false && item.isactive !== false,
+            image: item.image || item.img || '',
         });
         setAnnPanelOpen(true);
     };
@@ -274,6 +275,7 @@ const Admin = () => {
             type: annForm.type === 'persistent' ? 'persistent' : 'urgent',
             expiresAt: toIsoOrNull(annForm.expiresAt),
             isActive: !!annForm.isActive,
+            image: annForm.image || null,
         };
 
         setAnnSaving(true);
@@ -826,7 +828,6 @@ const Admin = () => {
                                     />
                                 </label>
 
-                                {/* UI под фото к новости — логику upload подключит отдельный разработчик */}
                                 <div className="admin-announcements__field admin-announcements__field--photo">
                                     <PhotoUploadSlot
                                         inputId="admin-announcement-photo"

@@ -274,7 +274,9 @@ export const Context = ({ children }) => {
         }
         setLoading(false);
 
-        refreshData().finally(() => setDataLoaded(true));
+        // dataLoaded ставит сам refreshData, когда списки уже приехали.
+        // Ранний finally помечал загрузку до объявлений, и все старые новости выглядели новыми.
+        refreshData();
     }, [refreshData]);
 
     // Живое обновление: раз в 3 секунды, и сразу когда вкладка снова видна.
