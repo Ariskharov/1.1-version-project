@@ -426,6 +426,16 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
     }
   }
 
+  .header__mobile-link.header__mobile-qr {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    background: var(--hdr-gold-subtle);
+    border: 1px solid var(--hdr-border);
+    font-weight: 700;
+    font-family: var(--hdr-font);
+  }
+
   .header__mobile-user {
     margin-top: 20px;
     padding-top: 20px;
@@ -556,6 +566,81 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
     &--hidden {
       display: none;
     }
+  }
+}
+
+.catalog-qr {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+
+  &__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(23, 26, 31, 0.55);
+  }
+
+  &__card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 360px);
+    max-height: calc(100dvh - 40px);
+    overflow: auto;
+    background: var(--hdr-side-bg, #faf6ee);
+    color: var(--hdr-text, #1a1612);
+    border: 1px solid var(--hdr-border, rgba(212, 175, 120, 0.35));
+    border-radius: 16px;
+    padding: 20px 18px 16px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+    text-align: center;
+    font-family: var(--hdr-font, 'DM Sans', sans-serif);
+  }
+
+  h2 {
+    margin: 0 0 8px;
+    font-size: 26px;
+    line-height: 1.15;
+    font-family: var(--hdr-serif, Georgia, serif);
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 14px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  &__code {
+    display: inline-flex;
+    background: #fff;
+    border-radius: 12px;
+    line-height: 0;
+  }
+
+  &__url {
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.35;
+    word-break: break-all;
+    opacity: 0.75;
+  }
+
+  &__close {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--hdr-border, rgba(212, 175, 120, 0.35));
+    background: var(--hdr-btn-bg, transparent);
+    color: var(--hdr-text, #1a1612);
+    font-weight: 700;
+    font-family: inherit;
+    font-size: 15px;
+    cursor: pointer;
   }
 }
 

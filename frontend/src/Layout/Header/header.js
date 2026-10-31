@@ -1,11 +1,13 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import './header.scss';
 import logo from '../img_layout/logo.svg';
 import exitImg from '../img_layout/exit_img.svg';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { CustomContext } from '../../Context';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import { resolveImageUrl } from '../../config/api';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 const getInitials = (name) => {
     if (!name) return '??';
@@ -20,6 +22,9 @@ const Header = () => {
     const { currentUser, logout } = useContext(CustomContext);
 
     const [menuOpen, setMenuOpen] = useState(false);
+    const [qrOpen, setQrOpen] = useState(false);
+    const qrDialogRef = useRef(null);
+    const catalogUrl = `${window.location.origin}/`;
     const [isMobileHeader, setIsMobileHeader] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(max-width: 650px)').matches,
     );
@@ -73,6 +78,14 @@ const Header = () => {
     const toTop = () => window.scrollTo({ top: 0, behavior: 'auto' });
 
     const toggleMobileMenu = () => setMenuOpen((prev) => !prev);
+
+    const closeCatalogQr = useCallback(() => setQrOpen(false), []);
+    const openCatalogQr = () => {
+        setMenuOpen(false);
+        setQrOpen(true);
+    };
+
+    useDialogA11y(qrOpen, closeCatalogQr, qrDialogRef);
 
     /** Закрыть меню и убрать фокус из aria-hidden/inert-ветки */
     const closeMobileMenu = () => {
@@ -296,34 +309,21 @@ const Header = () => {
                     <div className="header__mobile-top__actions">
                         <ThemeToggle className="theme-toggle--compact" />
                         {currentUser ? (
-                            <>
-                                <div 
-                                    className="header__mobile-top-user" 
-                                    onClick={toggleMobileMenu} 
-                                    title={currentUser.fullName}
-                                    role="button"
-                                    tabIndex={0}
-                                    aria-label={`Профиль: ${currentUser.fullName}`}
-                                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMobileMenu()}
-                                >
-                                    {resolveImageUrl(currentUser.avatar) ? (
-                                        <img src={resolveImageUrl(currentUser.avatar)} alt="" className="header__mobile-top-avatar" />
-                                    ) : (
-                                        <span className="header__mobile-top-initials">{getInitials(currentUser.fullName)}</span>
-                                    )}
-                                </div>
-                                <button
-                                    type="button"
-                                    ref={menuButtonRef}
-                                    className="header__mobile-menu-btn"
-                                    onClick={toggleMobileMenu}
-                                    aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
-                                    aria-expanded={menuOpen}
-                                    aria-controls="mobile-nav"
-                                >
-                                    ☰
-                                </button>
-                            </>
+                            <div
+                                className="header__mobile-top-user"
+                                onClick={toggleMobileMenu}
+                                title={currentUser.fullName}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`Профиль: ${currentUser.fullName}`}
+                                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMobileMenu()}
+                            >
+                                {resolveImageUrl(currentUser.avatar) ? (
+                                    <img src={resolveImageUrl(currentUser.avatar)} alt="" className="header__mobile-top-avatar" />
+                                ) : (
+                                    <span className="header__mobile-top-initials">{getInitials(currentUser.fullName)}</span>
+                                )}
+                            </div>
                         ) : (
                             <>
                                 <Link to="/zayavka" className={`header__mobile-login-btn${isActive('/zayavka') ? ' is-active' : ''}`} aria-current={isActive('/zayavka') ? 'page' : undefined}>
@@ -334,6 +334,17 @@ const Header = () => {
                                 </Link>
                             </>
                         )}
+                        <button
+                            type="button"
+                            ref={menuButtonRef}
+                            className="header__mobile-menu-btn"
+                            onClick={toggleMobileMenu}
+                            aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}
+                            aria-expanded={menuOpen}
+                            aria-controls="mobile-nav"
+                        >
+                            ☰
+                        </button>
                     </div>
                 </div>
 
@@ -349,6 +360,13 @@ const Header = () => {
                 >
                     <div className="header__mobile-menu__content">
                         <nav className="header__mobile-nav" aria-label="Основная навигация">
+                            <button
+                                type="button"
+                                className="header__mobile-link header__mobile-qr"
+                                onClick={openCatalogQr}
+                            >
+                                Показать QR-код
+                            </button>
                             <Link
                                 to="/"
                                 onClick={() => { toTop(); closeMobileMenu(); }}
@@ -494,6 +512,37 @@ const Header = () => {
                         </>
                     )}
                 </nav>
+            )}
+            {qrOpen && (
+                <div
+                    className="catalog-qr"
+                    ref={qrDialogRef}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="catalog-qr-title"
+                >
+                    <div className="catalog-qr__backdrop" onClick={closeCatalogQr} />
+                    <div className="catalog-qr__card">
+                        <h2 id="catalog-qr-title">Каталог по QR</h2>
+                        <p>
+                            Наведите камеру на код. Откроется каталог: можно посмотреть мебель и оставить заявку.
+                        </p>
+                        <div className="catalog-qr__code">
+                            <QRCodeSVG
+                                value={catalogUrl}
+                                size={232}
+                                level="Q"
+                                includeMargin
+                                bgColor="#ffffff"
+                                fgColor="#1a1612"
+                            />
+                        </div>
+                        <p className="catalog-qr__url">{catalogUrl}</p>
+                        <button type="button" className="catalog-qr__close" onClick={closeCatalogQr}>
+                            Закрыть
+                        </button>
+                    </div>
+                </div>
             )}
         </header>
     );
