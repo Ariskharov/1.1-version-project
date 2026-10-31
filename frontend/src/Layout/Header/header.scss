@@ -50,9 +50,12 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
     &__logo {
       width: 50px;
       height: 50px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid rgba(184, 149, 74, 0.55);
       margin-right: 10px;
       transition: transform 0.3s $hdr-ease, filter 0.3s ease;
-      filter: drop-shadow(0 2px 6px rgba(23, 26, 31, 0.08));
+      box-shadow: 0 2px 8px rgba(92, 69, 24, 0.18);
 
       &:hover {
         transform: scale(1.04);
@@ -279,7 +282,10 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
   .header__mobile-logo {
     width: 48px;
     height: 48px;
-    filter: drop-shadow(0 2px 6px rgba(23, 26, 31, 0.08));
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid rgba(184, 149, 74, 0.55);
+    box-shadow: 0 2px 8px rgba(92, 69, 24, 0.18);
   }
 
   .header__mobile-top__actions {

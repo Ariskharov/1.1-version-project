@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import './header.scss';
-import logo from '../img_layout/logo.svg';
+import logo from '../img_layout/logo.jpeg';
 import exitImg from '../img_layout/exit_img.svg';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
