@@ -12,7 +12,7 @@ import {
     downloadSpecification,
 } from '../../../utils/contractDocuments';
 
-import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
+import { API_BASE, resolveImageUrl } from '../../../config/api';
 import { calculatePositionDetails, readProductOrder } from '../../../utils/orderConvenience';
 import { evaluateReady } from '../../../utils/formulaEval';
 
@@ -90,7 +90,7 @@ const statusClass = (status) => {
 const Order = () => {
     const { id } = useParams();
     const { resolvedTheme } = useCatalogTheme();
-    const { currentUser, showToast } = useContext(CustomContext);
+    const { currentUser, showToast, orders, dataLoaded } = useContext(CustomContext);
     const isAdmin = currentUser?.role === 'admin';
     const [linkCopied, setLinkCopied] = useState(false);
 
@@ -149,57 +149,93 @@ const Order = () => {
         return undefined;
     }, [photoOpen, detailsItem]);
 
+    const showOrder = useCallback(async (source) => {
+        const loaded = { ...(source.order?.[0] || source) };
+        const items = readProductOrder(loaded.product_order);
+        if (items.some((item) => !item.calculatedDetails?.length && item.details?.length)) {
+            try {
+                await evaluateReady;
+            } catch (err) {
+                console.error('Не удалось загрузить модуль расчёта', err);
+            }
+        }
+        loaded.product_order = items.map((item) => {
+            if (!item.calculatedDetails?.length) {
+                return {
+                    ...item,
+                    calculatedDetails: calculatePositionDetails(item, item.userInputs || {}),
+                };
+            }
+            return item;
+        });
+        setOrder((prev) => (JSON.stringify(prev) === JSON.stringify(loaded) ? prev : loaded));
+        setError(null);
+        setLoading(false);
+    }, []);
+
     useEffect(() => {
         const numeric = /^\d{1,9}$/.test(String(id || ''));
-        const url = numeric
-            ? `${API_BASE}/order/${id}`
-            : `${API_BASE}/order-card/${encodeURIComponent(id)}`;
-        fetch(url, numeric ? { headers: authHeaders() } : undefined)
-            .then(async (res) => {
+        if (!numeric) return undefined;
+        if (!dataLoaded) return undefined;
+        let token = '';
+        try {
+            token = localStorage.getItem('token') || '';
+        } catch {
+            token = '';
+        }
+        if (!token) {
+            window.location.assign('/signin');
+            return undefined;
+        }
+        const fresh = orders.find((item) => String(item.id) === String(id));
+        if (!fresh) {
+            setError('Заказ не найден');
+            setLoading(false);
+            return undefined;
+        }
+        showOrder(fresh);
+        return undefined;
+    }, [id, orders, dataLoaded, showOrder]);
+
+    useEffect(() => {
+        const numeric = /^\d{1,9}$/.test(String(id || ''));
+        if (numeric) return undefined;
+
+        let cancelled = false;
+        let knownStamp = '';
+        let shown = false;
+        const loadCard = async () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+            try {
+                const stampRes = await fetch(`${API_BASE}/order-card/${encodeURIComponent(id)}/stamp`, { cache: 'no-store' });
+                const stampBody = await stampRes.json().catch(() => ({}));
+                if (!stampRes.ok) throw new Error(stampBody.error || 'Заказ не найден');
+                if (stampBody.stamp && stampBody.stamp === knownStamp) return;
+                const res = await fetch(`${API_BASE}/order-card/${encodeURIComponent(id)}`, { cache: 'no-store' });
                 const data = await res.json().catch(() => ({}));
-                if (res.status === 401) {
-                    try {
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('currentUser');
-                    } catch {
-                        /* приватный режим */
-                    }
-                    window.location.assign('/signin');
-                    return null;
-                }
                 if (!res.ok) throw new Error(data.error || 'Заказ не найден');
-                return data;
-            })
-            .then(async (data) => {
-                if (!data) return;
-                const loaded = data.order?.[0] || data;
-                const items = readProductOrder(loaded.product_order);
-                if (items.some((item) => !item.calculatedDetails?.length && item.details?.length)) {
-                    try {
-                        await evaluateReady;
-                    } catch (err) {
-                        console.error('Не удалось загрузить модуль расчёта', err);
-                    }
-                }
-
-                loaded.product_order = items.map((item) => {
-                    if (!item.calculatedDetails?.length) {
-                        return {
-                            ...item,
-                            calculatedDetails: calculatePositionDetails(item, item.userInputs || {}),
-                        };
-                    }
-                    return item;
-                });
-
-                setOrder(loaded);
-                setLoading(false);
-            })
-            .catch((err) => {
+                if (cancelled) return;
+                knownStamp = stampBody.stamp || knownStamp;
+                shown = true;
+                showOrder(data);
+            } catch (err) {
+                if (cancelled || shown) return;
                 setError(err.message || 'Не удалось загрузить заказ');
                 setLoading(false);
-            });
-    }, [id]);
+            }
+        };
+        loadCard();
+        const timer = setInterval(loadCard, 4000);
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') loadCard();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
+    }, [id, showOrder]);
 
     const subtotal = useMemo(
         () => (order?.product_order || []).reduce((s, p) => s + getLineTotal(p), 0),

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useContext, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { evaluateReady } from '../../../utils/formulaEval';
 import './order_editor.scss';
 import { CustomContext } from '../../../Context';
 import LoadingSpinner, { LoadingPage } from '../../../components/ui/LoadingSpinner';
@@ -65,7 +64,7 @@ const OrderEditor = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { resolvedTheme } = useCatalogTheme();
-    const { showToast, confirm } = useContext(CustomContext);
+    const { showToast, confirm, orders: liveOrders, products: liveProducts, dataLoaded, setOrders } = useContext(CustomContext);
 
     const pageClassName = (extra = '') =>
         ['order_editor', `order_editor--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
@@ -108,6 +107,7 @@ const OrderEditor = () => {
     const [orgCards, setOrgCards] = useState([]);
     const [isDocLoading, setIsDocLoading] = useState(null);
     const skipDirtyRef = useRef(true);
+    const appliedSigRef = useRef('');
     const dirtyVersionRef = useRef(0);
     const savingRef = useRef(false);
     const orderRef = useRef(null);
@@ -129,75 +129,66 @@ const OrderEditor = () => {
         setProductSearch('');
     }, []);
 
-    // Получение данных заказа
     useEffect(() => {
+        appliedSigRef.current = '';
         skipDirtyRef.current = true;
         setIsDirty(false);
         setLoading(true);
         setError(null);
         setCustomStatus('');
-
-        const fetchOrder = async () => {
-            try {
-                const orderPromise = fetch(`${API_BASE}/order/${id}`, { headers: authHeaders() });
-                await evaluateReady.catch((err) => {
-                    console.error('Не удалось загрузить модуль расчёта', err);
-                });
-                const res = await orderPromise;
-                if (!res.ok) throw new Error('Заказ не найден');
-                const data = await res.json();
-                let loaded = data.order?.[0] || data;
-
-                loaded.product_order = readProductOrder(loaded.product_order).map(item => syncItemTotal({
-                    ...item,
-                    userInputs: { ...item.userInputs },
-                    bodyColor: typeof item.bodyColor === 'string' ? item.bodyColor : '',
-                    facadeColor: typeof item.facadeColor === 'string' ? item.facadeColor : '',
-                    calculatedDetails: item.calculatedDetails?.length
-                        ? item.calculatedDetails
-                        : calculateDetails(item),
-                }));
-
-                if (!loaded.contract_date) {
-                    loaded.contract_date = new Date().toISOString().slice(0, 10);
-                }
-                if (!loaded.contract_city) loaded.contract_city = 'Токмок';
-                if (!loaded.contract_no) loaded.contract_no = String(loaded.id || id);
-                if (!loaded.buyer_rep_title) loaded.buyer_rep_title = 'директора';
-                if (!loaded.delivery_days) loaded.delivery_days = '30';
-
-                setOrder(loaded);
-                const loadedStatus = loaded.status || 'Оформлен';
-                setStatus(loadedStatus);
-                setCustomStatus(PRESET_STATUSES.includes(loadedStatus) ? '' : loadedStatus);
-
-                if (loaded.product_order?.length > 0) {
-                    setSelectedProductId(loaded.product_order[0].id);
-                }
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        const fetchProducts = async () => {
-            try {
-                const res = await fetch(`${API_BASE}/product`);
-                if (!res.ok) throw new Error('Каталог недоступен');
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data ? [data] : []);
-                setProducts(list.filter(Boolean));
-            } catch (err) {
-                console.error('Ошибка каталога:', err);
-                showToast?.('error', 'Не удалось загрузить каталог мебели');
-            }
-        };
-
-        fetchOrder();
-        fetchProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        setOrder(null);
     }, [id]);
+
+    useEffect(() => {
+        if (!dataLoaded) return;
+        setProducts(Array.isArray(liveProducts) ? liveProducts.filter(Boolean) : []);
+    }, [liveProducts, dataLoaded]);
+
+    useEffect(() => {
+        if (!dataLoaded || isDirty || savingRef.current) return;
+        const fresh = liveOrders.find((item) => String(item.id) === String(id));
+        if (!fresh) {
+            setError('Заказ не найден');
+            setOrder(null);
+            setLoading(false);
+            return;
+        }
+        const sig = JSON.stringify(fresh);
+        if (appliedSigRef.current === sig) {
+            setLoading(false);
+            setError(null);
+            return;
+        }
+        appliedSigRef.current = sig;
+        skipDirtyRef.current = true;
+        const loaded = {
+            ...fresh,
+            product_order: readProductOrder(fresh.product_order).map((item) => syncItemTotal({
+                ...item,
+                userInputs: { ...item.userInputs },
+                bodyColor: typeof item.bodyColor === 'string' ? item.bodyColor : '',
+                facadeColor: typeof item.facadeColor === 'string' ? item.facadeColor : '',
+                calculatedDetails: item.calculatedDetails?.length
+                    ? item.calculatedDetails
+                    : calculateDetails(item),
+            })),
+        };
+        if (!loaded.contract_date) loaded.contract_date = new Date().toISOString().slice(0, 10);
+        if (!loaded.contract_city) loaded.contract_city = 'Токмок';
+        if (!loaded.contract_no) loaded.contract_no = String(loaded.id || id);
+        if (!loaded.buyer_rep_title) loaded.buyer_rep_title = 'директора';
+        if (!loaded.delivery_days) loaded.delivery_days = '30';
+        const current = orderRef.current;
+        setOrder(loaded);
+        if (!current && loaded.product_order?.length > 0) {
+            setSelectedProductId(loaded.product_order[0].id);
+        }
+        const loadedStatus = loaded.status || 'Оформлен';
+        setStatus(loadedStatus);
+        setCustomStatus(PRESET_STATUSES.includes(loadedStatus) ? '' : loadedStatus);
+        setLoading(false);
+        setError(null);
+    }, [liveOrders, dataLoaded, isDirty, id]);
 
     useEffect(() => {
         if (loading || !order) return;
@@ -210,14 +201,8 @@ const OrderEditor = () => {
     }, [order, status, customStatus, loading]);
 
     useEffect(() => {
-        fetch(`${API_BASE}/order`, { headers: authHeaders() })
-            .then((res) => res.json())
-            .then((data) => {
-                const list = Array.isArray(data) ? data : data.order || [];
-                setOrgCards(buildOrganizationCards(list));
-            })
-            .catch(() => setOrgCards([]));
-    }, []);
+        setOrgCards(buildOrganizationCards(Array.isArray(liveOrders) ? liveOrders : []));
+    }, [liveOrders]);
 
     useEffect(() => {
         const onBeforeUnload = (e) => {
@@ -356,6 +341,7 @@ const OrderEditor = () => {
         try {
             const res = await fetch(`${API_BASE}/order/${id}`, { method: 'DELETE', headers: authHeaders() });
             if (!res.ok) throw new Error('Не удалось удалить заказ');
+            setOrders((prev) => prev.filter((item) => String(item.id) !== String(id)));
             setIsDirty(false);
             showToast('success', 'Заказ удалён');
             navigate('/view_orders');
@@ -376,6 +362,7 @@ const OrderEditor = () => {
             const totals = recalcOrderTotals(snapshot);
             const effectiveStatus = getEffectiveStatus(statusRef.current, customStatusRef.current);
             const product_order = (snapshot.product_order || []).map(syncItemTotal);
+            const updatedAt = new Date().toISOString();
             const res = await fetch(`${API_BASE}/order/${id}`, {
                 method: 'PUT',
                 headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -385,10 +372,26 @@ const OrderEditor = () => {
                     status: effectiveStatus,
                     subtotal: totals.subtotal,
                     total: totals.total,
-                    updatedAt: new Date().toISOString()
+                    updatedAt,
                 })
             });
             if (res.ok) {
+                const savedOrder = {
+                    ...snapshot,
+                    product_order,
+                    status: effectiveStatus,
+                    subtotal: totals.subtotal,
+                    total: totals.total,
+                    updatedAt,
+                };
+                setOrders((prev) => {
+                    const idx = prev.findIndex((item) => String(item.id) === String(id));
+                    if (idx === -1) return [...prev, savedOrder];
+                    const next = prev.slice();
+                    next[idx] = { ...prev[idx], ...savedOrder };
+                    appliedSigRef.current = JSON.stringify(next[idx]);
+                    return next;
+                });
                 if (dirtyVersionRef.current === version) setIsDirty(false);
                 setLastSaved(new Date());
                 if (!silent) showToast('success', 'Заказ сохранён');
@@ -402,7 +405,7 @@ const OrderEditor = () => {
             savingRef.current = false;
             setIsSaving(false);
         }
-    }, [id, navigate, showToast]);
+    }, [id, navigate, showToast, setOrders]);
 
     useEffect(() => {
         if (!isDirty || loading || !order) return undefined;

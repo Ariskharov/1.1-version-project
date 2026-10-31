@@ -23,7 +23,7 @@ import {
 const PlacingAnOrder = () => {
     const navigate = useNavigate();
     const { resolvedTheme } = useCatalogTheme();
-    const { showToast, confirm } = useContext(CustomContext);
+    const { showToast, confirm, orders: liveOrders, products: liveProducts, setOrders } = useContext(CustomContext);
 
     const [order, setOrder] = useState({
         name_client: '',
@@ -96,14 +96,8 @@ const PlacingAnOrder = () => {
     }, []);
 
     useEffect(() => {
-        fetch(`${API_BASE}/order`, { headers: authHeaders() })
-            .then((res) => res.json())
-            .then((data) => {
-                const list = Array.isArray(data) ? data : data.order || [];
-                setOrgCards(buildOrganizationCards(list));
-            })
-            .catch(() => setOrgCards([]));
-    }, []);
+        setOrgCards(buildOrganizationCards(Array.isArray(liveOrders) ? liveOrders : []));
+    }, [liveOrders]);
 
     // Автосохранение черновика при изменении заказа
     useEffect(() => {
@@ -131,13 +125,9 @@ const PlacingAnOrder = () => {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [isDirty, order.positions.length]);
 
-    // Загрузка каталога
     useEffect(() => {
-        fetch(`${API_BASE}/product`)
-            .then(res => res.json())
-            .then(data => setProducts(Array.isArray(data) ? data : [data]))
-            .catch(err => console.error('Ошибка каталога:', err));
-    }, []);
+        setProducts(Array.isArray(liveProducts) ? liveProducts.filter(Boolean) : []);
+    }, [liveProducts]);
 
     // Инициализация при выборе товара или при редактировании
     useEffect(() => {
@@ -444,6 +434,11 @@ const PlacingAnOrder = () => {
             if (!res.ok) throw new Error('Ошибка сервера');
             const data = await res.json();
             const createdId = data.id || data[0]?.id;
+            if (data && createdId) {
+                setOrders((prev) => (
+                    prev.some((item) => String(item.id) === String(createdId)) ? prev : [...prev, data]
+                ));
+            }
 
             if (!asDraft) {
                 localStorage.removeItem(ORDER_DRAFT_KEY);

@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { evaluateFormula, evaluateReady } from '../../../utils/formulaEval';
-
-import { API_BASE } from '../../../config/api';
+import { CustomContext } from '../../../Context';
 
 export function useFurnitureCalculator() {
     const [products, setProducts] = useState([]);
@@ -11,35 +10,15 @@ export function useFurnitureCalculator() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [validationErrors, setValidationErrors] = useState({});
+    const { products: liveProducts, dataLoaded } = useContext(CustomContext);
 
-    // Загрузка продуктов
     useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                setIsLoading(true);
-                setError(null);
-
-                const res = await fetch(`${API_BASE}/product`);
-                
-                if (!res.ok) {
-                    throw new Error(`Ошибка загрузки: ${res.status}`);
-                }
-
-                const data = await res.json();
-                const productsArray = Array.isArray(data) ? data : [data];
-                
-                setProducts(productsArray);
-                // Убрали автоматическое открытие модалки первого товара при загрузке страницы
-            } catch (err) {
-                console.error('Ошибка загрузки продуктов:', err);
-                setError('Не удалось загрузить каталог мебели. Попробуйте обновить страницу.');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchProducts();
-    }, []);
+        if (!dataLoaded) return undefined;
+        setProducts(Array.isArray(liveProducts) ? liveProducts : []);
+        setError(null);
+        setIsLoading(false);
+        return undefined;
+    }, [liveProducts, dataLoaded]);
 
     // Инициализация inputs для выбранного продукта
     const initializeInputs = useCallback((product) => {

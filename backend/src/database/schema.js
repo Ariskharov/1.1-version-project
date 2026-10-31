@@ -58,7 +58,62 @@ async function backfillPublicTokens() {
     }
 }
 
+const REVISION_TABLES = ['product', 'users', 'workSessions', 'order', 'announcements'];
+
+// Один счётчик на таблицу. Клиент сверяет число и качает строки только когда оно выросло.
+async function ensureDataRevision() {
+    await pool.query(`CREATE TABLE IF NOT EXISTS data_revision (
+        name text PRIMARY KEY,
+        rev bigint NOT NULL DEFAULT 0
+    )`);
+    await pool.query(`
+        CREATE OR REPLACE FUNCTION bump_data_revision() RETURNS trigger
+        LANGUAGE plpgsql
+        AS $fn$
+        BEGIN
+            INSERT INTO data_revision(name, rev)
+            VALUES (TG_TABLE_NAME, 1)
+            ON CONFLICT (name) DO UPDATE SET rev = data_revision.rev + 1;
+            RETURN NULL;
+        END;
+        $fn$
+    `);
+
+    for (const table of REVISION_TABLES) {
+        const relName = `"${table}"`;
+        try {
+            const rel = await pool.query('SELECT to_regclass($1) AS rel', [relName]);
+            if (!rel.rows[0]?.rel) continue;
+            const trigger = await pool.query(
+                `SELECT 1 FROM pg_trigger
+                 WHERE tgname = 'data_revision_bump' AND tgrelid = $1::regclass`,
+                [relName]
+            );
+            if (!trigger.rows.length) {
+                await pool.query(
+                    `CREATE TRIGGER data_revision_bump
+                     AFTER INSERT OR UPDATE OR DELETE ON ${relName}
+                     FOR EACH STATEMENT
+                     EXECUTE PROCEDURE bump_data_revision()`
+                );
+            }
+            await pool.query(
+                `INSERT INTO data_revision(name, rev) VALUES ($1, 0)
+                 ON CONFLICT (name) DO NOTHING`,
+                [table]
+            );
+        } catch (err) {
+            console.error('[schema] revision trigger', table, err.message);
+        }
+    }
+}
+
 async function ensureAppSchema() {
+    try {
+        await ensureDataRevision();
+    } catch (err) {
+        console.error('[schema] data revision:', err.message);
+    }
     const sqlPath = path.join(__dirname, '../../migrations/004_app_columns.sql');
     const sql = fs.readFileSync(sqlPath, 'utf8');
     const hash = crypto.createHash('sha256').update(sql).digest('hex');

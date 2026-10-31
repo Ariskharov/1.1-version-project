@@ -160,6 +160,7 @@ const Admin = () => {
         showToast,
         confirm,
         dataLoaded,
+        announcements: liveAnnouncements,
     } = useContext(CustomContext);
 
     // ==================== СОСТОЯНИЯ ====================
@@ -188,7 +189,7 @@ const Admin = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [annForm, setAnnForm] = useState(EMPTY_ANN_FORM);
     const [editingAnnId, setEditingAnnId] = useState(null);
-    const [annLoading, setAnnLoading] = useState(false);
+    const [annLoading, setAnnLoading] = useState(true);
     const [annSaving, setAnnSaving] = useState(false);
     const [annBusyId, setAnnBusyId] = useState(null); // id объявления при toggle/delete
     const [annPanelOpen, setAnnPanelOpen] = useState(true);
@@ -223,10 +224,14 @@ const Admin = () => {
     }, [showToast]);
 
     useEffect(() => {
-        if (currentUser?.role === 'admin') {
-            loadAnnouncements();
+        if (currentUser?.role !== 'admin') {
+            setAnnLoading(false);
+            return;
         }
-    }, [currentUser?.role, loadAnnouncements]);
+        if (!dataLoaded) return;
+        setAnnouncements(Array.isArray(liveAnnouncements) ? liveAnnouncements : []);
+        setAnnLoading(false);
+    }, [currentUser?.role, dataLoaded, liveAnnouncements]);
 
     const resetAnnForm = () => {
         setAnnForm(EMPTY_ANN_FORM);

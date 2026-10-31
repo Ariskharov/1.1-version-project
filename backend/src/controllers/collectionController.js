@@ -29,9 +29,7 @@ const withAnnouncementPush = async (row, shouldNotify) => {
 const getTableColumns = async (tableName) => {
     try {
         const res = await pool.query(`SELECT * FROM "${tableName}" WHERE 1=0`);
-        const columns = res.fields.map(field => field.name);
-        console.log(`[DEBUG] Detected columns for ${tableName}:`, columns);
-        return columns;
+        return res.fields.map(field => field.name);
     } catch (e) {
         console.error(`[DEBUG] Error getting columns for ${tableName}:`, e.message);
         return [];
@@ -42,6 +40,7 @@ const getCollection = async (req, res) => {
     try {
         const collection = req.params.collection;
         const result = await pool.query(`SELECT * FROM "${collection}" ORDER BY id ASC`);
+        res.set('Cache-Control', 'no-store');
         res.json(result.rows.map((row) => publicRow(collection, row)));
     } catch (err) {
         console.error('getCollection error:', err);
@@ -59,6 +58,7 @@ const getCollectionItem = async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({});
         }
+        res.set('Cache-Control', 'no-store');
         res.json(publicRow(collection, result.rows[0]));
     } catch (err) {
         console.error('getCollectionItem error:', err);

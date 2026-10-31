@@ -50,52 +50,15 @@ const SomIcon = () => (
 
 const ViewOrders = () => {
     const { resolvedTheme } = useCatalogTheme();
-    const { currentUser, showToast } = useContext(CustomContext);
+    const { currentUser, showToast, orders, setOrders, dataLoaded } = useContext(CustomContext);
     const navigate = useNavigate();
     const isAdmin = currentUser?.role === 'admin';
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('Все');
     const [workFilter, setWorkFilter] = useState('all');
     const [repeatingId, setRepeatingId] = useState(null);
     const [viewMode, setViewMode] = useState('grid');
     const [sortBy, setSortBy] = useState('id-desc');
-
-    useEffect(() => {
-        const fetchOrders = async () => {
-            try {
-                const response = await fetch(`${API_BASE}/order`, { headers: authHeaders() });
-                if (response.status === 401) {
-                    try {
-                        localStorage.removeItem('token');
-                        localStorage.removeItem('currentUser');
-                    } catch {
-                        /* приватный режим */
-                    }
-                    window.location.assign('/signin');
-                    return;
-                }
-                if (!response.ok) {
-                    throw new Error(`Ошибка HTTP: ${response.status}`);
-                }
-                const data = await response.json();
-                const ordersData = Array.isArray(data) ? data : data.order || [];
-                setOrders(ordersData.map((order) => ({
-                    ...order,
-                    product_order: readProductOrder(order.product_order),
-                })));
-            } catch (err) {
-                console.error('Ошибка при fetch:', err);
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchOrders();
-    }, []);
 
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 720px)');
@@ -147,7 +110,7 @@ const ViewOrders = () => {
                 body: JSON.stringify({ status }),
             });
             if (!res.ok) throw new Error('Не удалось сменить статус');
-            setOrders((prev) => prev.map((item) => (item.id === orderId ? { ...item, status } : item)));
+            setOrders((prev) => prev.map((item) => (String(item.id) === String(orderId) ? { ...item, status } : item)));
             showToast?.('success', 'Статус обновлён');
         } catch (err) {
             showToast?.('error', err.message);
@@ -166,6 +129,11 @@ const ViewOrders = () => {
             if (!res.ok) throw new Error('Не удалось повторить заказ');
             const data = await res.json();
             const createdId = data.id || data[0]?.id;
+            if (data && createdId) {
+                setOrders((prev) => (
+                    prev.some((item) => String(item.id) === String(createdId)) ? prev : [...prev, data]
+                ));
+            }
             showToast?.('success', 'Заказ скопирован как черновик');
             if (createdId) navigate(`/order_editor/${createdId}`);
         } catch (err) {
@@ -245,21 +213,11 @@ const ViewOrders = () => {
         }
     };
 
-    if (loading) {
+    if (!dataLoaded) {
         return (
             <div className="view-orders-loading">
                 <div className="vo-spinner"></div>
                 <p>Загрузка списка заказов...</p>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="view-orders-error">
-                <h2>Произошла ошибка</h2>
-                <p>{error}</p>
-                <button onClick={() => window.location.reload()}>Повторить попытку</button>
             </div>
         );
     }

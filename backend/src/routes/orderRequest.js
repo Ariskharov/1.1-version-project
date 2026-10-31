@@ -12,6 +12,26 @@ const tableColumns = async (tableName) => {
     return res.fields.map((field) => field.name);
 };
 
+router.get('/order-card/:token/stamp', async (req, res) => {
+    const token = String(req.params.token || '');
+    if (!isPublicToken(token)) {
+        return res.status(404).json({ error: 'Заявка не найдена' });
+    }
+    try {
+        const result = await pool.query(
+            'SELECT id::text || \':\' || xmin::text AS stamp FROM "order" WHERE public_token = $1',
+            [token]
+        );
+        if (!result.rows.length) return res.status(404).json({ error: 'Заявка не найдена' });
+        res.set('Cache-Control', 'no-store');
+        return res.json({ stamp: result.rows[0].stamp });
+    } catch (err) {
+        if (err.code === '42703') return res.status(404).json({ error: 'Заявка не найдена' });
+        console.error('order-card stamp error:', err.message);
+        return res.status(500).json({ error: 'Не удалось открыть заявку' });
+    }
+});
+
 router.get('/order-card/:token', async (req, res) => {
     const token = String(req.params.token || '');
     if (!isPublicToken(token)) {
@@ -20,6 +40,7 @@ router.get('/order-card/:token', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM "order" WHERE public_token = $1', [token]);
         if (!result.rows.length) return res.status(404).json({ error: 'Заявка не найдена' });
+        res.set('Cache-Control', 'no-store');
         return res.json(result.rows[0]);
     } catch (err) {
         if (err.code === '42703') return res.status(404).json({ error: 'Заявка не найдена' });

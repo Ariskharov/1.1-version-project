@@ -17,7 +17,6 @@ import { useCatalogTheme } from '../../context/CatalogThemeContext';
 
 import { format, subDays, startOfMonth, endOfMonth, subMonths, parseISO, differenceInMinutes } from 'date-fns';
 import {
-  fetchAnnouncements,
   filterActiveAnnouncements,
   formatExpiryLabel,
 } from '../../utils/announcements';
@@ -120,7 +119,7 @@ const PERIOD_PRESETS = [
 ];
 
 const PersonalCabinet = () => {
-  const { currentUser, workSessions, showToast, dataLoaded } = useContext(CustomContext);
+  const { currentUser, workSessions, showToast, dataLoaded, announcements: liveAnnouncements } = useContext(CustomContext);
   const { resolvedTheme } = useCatalogTheme();
 
   const [liveNow, setLiveNow] = useState(Date.now());
@@ -165,42 +164,16 @@ const PersonalCabinet = () => {
   }, [refreshPushStatus]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const load = async ({ notifyNew } = { notifyNew: false }) => {
-      try {
-        const list = await fetchAnnouncements();
-        if (cancelled) return;
-        const arr = Array.isArray(list) ? list : [];
-        setAnnouncements(arr);
-
-        if (!announcementsSeededRef.current) {
-          markAnnouncementsSeen(filterActiveAnnouncements(arr));
-          announcementsSeededRef.current = true;
-        } else if (notifyNew) {
-          notifyNewAnnouncementsLocally(filterActiveAnnouncements(arr));
-        }
-      } catch {
-        /* кабинет работает без объявлений */
-      }
-    };
-
-    load({ notifyNew: false });
-    const interval = setInterval(() => load({ notifyNew: true }), 45000);
-    const onFocus = () => load({ notifyNew: true });
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') onFocus();
-    };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, []);
+    const arr = Array.isArray(liveAnnouncements) ? liveAnnouncements : [];
+    setAnnouncements(arr);
+    if (!announcementsSeededRef.current) {
+      if (!dataLoaded) return;
+      markAnnouncementsSeen(filterActiveAnnouncements(arr));
+      announcementsSeededRef.current = true;
+      return;
+    }
+    notifyNewAnnouncementsLocally(filterActiveAnnouncements(arr));
+  }, [liveAnnouncements, dataLoaded]);
 
   const handleEnablePush = async () => {
     if (pushBusy) return;

@@ -8,6 +8,7 @@ const authRoutes = require('./src/routes/authRoutes');
 const qrCheckinRoutes = require('./src/routes/qrCheckin');
 const collectionRoutes = require('./src/routes/collectionRoutes');
 const orderRequestRoutes = require('./src/routes/orderRequest');
+const syncRoutes = require('./src/routes/sync');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const pushRoutes = require('./src/routes/pushRoutes');
 const { ensureTable: ensurePushTable, ensureConfigured: ensurePushConfigured } = require('./src/services/pushService');
@@ -50,6 +51,7 @@ app.use((req, res, next) => {
     
     // Перехватываем окончание отправки ответа
     res.on('finish', () => {
+        if (req.path === '/sync') return;
         const diff = process.hrtime(start);
         const timeInMs = (diff[0] * 1e3 + diff[1] * 1e-6).toFixed(2);
         const statusColor = res.statusCode >= 400 ? '\x1b[31m' : '\x1b[32m'; // Красный при ошибках, зелёный при успехе
@@ -78,7 +80,8 @@ app.use('/upload', uploadRoutes);
 // Web Push
 app.use('/', pushRoutes);
 
-// Публичная заявка должна стоять раньше /:collection
+// Публичная заявка и живая синхронизация должны стоять раньше /:collection
+app.use('/', syncRoutes);
 app.use('/', orderRequestRoutes);
 
 // Auth and collection routes

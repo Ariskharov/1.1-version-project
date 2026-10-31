@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo, useRef, useCallback, memo } from 'react';
+import React, { useState, useContext, useMemo, useRef, useCallback, memo } from 'react';
 import './edit_mebel.scss';
 import { CustomContext } from '../../../Context';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
@@ -88,10 +88,13 @@ const ProductCard = memo(({ product: p, index: idx, onOpen, onDelete, isDeleting
 
 function FurnitureEditor() {
     const { resolvedTheme } = useCatalogTheme();
-    const { showToast, confirm } = useContext(CustomContext);
-    const [products, setProducts] = useState([]);
+    const { showToast, confirm, products: liveProducts, dataLoaded, refreshData } = useContext(CustomContext);
+    const products = useMemo(
+        () => (Array.isArray(liveProducts) ? liveProducts : []),
+        [liveProducts]
+    );
     const [selected, setSelected] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const loading = !dataLoaded;
     const [searchTerm, setSearchTerm] = useState('');
     const [pendingActions, setPendingActions] = useState({}); // защита от повторных кликов
 
@@ -120,23 +123,6 @@ function FurnitureEditor() {
         }
     }, [pendingActions]);
 
-    useEffect(() => {
-        fetchProducts();
-    }, []);
-
-    const fetchProducts = async () => {
-        try {
-            setLoading(true);
-            const res = await fetch(API_URL);
-            const data = await res.json();
-            setProducts(Array.isArray(data) ? data : [data]);
-        } catch (err) {
-            console.error('Ошибка загрузки:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const selectProduct = useCallback((p) => {
         setSelected(JSON.parse(JSON.stringify(p)));
     }, []);
@@ -154,7 +140,7 @@ function FurnitureEditor() {
             
             showToast('success', 'Изменения сохранены!');
             setSelected(null);
-            fetchProducts();
+            refreshData();
         } catch (err) {
             console.error('Ошибка сохранения:', err);
             showToast('error', 'Ошибка сохранения: ' + err.message);
@@ -176,7 +162,7 @@ function FurnitureEditor() {
             
             const updatedProduct = await response.json();
             setSelected(updatedProduct);
-            fetchProducts();
+            refreshData();
         } catch (err) {
             console.error('Ошибка сохранения фото:', err);
             showToast('error', 'Ошибка сохранения фото: ' + err.message);
@@ -212,7 +198,7 @@ function FurnitureEditor() {
             
             const addedProduct = await response.json();
             showToast('success', 'Новая мебель добавлена!');
-            fetchProducts();
+            refreshData();
             setSelected(addedProduct);
         } catch (err) {
             console.error('Ошибка добавления:', err);
@@ -236,7 +222,7 @@ function FurnitureEditor() {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             showToast('success', 'Мебель удалена!');
-            fetchProducts();
+            refreshData();
             if (selected?.id === id) setSelected(null);
         } catch (err) {
             console.error('Ошибка удаления:', err);
@@ -244,7 +230,7 @@ function FurnitureEditor() {
         } finally {
             setPending(`delete-${id}`, false);
         }
-    }, [confirm, isPending, selected?.id, setPending, showToast]);
+    }, [confirm, isPending, refreshData, selected?.id, setPending, showToast]);
 
     const update = (path, value) => {
         setSelected(prev => {

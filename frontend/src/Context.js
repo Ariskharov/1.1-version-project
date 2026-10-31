@@ -3,6 +3,7 @@ import axios from 'axios';
 import { differenceInMinutes, parseISO, addDays } from 'date-fns';
 import AppUi from './components/ui/AppUi';
 import { API_BASE } from './config/api';
+import { readProductOrder } from './utils/orderConvenience';
 
 export const CustomContext = createContext();
 
@@ -98,8 +99,13 @@ export const Context = ({ children }) => {
     const [users, setUsers] = useState([]);
     const [workSessions, setWorkSessions] = useState([]);
     const [products, setProducts] = useState([]);
+    const [orders, setOrders] = useState([]);
+    const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [dataLoaded, setDataLoaded] = useState(false);
+    const stampsRef = useRef({});
+    const syncingRef = useRef(false);
+    const refreshAgainRef = useRef(false);
 
     const [toast, setToast] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState(null);
@@ -137,81 +143,123 @@ export const Context = ({ children }) => {
         setConfirmDialog(null);
     }, []);
 
-    // Одинаковый ответ сервера не меняет ссылку и не перерисовывает страницы.
-    const refreshData = useCallback(async () => {
+    const dropExpiredSession = useCallback(() => {
+        setCurrentUser(null);
+        setUsers([]);
+        setWorkSessions([]);
+        setOrders([]);
+        stampsRef.current = {};
         try {
-            const productsRes = await axios.get(`${API_BASE}/product`);
-            setIfChanged(setProducts, productsRes.data);
-        } catch (err) {
-            console.error('Ошибка обновления каталога:', err);
-        }
-
-        let token = '';
-        try {
-            token = localStorage.getItem('token') || '';
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('token');
         } catch {
-            token = '';
+            /* приватный режим */
         }
-        if (!token) {
-            setIfChanged(setUsers, []);
-            setIfChanged(setWorkSessions, []);
+    }, []);
+
+    const applyCollection = useCallback((name, rows) => {
+        if (name === 'product') setIfChanged(setProducts, rows);
+        else if (name === 'users') {
+            setIfChanged(setUsers, rows);
+            setCurrentUser((prev) => {
+                if (!prev) return prev;
+                const fresh = rows.find((user) => sameUserId(user.id, prev.id));
+                if (!fresh) return prev;
+                const next = {
+                    ...prev,
+                    login: fresh.login,
+                    email: fresh.email,
+                    fullName: fresh.fullName,
+                    role: fresh.role,
+                    avatar: fresh.avatar || '',
+                    phone: fresh.phone || '',
+                    position: fresh.position || '',
+                    badgeId: fresh.badgeId || '',
+                    description: fresh.description || '',
+                };
+                if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+                try {
+                    localStorage.setItem('currentUser', JSON.stringify(next));
+                } catch {
+                    /* приватный режим */
+                }
+                return next;
+            });
+        } else if (name === 'workSessions') setIfChanged(setWorkSessions, rows);
+        else if (name === 'order') {
+            setIfChanged(setOrders, rows.map((order) => ({
+                ...order,
+                product_order: readProductOrder(order.product_order),
+            })));
+        } else if (name === 'announcements') setIfChanged(setAnnouncements, rows);
+    }, []);
+
+    const readToken = () => {
+        try {
+            return localStorage.getItem('token') || '';
+        } catch {
+            return '';
+        }
+    };
+
+    // Сначала крошечный номер версии. Полный список качается только если он вырос.
+    const refreshData = useCallback(async () => {
+        if (syncingRef.current) {
+            refreshAgainRef.current = true;
             return;
         }
-
-        const dropExpiredSession = () => {
-            setCurrentUser(null);
-            setUsers([]);
-            setWorkSessions([]);
-            try {
-                localStorage.removeItem('currentUser');
-                localStorage.removeItem('token');
-            } catch {
-                /* приватный режим */
-            }
-        };
-
-        let usersData = null;
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        syncingRef.current = true;
         try {
-            const usersRes = await axios.get(`${API_BASE}/users`);
-            usersData = usersRes.data;
-            setIfChanged(setUsers, usersData);
-        } catch (err) {
-            console.error('Ошибка обновления сотрудников:', err);
-            if (err.response?.status === 401) {
-                dropExpiredSession();
-                return;
+            const token = readToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            const syncRes = await axios.get(`${API_BASE}/sync`, {
+                headers,
+                timeout: 8000,
+                params: { t: Date.now() },
+            });
+            const stamps = syncRes.data || {};
+            if (!readToken()) {
+                setIfChanged(setOrders, []);
+                setIfChanged(setUsers, []);
+                setIfChanged(setWorkSessions, []);
+                delete stampsRef.current.order;
+                delete stampsRef.current.users;
+                delete stampsRef.current.workSessions;
             }
-        }
-        try {
-            const sessionsRes = await axios.get(`${API_BASE}/workSessions`);
-            setIfChanged(setWorkSessions, sessionsRes.data);
+
+            const jobs = Object.entries(stamps).map(async ([name, stamp]) => {
+                if (stampsRef.current[name] === stamp) return;
+                const seen = Number(stampsRef.current[name]);
+                const next = Number(stamp);
+                if (Number.isFinite(seen) && Number.isFinite(next) && next < seen) return;
+                try {
+                    const res = await axios.get(`${API_BASE}/${name}`, {
+                        headers,
+                        timeout: 20000,
+                        params: { t: Date.now() },
+                    });
+                    const rows = Array.isArray(res.data) ? res.data : [];
+                    applyCollection(name, rows);
+                    stampsRef.current[name] = stamp;
+                } catch (err) {
+                    if (err.response?.status === 401) dropExpiredSession();
+                    else console.error(`Ошибка обновления ${name}:`, err);
+                }
+            });
+            await Promise.all(jobs);
         } catch (err) {
-            console.error('Ошибка обновления смен:', err);
             if (err.response?.status === 401) dropExpiredSession();
+            else console.error('Ошибка синхронизации:', err);
+        } finally {
+            syncingRef.current = false;
+            setDataLoaded(true);
+            if (refreshAgainRef.current) {
+                refreshAgainRef.current = false;
+                refreshData();
+            }
         }
-
-        if (!Array.isArray(usersData)) return;
-        setCurrentUser((prev) => {
-            if (!prev) return prev;
-            const fresh = usersData.find((user) => sameUserId(user.id, prev.id));
-            if (!fresh) return prev;
-            const next = {
-                ...prev,
-                login: fresh.login,
-                email: fresh.email,
-                fullName: fresh.fullName,
-                role: fresh.role,
-                avatar: fresh.avatar || '',
-                phone: fresh.phone || '',
-                position: fresh.position || '',
-                badgeId: fresh.badgeId || '',
-                description: fresh.description || '',
-            };
-            if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
-            localStorage.setItem('currentUser', JSON.stringify(next));
-            return next;
-        });
-    }, []);
+    }, [applyCollection, dropExpiredSession]);
 
     // Загрузка данных при старте: не блокируем каталог ожиданием всех API
     useEffect(() => {
@@ -229,12 +277,19 @@ export const Context = ({ children }) => {
         refreshData().finally(() => setDataLoaded(true));
     }, [refreshData]);
 
-    // Автообновление данных каждые 10 секунд (для отображения QR-отметок в реальном времени)
+    // Живое обновление: раз в 3 секунды, и сразу когда вкладка снова видна.
     useEffect(() => {
-        const interval = setInterval(() => {
-            refreshData();
-        }, 10000);
-        return () => clearInterval(interval);
+        const interval = setInterval(refreshData, 3000);
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') refreshData();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', refreshData);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisible);
+            window.removeEventListener('focus', refreshData);
+        };
     }, [refreshData]);
 
     // Мгновенная синхронизация при действиях на соседних вкладках (например, сканнер)
@@ -272,6 +327,8 @@ export const Context = ({ children }) => {
             localStorage.setItem('token', data.token);
             localStorage.setItem('currentUser', JSON.stringify(safeUser));
             setCurrentUser(safeUser);
+            stampsRef.current = {};
+            refreshData();
             return safeUser;
         } catch (err) {
             if (!err.response) return { error: 'network' };
@@ -279,12 +336,14 @@ export const Context = ({ children }) => {
             console.error('Ошибка входа:', err.response?.data || err.message);
             return { error: 'server' };
         }
-    }, []);
+    }, [refreshData]);
 
     const logout = useCallback(() => {
         setCurrentUser(null);
         setUsers([]);
         setWorkSessions([]);
+        setOrders([]);
+        stampsRef.current = {};
         localStorage.removeItem('currentUser');
         localStorage.removeItem('token');
     }, []);
@@ -522,6 +581,9 @@ export const Context = ({ children }) => {
         users,
         workSessions,
         products,
+        orders,
+        setOrders,
+        announcements,
         loading,
         dataLoaded,
         login,
@@ -545,6 +607,9 @@ export const Context = ({ children }) => {
         users,
         workSessions,
         products,
+        orders,
+        setOrders,
+        announcements,
         loading,
         dataLoaded,
         login,
