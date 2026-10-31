@@ -51,13 +51,12 @@ router.get('/order-card/:token', async (req, res) => {
 
 router.post('/order-request', async (req, res) => {
     try {
-        const slot = await consumeRequestSlot(req);
-        if (slot.limited) {
-            return res.status(429).json({ error: 'Слишком много заявок. Попробуйте через час.' });
-        }
-
         const body = req.body || {};
         if (String(body.company_url_confirm || '').trim()) {
+            const trap = await consumeRequestSlot(req);
+            if (trap.limited) {
+                return res.status(429).json({ error: 'Слишком много заявок. Попробуйте через час.' });
+            }
             return res.json({ ok: true });
         }
 
@@ -89,6 +88,11 @@ router.post('/order-request', async (req, res) => {
 
         const built = buildOrderRequest(body, products);
         if (built.error) return res.status(400).json({ error: built.error });
+
+        const slot = await consumeRequestSlot(req);
+        if (slot.limited) {
+            return res.status(429).json({ error: 'Слишком много заявок. Попробуйте через час.' });
+        }
 
         const columns = await tableColumns('order');
         const data = { ...built.record };

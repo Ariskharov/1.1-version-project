@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback, useContext } from 'react';
 import { evaluateFormula, evaluateReady } from '../../../utils/formulaEval';
 import { CustomContext } from '../../../Context';
 
+const objectList = (value) => (
+    Array.isArray(value) ? value.filter((item) => item && typeof item === 'object') : []
+);
+
 export function useFurnitureCalculator() {
     const [products, setProducts] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -25,11 +29,11 @@ export function useFurnitureCalculator() {
     const initializeInputs = useCallback((product) => {
         const newInputs = {};
 
-        (product.variables || []).forEach(v => {
+        objectList(product.variables).forEach((v) => {
             newInputs[v.name] = v.default;
         });
 
-        (product.conditions || []).forEach(c => {
+        objectList(product.conditions).forEach((c) => {
             if (c.type === 'flag') {
                 newInputs[c.name] = c.default ?? false;
             }
@@ -85,7 +89,7 @@ export function useFurnitureCalculator() {
 
         if (!selectedProduct) return errors;
 
-        (selectedProduct.variables || []).forEach(v => {
+        objectList(selectedProduct.variables).forEach((v) => {
             const isRequired = v.required ?? ['shirina', 'glubina', 'visota'].includes(v.name);
             const value = inputs[v.name];
 
@@ -101,12 +105,12 @@ export function useFurnitureCalculator() {
     const performCalculation = useCallback((product, currentInputs) => {
         const nums = {};
 
-        (product.variables || []).forEach(v => {
+        objectList(product.variables).forEach((v) => {
             const userVal = Number(currentInputs[v.name]);
             nums[v.name] = isNaN(userVal) || currentInputs[v.name] === '' ? v.default : userVal;
         });
 
-        (product.conditions || []).forEach(c => {
+        objectList(product.conditions).forEach((c) => {
             if (c.type === 'flag') {
                 nums[c.name] = currentInputs[c.name] ?? c.default ?? false;
             }
@@ -114,7 +118,7 @@ export function useFurnitureCalculator() {
 
         const resultObj = {};
 
-        (product.details || []).forEach(detail => {
+        objectList(product.details).forEach((detail) => {
             if (detail.if_condition && !nums[detail.if_condition]) return;
 
             try {

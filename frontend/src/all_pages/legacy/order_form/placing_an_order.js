@@ -149,12 +149,17 @@ const PlacingAnOrder = () => {
         if (!product?.details) return [];
 
         const nums = { ...userInputs };
-        (product.variables || []).forEach(v => nums[v.name] = Number(nums[v.name]) || v.default || 0);
-        (product.conditions || []).forEach(c => {
+        const objectList = (value) => (
+            Array.isArray(value) ? value.filter((item) => item && typeof item === 'object') : []
+        );
+        objectList(product.variables).forEach((v) => {
+            nums[v.name] = Number(nums[v.name]) || v.default || 0;
+        });
+        objectList(product.conditions).forEach((c) => {
             if (c.type === 'flag') nums[c.name] = !!nums[c.name];
         });
 
-        return product.details.map(detail => {
+        return objectList(product.details).map((detail) => {
             if (detail.if_condition && !nums[detail.if_condition]) return null;
             try {
                 const w = evaluateFormula(detail.formula_width || '0', nums);

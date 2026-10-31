@@ -120,7 +120,7 @@ const createCollectionItem = async (req, res) => {
 
         let row = publicRow(collection, insertRes.rows[0]);
         if (collection === 'announcements') {
-            row = await withAnnouncementPush(row, true);
+            row = await withAnnouncementPush(row, shouldNotifyAnnouncement(null, row));
         }
         res.json(row);
     } catch (err) {

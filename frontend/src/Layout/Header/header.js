@@ -24,7 +24,7 @@ const Header = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [qrOpen, setQrOpen] = useState(false);
     const qrDialogRef = useRef(null);
-    const catalogUrl = `${window.location.origin}/`;
+    const catalogUrl = `${window.location.origin}/catalog`;
     const [isMobileHeader, setIsMobileHeader] = useState(
         () => typeof window !== 'undefined' && window.matchMedia('(max-width: 650px)').matches,
     );

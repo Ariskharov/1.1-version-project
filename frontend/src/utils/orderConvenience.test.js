@@ -3,7 +3,7 @@ jest.mock('./formulaEval', () => ({
     evaluateReady: Promise.resolve(),
 }));
 
-import { normalizeProduct } from './orderConvenience';
+import { normalizeProduct, readProductOrder } from './orderConvenience';
 
 test('строковые поля изделия становятся списками, в том числе при двойной записи', () => {
     const variables = [{ name: 'shirina', default: 600 }];
@@ -17,4 +17,10 @@ test('строковые поля изделия становятся списк
     expect(product.variables).toEqual(variables);
     expect(product.conditions).toEqual([]);
     expect(product.details).toEqual(variables);
+});
+
+test('пустые и битые позиции заказа не попадают в список', () => {
+    const raw = JSON.stringify([null, { title: 'Стол', price: 10 }, 'нет']);
+    expect(readProductOrder(raw)).toEqual([{ title: 'Стол', price: 10 }]);
+    expect(readProductOrder('не json')).toEqual([]);
 });

@@ -80,14 +80,18 @@ const colorText = (item) => [
     item.facadeColor ? `Фасады: ${item.facadeColor}` : '',
 ].filter(Boolean).join(' · ');
 
-const hasCollVariable = (product) => (product?.variables || []).some((variable) => variable.name === 'coll');
+const objectList = (value) => (
+    Array.isArray(value) ? value.filter((item) => item && typeof item === 'object') : []
+);
+
+const hasCollVariable = (product) => objectList(product?.variables).some((variable) => variable.name === 'coll');
 
 const initInputs = (product, saved) => {
     const init = {};
-    (product?.variables || []).forEach((variable) => {
+    objectList(product?.variables).forEach((variable) => {
         init[variable.name] = variable.default ?? '';
     });
-    (product?.conditions || []).forEach((condition) => {
+    objectList(product?.conditions).forEach((condition) => {
         if (condition.type === 'flag') init[condition.name] = !!condition.default;
     });
     if (saved && typeof saved === 'object') {
@@ -934,11 +938,11 @@ const ClientRequest = () => {
                                                                 : 'цену уточним'}
                                                         </div>
                                                     </div>
-                                                    {(selectedProduct.variables || []).length > 0 && (
+                                                    {objectList(selectedProduct.variables).length > 0 && (
                                                         <div className="pao-modal__config-section">
                                                             <div className="pao-modal__section-label">Параметры</div>
                                                             <div className="pao-modal__inputs">
-                                                                {(selectedProduct.variables || []).map((variable) => (
+                                                                {objectList(selectedProduct.variables).map((variable) => (
                                                                     <label key={variable.name} className="pao-modal__field">
                                                                         <span>{variable.label}</span>
                                                                         <input
@@ -971,11 +975,11 @@ const ClientRequest = () => {
                                                             </label>
                                                         </div>
                                                     )}
-                                                    {(selectedProduct.conditions || []).some((condition) => condition.type === 'flag') && (
+                                                    {objectList(selectedProduct.conditions).some((condition) => condition.type === 'flag') && (
                                                         <div className="pao-modal__config-section">
                                                             <div className="pao-modal__section-label">Опции</div>
                                                             <div className="pao-modal__checkboxes">
-                                                                {(selectedProduct.conditions || []).map((condition) => condition.type === 'flag' && (
+                                                                {objectList(selectedProduct.conditions).map((condition) => condition.type === 'flag' && (
                                                                     <label key={condition.name} className="pao-modal__checkbox">
                                                                         <input
                                                                             type="checkbox"

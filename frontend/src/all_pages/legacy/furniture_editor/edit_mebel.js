@@ -6,9 +6,11 @@ import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 
 import { API_BASE, authHeaders, resolveImageUrl } from '../../../config/api';
+import { normalizeProduct } from '../../../utils/orderConvenience';
 
 const API_URL = `${API_BASE}/product`;
 const UPLOAD_URL = `${API_BASE}/upload`;
+const listOf = (value) => (Array.isArray(value) ? value : []);
 
 const ProductCard = memo(({ product: p, index: idx, onOpen, onDelete, isDeleting }) => (
   <div
@@ -124,7 +126,7 @@ function FurnitureEditor() {
     }, [pendingActions]);
 
     const selectProduct = useCallback((p) => {
-        setSelected(JSON.parse(JSON.stringify(p)));
+        setSelected(normalizeProduct(JSON.parse(JSON.stringify(p))));
     }, []);
 
     const save = async () => {
@@ -160,7 +162,7 @@ function FurnitureEditor() {
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            const updatedProduct = await response.json();
+            const updatedProduct = normalizeProduct(await response.json());
             setSelected(updatedProduct);
             refreshData();
         } catch (err) {
@@ -172,9 +174,7 @@ function FurnitureEditor() {
     const addNewProduct = async () => {
         if (isPending('add')) return;
         setPending('add', true);
-        const newId = Math.max(0, ...products.map(p => p.id)) + 1;
         const newProduct = {
-            id: newId,
             title: 'Новая мебель',
             img: '',
             price: '',
@@ -196,7 +196,7 @@ function FurnitureEditor() {
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            const addedProduct = await response.json();
+            const addedProduct = normalizeProduct(await response.json());
             showToast('success', 'Новая мебель добавлена!');
             refreshData();
             setSelected(addedProduct);
@@ -302,31 +302,31 @@ function FurnitureEditor() {
     // === Переменные ===
     const addVariable = () => {
         update(['variables'], [
-            ...(selected.variables || []),
+            ...listOf(selected.variables),
             { name: 'new_var', label: 'Новая переменная', default: 0 }
         ]);
     };
 
     const removeVariable = (idx) => {
-        update(['variables'], selected.variables.filter((_, i) => i !== idx));
+        update(['variables'], listOf(selected.variables).filter((_, i) => i !== idx));
     };
 
     // === Условия ===
     const addCondition = () => {
         update(['conditions'], [
-            ...(selected.conditions || []),
+            ...listOf(selected.conditions),
             { name: 'new_condition', label: 'Новое условие', type: 'flag', default: false }
         ]);
     };
 
     const removeCondition = (idx) => {
-        update(['conditions'], selected.conditions.filter((_, i) => i !== idx));
+        update(['conditions'], listOf(selected.conditions).filter((_, i) => i !== idx));
     };
 
     // === Детали ===
     const addDetail = () => {
         update(['details'], [
-            ...(selected.details || []),
+            ...listOf(selected.details),
             {
                 key: 'new_detail',
                 label: 'Новая деталь',
@@ -339,7 +339,7 @@ function FurnitureEditor() {
     };
 
     const removeDetail = (idx) => {
-        update(['details'], selected.details.filter((_, i) => i !== idx));
+        update(['details'], listOf(selected.details).filter((_, i) => i !== idx));
     };
 
     const handleDeleteProduct = useCallback((id) => {

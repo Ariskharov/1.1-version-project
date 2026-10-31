@@ -15,8 +15,9 @@ const uploadImage = (req, res) => {
         }
 
         // Generate a unique filename
-        const originalName = req.file.originalname;
-        const fileExt = originalName.split('.').pop();
+        const originalName = req.file.originalname || '';
+        const rawExt = String(originalName.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+        const fileExt = rawExt || 'bin';
         const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExt}`;
 
         try {

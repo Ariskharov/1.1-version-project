@@ -245,7 +245,7 @@ export function normalizeProduct(row) {
     const next = { ...row };
     ['variables', 'conditions', 'details'].forEach((key) => {
         if (next[key] == null) return;
-        next[key] = asList(next[key]);
+        next[key] = asList(next[key]).filter((item) => item && typeof item === 'object');
     });
     if (next.details_statik != null) {
         const parsed = parseStored(next.details_statik);
@@ -259,14 +259,17 @@ export function calculatePositionDetails(product, userInputs = {}) {
     if (!details.length) return [];
     const nums = { ...userInputs };
     asList(product.variables).forEach((variable) => {
+        if (!variable || typeof variable !== 'object') return;
         const fallback = finiteOr(variable.default, 0);
         nums[variable.name] = finiteOr(nums[variable.name], fallback);
     });
     asList(product.conditions).forEach((condition) => {
-        if (condition.type === 'flag') nums[condition.name] = !!nums[condition.name];
+        if (!condition || condition.type !== 'flag') return;
+        nums[condition.name] = !!nums[condition.name];
     });
 
     return details.map((detail) => {
+        if (!detail || typeof detail !== 'object') return null;
         if (detail.if_condition && !nums[detail.if_condition]) return null;
         try {
             const width = evaluateFormula(detail.formula_width || '0', nums);
@@ -341,17 +344,24 @@ export function isTodayOrder(order) {
 }
 
 export function lineSum(items) {
-    return (items || []).reduce((sum, item) => {
+    return (Array.isArray(items) ? items : []).reduce((sum, item) => {
+        if (!item || typeof item !== 'object') return sum;
         const price = Number(item.price || 0);
         const qty = Number(item.quantity || item.userInputs?.coll || 1) || 1;
         return sum + price * qty;
     }, 0);
 }
 
+const orderLines = (list) => (
+    Array.isArray(list)
+        ? list.filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+        : []
+);
+
 export function readProductOrder(value) {
     let current = value;
     for (let i = 0; i < 2; i += 1) {
-        if (Array.isArray(current)) return current;
+        if (Array.isArray(current)) return orderLines(current);
         if (typeof current !== 'string' || !current.trim()) return [];
         try {
             current = JSON.parse(current);
@@ -359,7 +369,7 @@ export function readProductOrder(value) {
             return [];
         }
     }
-    return Array.isArray(current) ? current : [];
+    return orderLines(current);
 }
 
 export function repeatOrderPayload(order) {

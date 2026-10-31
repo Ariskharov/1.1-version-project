@@ -27,7 +27,7 @@ const calculateDetails = (product) => {
 };
 
 const recalcOrderTotals = (orderLike) => {
-    const sum = (orderLike.product_order || []).reduce((s, p) => s + getLineTotal(p), 0);
+    const sum = readProductOrder(orderLike?.product_order).reduce((s, p) => s + getLineTotal(p), 0);
     const discount = orderLike.discountAmount || 0;
     const tax = orderLike.taxAmount || 0;
     return { subtotal: sum, total: sum - discount + tax };
@@ -261,7 +261,7 @@ const OrderEditor = () => {
 
     const updateProduct = (updater) => {
         setOrder(prev => {
-            const product_order = prev.product_order.map(p =>
+            const product_order = readProductOrder(prev.product_order).map(p =>
                 p.id === selectedProductId ? syncItemTotal(updater(p)) : p
             );
             return { ...prev, product_order, ...recalcOrderTotals({ ...prev, product_order }) };
@@ -318,7 +318,7 @@ const OrderEditor = () => {
             danger: true,
         });
         if (!confirmed) return;
-        const updated = order.product_order.filter(p => p.id !== productId);
+        const updated = readProductOrder(order.product_order).filter(p => p.id !== productId);
         if (selectedProductId === productId) {
             setSelectedProductId(updated.length > 0 ? updated[0].id : null);
         }

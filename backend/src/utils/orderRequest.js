@@ -6,7 +6,25 @@ const money = (value) => {
     return Number.isFinite(num) ? num : 0;
 };
 
-const asList = (value) => (Array.isArray(value) ? value : []);
+const parseStored = (value) => {
+    let current = value;
+    for (let i = 0; i < 2; i += 1) {
+        if (typeof current !== 'string') break;
+        const trimmed = current.trim();
+        if (!trimmed) break;
+        try {
+            current = JSON.parse(trimmed);
+        } catch {
+            break;
+        }
+    }
+    return current;
+};
+
+const asList = (value) => {
+    const parsed = parseStored(value);
+    return Array.isArray(parsed) ? parsed : [];
+};
 
 const sanitizeInputs = (raw) => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
