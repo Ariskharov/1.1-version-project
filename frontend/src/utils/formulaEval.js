@@ -1,16 +1,30 @@
 let evaluateFn = null;
+let readyPromise = null;
 
-// mathjs нужен только в момент расчёта. Отдельный кусок качается параллельно
-// с каталогом и не входит в первую сборку страницы.
-export const evaluateReady = import('mathjs').then((mod) => {
-    evaluateFn = mod.evaluate;
-    return evaluateFn;
-});
+// mathjs не качается вместе со страницей: только когда открывают расчёт.
+const loadEvaluate = () => {
+    if (!readyPromise) {
+        readyPromise = import('mathjs').then((mod) => {
+            evaluateFn = mod.evaluate;
+            return evaluateFn;
+        });
+        readyPromise.catch(() => {
+            /* ошибку покажет тот, кто вызвал расчёт */
+        });
+    }
+    return readyPromise;
+};
 
-// Глушим отказ, пока никто не ждёт расчёт. Повторный await всё равно получит ошибку.
-evaluateReady.catch(() => {
-    /* ошибку покажет тот, кто вызвал расчёт */
-});
+export const preloadFormulaEngine = () => loadEvaluate();
+
+export const evaluateReady = {
+    then(onFulfilled, onRejected) {
+        return loadEvaluate().then(onFulfilled, onRejected);
+    },
+    catch(onRejected) {
+        return loadEvaluate().catch(onRejected);
+    },
+};
 
 export function evaluateFormula(expression, scope) {
     if (!evaluateFn) {

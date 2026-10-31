@@ -13,6 +13,7 @@ import {
 } from '../../../utils/contractDocuments';
 
 import { API_BASE, resolveImageUrl } from '../../../config/api';
+import PreviewImage from '../../../components/ui/PreviewImage';
 import { calculatePositionDetails, readProductOrder } from '../../../utils/orderConvenience';
 import { evaluateReady } from '../../../utils/formulaEval';
 
@@ -489,10 +490,13 @@ const Order = () => {
                                 >
                                     <div className="order-page__position-photo">
                                         {getItemImageSrc(item) ? (
-                                            <img
-                                                src={getItemImageSrc(item)}
+                                            <PreviewImage
+                                                src={item.img}
                                                 alt=""
-                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                                onFinalError={(e) => {
+                                                    const node = e?.currentTarget;
+                                                    if (node) node.style.display = 'none';
+                                                }}
                                             />
                                         ) : (
                                             <span className="no-photo">🪑</span>

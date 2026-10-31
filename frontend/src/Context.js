@@ -107,6 +107,8 @@ export const Context = ({ children }) => {
     const stampsRef = useRef({});
     const syncingRef = useRef(false);
     const refreshAgainRef = useRef(false);
+    const syncRetryAtRef = useRef(0);
+    const syncFailLoggedRef = useRef(false);
 
     const [toast, setToast] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState(null);
@@ -240,6 +242,11 @@ export const Context = ({ children }) => {
         const publicNames = ['product', 'announcements'];
         const privateNames = ['order', 'users', 'workSessions'];
         try {
+            // Пока /sync не отвечает, списки качаем сразу. Через 15 секунд пробуем штампы снова.
+            if (Date.now() < syncRetryAtRef.current) {
+                await pullDirect(headers, token ? publicNames.concat(privateNames) : publicNames);
+                return;
+            }
             const syncRes = await axios.get(`${API_BASE}/sync`, {
                 headers,
                 timeout: 8000,
@@ -248,8 +255,11 @@ export const Context = ({ children }) => {
             const stamps = syncRes.data;
             const syncOk = stamps && typeof stamps === 'object' && !Array.isArray(stamps) && stamps.product != null && !stamps.error;
             if (!syncOk) {
+                syncRetryAtRef.current = Date.now() + 15000;
                 await pullDirect(headers, token ? publicNames.concat(privateNames) : publicNames);
             } else {
+                syncRetryAtRef.current = 0;
+                syncFailLoggedRef.current = false;
                 if (!token) {
                     setIfChanged(setOrders, []);
                     setIfChanged(setUsers, []);
@@ -261,9 +271,6 @@ export const Context = ({ children }) => {
 
                 const jobs = Object.entries(stamps).map(async ([name, stamp]) => {
                     if (stampsRef.current[name] === stamp) return;
-                    const seen = Number(stampsRef.current[name]);
-                    const next = Number(stamp);
-                    if (Number.isFinite(seen) && Number.isFinite(next) && next < seen) return;
                     try {
                         await pullCollection(name, headers);
                         stampsRef.current[name] = stamp;
@@ -276,8 +283,15 @@ export const Context = ({ children }) => {
                 await Promise.all(jobs);
             }
         } catch (err) {
-            if (err.response?.status === 401) dropExpiredSession();
-            else console.error('Ошибка синхронизации:', err);
+            if (err.response?.status === 401) {
+                dropExpiredSession();
+            } else {
+                syncRetryAtRef.current = Date.now() + 15000;
+                if (!syncFailLoggedRef.current) {
+                    syncFailLoggedRef.current = true;
+                    console.error('Ошибка синхронизации:', err);
+                }
+            }
             const still = readToken();
             await pullDirect(still ? { Authorization: `Bearer ${still}` } : {}, still ? publicNames.concat(privateNames) : publicNames);
         } finally {

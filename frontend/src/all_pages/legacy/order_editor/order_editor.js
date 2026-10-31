@@ -7,6 +7,7 @@ import LoadingSpinner, { LoadingPage } from '../../../components/ui/LoadingSpinn
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import PhotoUploadSlot from '../../../components/ui/PhotoUploadSlot';
+import PreviewImage from '../../../components/ui/PreviewImage';
 import {
     downloadCommercialProposal,
     downloadFullContract,
@@ -1039,7 +1040,7 @@ const OrderEditor = () => {
                                                             >
                                                                 <div className="oed-modal__catalog-card-img">
                                                                     {resolveImageUrl(p.img) ? (
-                                                                        <img src={resolveImageUrl(p.img)} alt={p.title} />
+                                                                        <PreviewImage src={p.img} alt={p.title} />
                                                                     ) : (
                                                                         <div className="oed-modal__catalog-card-placeholder">🪑</div>
                                                                     )}

@@ -75,6 +75,20 @@ export const resolveImageUrl = (img) => {
     return `${API_BASE}/utilse/${filename}`;
 };
 
+// Маленькая копия для списков. Полный кадр остаётся для увеличения.
+// Чужой адрес (не /utilse/) возвращается как есть.
+export const previewImageUrl = (img) => {
+    const full = resolveImageUrl(img);
+    if (!full) return null;
+    const marker = '/utilse/';
+    const idx = full.indexOf(marker);
+    if (idx === -1) return full;
+    const name = full.slice(idx + marker.length);
+    if (!name || name.startsWith('thumbs/')) return full;
+    const base = name.split('/').pop().replace(/\.[^.]+$/, '');
+    return `${full.slice(0, idx)}${marker}thumbs/${base}.jpg`;
+};
+
 const apiConfig = {
     API_BASE,
     authHeaders,

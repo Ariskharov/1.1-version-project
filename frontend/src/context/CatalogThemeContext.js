@@ -1,6 +1,22 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import logoForLightTheme from '../Layout/img_layout/лого_темное.jpg';
+import logoForDarkTheme from '../Layout/img_layout/logo-light-ui.jpg';
 
 const THEME_KEY = 'catalog-theme-preference';
+const FAVICON_RELS = ['icon', 'apple-touch-icon'];
+
+const setFavicons = (href, type) => {
+    FAVICON_RELS.forEach((rel) => {
+        let node = document.querySelector(`link[rel="${rel}"]`);
+        if (!node) {
+            node = document.createElement('link');
+            node.rel = rel;
+            document.head.appendChild(node);
+        }
+        node.type = type;
+        node.href = href;
+    });
+};
 
 const CatalogThemeContext = createContext(null);
 
@@ -35,6 +51,11 @@ export const CatalogThemeProvider = ({ children }) => {
 
     useEffect(() => {
         document.documentElement.setAttribute('data-catalog-theme', resolvedTheme);
+    }, [resolvedTheme]);
+
+    useEffect(() => {
+        const href = resolvedTheme === 'dark' ? logoForDarkTheme : logoForLightTheme;
+        setFavicons(href, 'image/jpeg');
     }, [resolvedTheme]);
 
     const toggleTheme = useCallback(() => {

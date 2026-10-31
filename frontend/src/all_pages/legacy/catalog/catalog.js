@@ -6,9 +6,10 @@ import { LoadingPage } from '../../../components/ui/LoadingSpinner';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 import { resolveImageUrl } from '../../../config/api';
+import PreviewImage from '../../../components/ui/PreviewImage';
+import { evaluateReady, preloadFormulaEngine } from '../../../utils/formulaEval';
 import { CustomContext } from '../../../Context';
 import DraftBanner from '../../../components/ui/DraftBanner';
-import { evaluateReady } from '../../../utils/formulaEval';
 import {
     appendClientRequestPosition,
     appendPositionToDraft,
@@ -36,12 +37,13 @@ const CatalogCard = memo(({ product, index, onOpen }) => (
         >
             <div className="catalog-card__shine" aria-hidden="true" />
             <div className="catalog-card__image-wrap" aria-hidden="true">
-                <img
-                    src={resolveImageUrl(product.img)}
+                <PreviewImage
+                    src={product.img}
                     alt=""
                     className="catalog-card__image"
-                    loading="lazy"
+                    loading={index < 4 ? 'eager' : 'lazy'}
                     decoding="async"
+                    fetchPriority={index === 0 ? 'high' : 'auto'}
                 />
                 <div className="catalog-card__overlay">
                     <span className="catalog-card__cta">Рассчитать</span>
@@ -89,7 +91,7 @@ const Catalog = () => {
     const [copiedResults, setCopiedResults] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const { resolvedTheme } = useCatalogTheme();
-    const { showToast, currentUser } = useContext(CustomContext);
+    const { showToast, currentUser, dataLoaded } = useContext(CustomContext);
     const [draftCount, setDraftCount] = useState(0);
     const modalRef = useRef(null);
     const lightboxRef = useRef(null);
@@ -106,6 +108,7 @@ const Catalog = () => {
     }, [selectProduct]);
 
     const openProduct = useCallback((product) => {
+        preloadFormulaEngine();
         selectProduct(product);
         setModalVisible(true);
         setCopiedResults(false);
@@ -148,6 +151,22 @@ const Catalog = () => {
             requestAnimationFrame(() => setModalVisible(true));
         }
     }, [selectedProduct]);
+
+    useEffect(() => {
+        if (!dataLoaded) return undefined;
+        let idle = 0;
+        let timer = 0;
+        const start = () => preloadFormulaEngine();
+        if (typeof window.requestIdleCallback === 'function') {
+            idle = window.requestIdleCallback(start);
+        } else {
+            timer = window.setTimeout(start, 500);
+        }
+        return () => {
+            if (idle && typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(idle);
+            if (timer) window.clearTimeout(timer);
+        };
+    }, [dataLoaded]);
 
     useDialogA11y(
         Boolean(selectedProduct && modalVisible && !isImageViewerOpen),

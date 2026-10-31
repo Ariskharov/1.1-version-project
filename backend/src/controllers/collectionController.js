@@ -26,11 +26,16 @@ const withAnnouncementPush = async (row, shouldNotify) => {
     }
 };
 
-// Более надежный способ получить колонки - просто попытаться зачитать 0 строк из таблицы
+const columnCache = new Map();
+
+// Колонки таблицы не меняются, пока процесс жив. Повторные сохранения не ходят в базу за списком.
 const getTableColumns = async (tableName) => {
+    if (columnCache.has(tableName)) return columnCache.get(tableName);
     try {
         const res = await pool.query(`SELECT * FROM "${tableName}" WHERE 1=0`);
-        return res.fields.map(field => field.name);
+        const names = res.fields.map(field => field.name);
+        columnCache.set(tableName, names);
+        return names;
     } catch (e) {
         console.error(`[DEBUG] Error getting columns for ${tableName}:`, e.message);
         return [];

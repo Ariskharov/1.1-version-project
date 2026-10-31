@@ -2,6 +2,7 @@ import React, { useState, useContext, useMemo, useRef, useCallback, memo } from 
 import './edit_mebel.scss';
 import { CustomContext } from '../../../Context';
 import { LoadingPage } from '../../../components/ui/LoadingSpinner';
+import PreviewImage from '../../../components/ui/PreviewImage';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { useDialogA11y } from '../../../hooks/useDialogA11y';
 
@@ -33,8 +34,8 @@ const ProductCard = memo(({ product: p, index: idx, onOpen, onDelete, isDeleting
     <div className="product-card-image">
       <span className="product-card-id-badge">#{p.id}</span>
       {p.img ? (
-        <img
-          src={resolveImageUrl(p.img)}
+        <PreviewImage
+          src={p.img}
           alt={p.title}
           loading="lazy"
           decoding="async"

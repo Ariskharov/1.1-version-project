@@ -1,13 +1,18 @@
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import './header.scss';
-import logo from '../img_layout/logo.jpeg';
+import logoLight from '../img_layout/logo-light-ui.jpg';
+import logoDark from '../img_layout/лого_темное.jpg';
 import exitImg from '../img_layout/exit_img.svg';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import { CustomContext } from '../../Context';
 import ThemeToggle from '../../components/ui/ThemeToggle';
+import { useCatalogTheme } from '../../context/CatalogThemeContext';
 import { resolveImageUrl } from '../../config/api';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+
+const QRCodeSVG = React.lazy(() => import('qrcode.react').then((mod) => ({
+    default: mod.QRCodeSVG || (mod.default && mod.default.QRCodeSVG) || mod.default,
+})));
 
 const getInitials = (name) => {
     if (!name) return '??';
@@ -20,6 +25,8 @@ const Header = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { currentUser, logout } = useContext(CustomContext);
+    const { resolvedTheme } = useCatalogTheme();
+    const logo = resolvedTheme === 'dark' ? logoLight : logoDark;
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [qrOpen, setQrOpen] = useState(false);
@@ -528,14 +535,16 @@ const Header = () => {
                             Наведите камеру на код. Откроется каталог: можно посмотреть мебель и оставить заявку.
                         </p>
                         <div className="catalog-qr__code">
-                            <QRCodeSVG
-                                value={catalogUrl}
-                                size={232}
-                                level="Q"
-                                includeMargin
-                                bgColor="#ffffff"
-                                fgColor="#1a1612"
-                            />
+                            <React.Suspense fallback={null}>
+                                <QRCodeSVG
+                                    value={catalogUrl}
+                                    size={232}
+                                    level="Q"
+                                    includeMargin
+                                    bgColor="#ffffff"
+                                    fgColor="#1a1612"
+                                />
+                            </React.Suspense>
                         </div>
                         <p className="catalog-qr__url">{catalogUrl}</p>
                         <button type="button" className="catalog-qr__close" onClick={closeCatalogQr}>

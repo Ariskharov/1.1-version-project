@@ -7,6 +7,7 @@ import './placing_an_order.scss';
 import { CustomContext } from '../../../Context';
 import LoadingSpinner from '../../../components/ui/LoadingSpinner';
 import PhotoUploadSlot from '../../../components/ui/PhotoUploadSlot';
+import PreviewImage from '../../../components/ui/PreviewImage';
 import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { uploadPhoto } from '../../../utils/uploadService';
 
@@ -890,7 +891,7 @@ const PlacingAnOrder = () => {
                                 style={{ animationDelay: `${Math.min(index * 0.05, 0.35)}s` }}
                             >
                                 {item.img ? (
-                                    <img src={resolveImageUrl(item.img)} alt={item.title} />
+                                    <PreviewImage src={item.img} alt={item.title} />
                                 ) : (
                                     <div className="placing_an_order__item-no-img" aria-hidden="true">
                                         🛋️

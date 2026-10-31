@@ -330,17 +330,22 @@ export function appendPositionToDraft(position) {
     return positions.length;
 }
 
-export function isTodayOrder(order) {
+const bishkekDay = (date) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bishkek',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+}).format(date);
+
+export function isTodayOrder(order, now = new Date()) {
     const raw = order?.createdAt || order?.updatedAt || '';
     if (!raw) return false;
     const date = new Date(raw);
+    const today = bishkekDay(now);
     if (Number.isNaN(date.getTime())) {
-        return String(raw).slice(0, 10) === new Date().toISOString().slice(0, 10);
+        return String(raw).slice(0, 10) === today;
     }
-    const now = new Date();
-    return date.getFullYear() === now.getFullYear()
-        && date.getMonth() === now.getMonth()
-        && date.getDate() === now.getDate();
+    return bishkekDay(date) === today;
 }
 
 export function lineSum(items) {

@@ -51,7 +51,7 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
       width: 50px;
       height: 50px;
       object-fit: cover;
-      border-radius: 10px;
+      border-radius: 50%;
       border: 1px solid rgba(184, 149, 74, 0.55);
       margin-right: 10px;
       transition: transform 0.3s $hdr-ease, filter 0.3s ease;
@@ -283,7 +283,7 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
     width: 48px;
     height: 48px;
     object-fit: cover;
-    border-radius: 10px;
+    border-radius: 50%;
     border: 1px solid rgba(184, 149, 74, 0.55);
     box-shadow: 0 2px 8px rgba(92, 69, 24, 0.18);
   }

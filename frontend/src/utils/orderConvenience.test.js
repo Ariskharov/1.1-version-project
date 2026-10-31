@@ -3,7 +3,7 @@ jest.mock('./formulaEval', () => ({
     evaluateReady: Promise.resolve(),
 }));
 
-import { normalizeProduct, readProductOrder } from './orderConvenience';
+import { isTodayOrder, normalizeProduct, readProductOrder } from './orderConvenience';
 
 test('строковые поля изделия становятся списками, в том числе при двойной записи', () => {
     const variables = [{ name: 'shirina', default: 600 }];
@@ -17,6 +17,13 @@ test('строковые поля изделия становятся списк
     expect(product.variables).toEqual(variables);
     expect(product.conditions).toEqual([]);
     expect(product.details).toEqual(variables);
+});
+
+test('фильтр «сегодня» считает день по Бишкеку', () => {
+    const now = new Date('2026-10-31T20:30:00.000Z');
+    expect(isTodayOrder({ createdAt: '2026-11-01T01:00:00+06:00' }, now)).toBe(true);
+    expect(isTodayOrder({ createdAt: '2026-10-31T23:00:00+06:00' }, now)).toBe(false);
+    expect(isTodayOrder({}, now)).toBe(false);
 });
 
 test('пустые и битые позиции заказа не попадают в список', () => {

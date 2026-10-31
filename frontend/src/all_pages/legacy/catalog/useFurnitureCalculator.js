@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
-import { evaluateFormula, evaluateReady } from '../../../utils/formulaEval';
+import { evaluateFormula, evaluateReady, preloadFormulaEngine } from '../../../utils/formulaEval';
 import { CustomContext } from '../../../Context';
 
 const objectList = (value) => (
@@ -53,6 +53,7 @@ export function useFurnitureCalculator() {
             return;
         }
 
+        preloadFormulaEngine();
         setSelectedProduct(product);
         setResult({});
         setValidationErrors({});

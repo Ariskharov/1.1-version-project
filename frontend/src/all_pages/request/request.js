@@ -7,6 +7,7 @@ import { CustomContext } from '../../Context';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import '../legacy/order_form/placing_an_order.scss';
 import PhotoUploadSlot from '../../components/ui/PhotoUploadSlot';
+import PreviewImage from '../../components/ui/PreviewImage';
 import { uploadPhoto } from '../../utils/uploadService';
 import { evaluateReady } from '../../utils/formulaEval';
 import {
@@ -912,7 +913,7 @@ const ClientRequest = () => {
                                                             >
                                                                 <div className="pao-modal__catalog-card-img">
                                                                     {photo
-                                                                        ? <img src={photo} alt="" />
+                                                                        ? <PreviewImage src={product.img} alt="" />
                                                                         : <div className="pao-modal__catalog-card-placeholder">🪑</div>}
                                                                 </div>
                                                                 <div className="pao-modal__catalog-card-info">
