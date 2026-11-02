@@ -1,8 +1,6 @@
 const { Pool } = require('pg');
+const { poolOptions } = require('./poolConfig');
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // Требуется для Supabase и многих облачных БД
-});
+const pool = new Pool(poolOptions(process.env.DATABASE_URL));
 
 module.exports = pool;
