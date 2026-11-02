@@ -21,6 +21,7 @@ import {
   formatExpiryLabel,
 } from '../../utils/announcements';
 import { resolveImageUrl } from '../../config/api';
+import { ROLES, can, normalizeRole, staffNav } from '../../utils/roles';
 import {
   isPushSupported,
   getNotificationPermission,
@@ -64,12 +65,6 @@ const getInitials = (name = '') => {
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
-};
-
-const ROLE_LABELS = {
-  user: 'Сотрудник',
-  manager: 'Менеджер',
-  admin: 'Администратор',
 };
 
 const getPeriodLabel = (preset, dateRange) => {
@@ -562,7 +557,10 @@ const PersonalCabinet = () => {
     return <LoadingPage message="Загрузка личного кабинета..." />;
   }
 
-  const isAdmin = currentUser.role === 'admin';
+  const isAdmin = can(currentUser.role, 'adminPanel');
+  const roleName = normalizeRole(currentUser.role);
+  const roleInfo = ROLES[roleName];
+  const cabinetLinks = staffNav(currentUser.role).filter((item) => item.to !== '/cabinet');
 
   const periodLabel = getPeriodLabel(activePreset, dateRange);
 
@@ -580,7 +578,11 @@ const PersonalCabinet = () => {
         <div className="cabinet-header__intro">
           <span className="cabinet-header__badge">Учёт рабочего времени</span>
           <h1>Личный кабинет</h1>
-          <p className="subtitle">Статистика смен и отчёты</p>
+          <p className="subtitle">
+            {roleInfo && roleName !== 'user' && roleName !== 'manager'
+              ? roleInfo.description
+              : 'Статистика смен и отчёты'}
+          </p>
         </div>
         <div className="user-badge">
           <div className="cabinet-avatar" aria-hidden="true">
@@ -595,11 +597,10 @@ const PersonalCabinet = () => {
 
       {/* ===== БЫСТРЫЕ ССЫЛКИ (новый блок) ===== */}
       <nav className="cabinet-quick-actions" aria-label="Быстрая навигация">
+        {cabinetLinks.map((item) => (
+          <Link key={item.to} to={item.to} className="cabinet-quick-actions__link">{item.label}</Link>
+        ))}
         <Link to="/" className="cabinet-quick-actions__link">Каталог</Link>
-        <Link to="/view_orders" className="cabinet-quick-actions__link">Мои заказы</Link>
-        {isAdmin && (
-          <Link to="/edit_mebel" className="cabinet-quick-actions__link">Редактор мебели</Link>
-        )}
       </nav>
 
       {showPushBanner && (
@@ -717,7 +718,7 @@ const PersonalCabinet = () => {
             {currentUser.position && <div className="position">{currentUser.position}</div>}
             {currentUser.badgeId && <div className="badge">Табельный №{currentUser.badgeId}</div>}
             {currentUser.role && (
-              <span className="role-badge">{ROLE_LABELS[currentUser.role] || currentUser.role}</span>
+              <span className="role-badge">{ROLES[currentUser.role]?.label || currentUser.role}</span>
             )}
           </div>
         </div>

@@ -139,11 +139,67 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
       font-weight: 600;
     }
 
-    &.is-done {
+    &.is-done,
+    &.is-now {
       border-color: var(--req-gold);
-      background: var(--req-gold-subtle);
       color: var(--req-text);
     }
+
+    &.is-done {
+      background: var(--req-gold-subtle);
+    }
+
+    &.is-now {
+      box-shadow: inset 0 0 0 1px var(--req-gold);
+    }
+  }
+}
+
+.client-request__hero .client-request__progress {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 14px 0 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--req-gold-subtle);
+  color: var(--req-gold);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.client-request__hero .client-request__draft-note {
+  margin: 8px 0 0;
+  color: var(--req-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.client-request__staff-share {
+  margin-top: 14px;
+
+  summary {
+    width: fit-content;
+    color: var(--req-muted);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &::before {
+      content: '▸';
+      margin-right: 6px;
+    }
+  }
+
+  &[open] summary::before {
+    content: '▾';
   }
 }
 
@@ -160,6 +216,61 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
   background: var(--req-surface);
   box-shadow: var(--req-shadow-sm);
   scroll-margin-top: 84px;
+}
+
+.client-request__required-note {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--req-gold-subtle);
+  color: var(--req-gold);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.client-request__ok {
+  margin-left: 8px;
+  color: var(--req-gold);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.client-request__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 14px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--req-gold);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+
+  &::before {
+    content: '+';
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--req-gold-subtle);
+    color: var(--req-gold);
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  &[aria-expanded='true']::before {
+    content: '–';
+  }
+}
+
+.client-request__extra {
+  margin-top: 14px;
 }
 
 .client-request__section-head {
@@ -515,6 +626,15 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
+.client-request__line-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 2px;
+}
+
 .client-request__line-actions {
   grid-area: actions;
   display: flex;
@@ -532,6 +652,10 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
     font: inherit;
     font-weight: 700;
     cursor: pointer;
+  }
+
+  .is-remove {
+    color: #e7b2a8;
   }
 }
 
@@ -650,9 +774,11 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .client-request__empty--box {
-  padding: 14px;
+  padding: 18px 16px;
   border: 1px dashed var(--req-border);
-  border-radius: 14px;
+  border-radius: 16px;
+  background: var(--req-surface-2);
+  text-align: center;
 }
 
 .client-request__error {
@@ -693,6 +819,10 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
   &:disabled {
     opacity: 0.7;
     cursor: wait;
+  }
+
+  &.is-ready {
+    box-shadow: 0 8px 22px rgba(184, 149, 74, 0.32);
   }
 }
 
@@ -856,13 +986,37 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
+.client-request__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  list-style: none;
+  border-radius: 12px;
+  background: var(--pao-surface-2, rgba(154, 118, 40, 0.08));
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--pao-muted, inherit);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  b {
+    font-weight: 700;
+    text-align: right;
+  }
+}
+
 .client-request__submit {
-  // В потоке страницы. Липкий блок накрывал комментарий при прокрутке.
   position: static;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--req-border-soft);
   border-radius: 18px;
   background: var(--req-surface);
@@ -892,6 +1046,10 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   .client-request__add-button--custom {
     background: rgba(255, 252, 247, 0.72);
+  }
+
+  .client-request__line-actions .is-remove {
+    color: #8d2b2b;
   }
 
   .client-request__hint,
@@ -925,6 +1083,59 @@ $req-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   .client-request__line-actions {
     justify-content: flex-end;
+  }
+}
+
+@media (max-width: 650px) {
+  // Нижняя панель сайта выше по слою. Отступ только пока видна кнопка отправки,
+  // чтобы карточка «заявка принята» не висела над пустым местом.
+  .client-request:has(.client-request__submit) {
+    padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px));
+  }
+
+  // Та же фраза уже стоит над кнопкой отправки. Без второй строчки
+  // имя, телефон и «добавить адрес» помещаются над панелью.
+  .client-request__hero .client-request__progress {
+    display: none;
+  }
+
+  .client-request__card {
+    padding: 16px 14px;
+  }
+
+  .client-request__field input,
+  .client-request__field textarea,
+  .client-request__card {
+    scroll-margin-bottom: calc(210px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .client-request__submit {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 30;
+    margin: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
+    background: #161412;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  body:has(.header__bottom-nav) .client-request__submit {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .client-request--theme-light .client-request__submit {
+    background: rgba(255, 252, 247, 0.98);
+    box-shadow: 0 10px 28px rgba(92, 69, 24, 0.16);
+  }
+
+  .client-request__estimate {
+    font-size: 13px;
+    text-align: center;
   }
 }
 

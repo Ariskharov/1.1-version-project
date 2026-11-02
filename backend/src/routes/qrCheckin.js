@@ -2,13 +2,13 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database/pg');
 const { authenticate } = require('../middleware/auth');
+const { can } = require('../utils/roles');
 const { bishkekNow, closeShiftClock } = require('../utils/shiftTime');
 
 router.post('/api/qr-checkin', authenticate, async (req, res) => {
     try {
         // 1. Verify role
-        const role = String(req.userRole || '').toLowerCase();
-        if (role !== 'scanner' && role !== 'admin') {
+        if (!can(req.userRole, 'scan')) {
             return res.status(403).json({ error: 'Access denied: insufficient permissions' });
         }
 

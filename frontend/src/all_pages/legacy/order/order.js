@@ -16,6 +16,7 @@ import { API_BASE, resolveImageUrl } from '../../../config/api';
 import PreviewImage from '../../../components/ui/PreviewImage';
 import { calculatePositionDetails, readProductOrder } from '../../../utils/orderConvenience';
 import { evaluateReady } from '../../../utils/formulaEval';
+import { can } from '../../../utils/roles';
 
 const getQty = (item) => Number(item.quantity || item.userInputs?.coll || 1) || 1;
 
@@ -92,7 +93,7 @@ const Order = () => {
     const { id } = useParams();
     const { resolvedTheme } = useCatalogTheme();
     const { currentUser, showToast, orders, dataLoaded } = useContext(CustomContext);
-    const isAdmin = currentUser?.role === 'admin';
+    const canEdit = can(currentUser?.role, 'editOrders');
     const [linkCopied, setLinkCopied] = useState(false);
 
     const [order, setOrder] = useState(null);
@@ -305,6 +306,22 @@ const Order = () => {
     const openedFacts = detailsItem ? getPositionFacts(detailsItem) : [];
     const hasFinanceAdjustments = (order.discountAmount || 0) > 0 || (order.taxAmount || 0) > 0;
     const isRequest = order.status === 'Заявка';
+    const canSeeRequisites = can(currentUser?.role, 'attendance') || can(currentUser?.role, 'editOrders');
+    const requisites = canSeeRequisites ? [
+        ['Договор №', order.contract_no],
+        ['Дата договора', order.contract_date],
+        ['Город', order.contract_city],
+        ['Должность', order.buyer_rep_title],
+        ['Представитель', order.buyer_rep_name],
+        ['Основание', order.buyer_basis],
+        ['ИНН', order.buyer_inn],
+        ['Срок поставки, дней', order.delivery_days],
+        ['Банк', order.buyer_bank],
+        ['БИК', order.buyer_bik],
+        ['Р/счёт', order.buyer_account],
+        ['Подпись', order.buyer_sign],
+        ['Основание госзакупки', order.procurement_basis],
+    ].filter(([, value]) => value != null && String(value).trim() !== '') : [];
     const backLink = currentUser ? '/view_orders' : (isRequest ? '/zayavka' : '/');
     const backLabel = currentUser ? '← Все заказы' : (isRequest ? '← Новая заявка' : '← Каталог мебели');
     const copyClientLink = () => {
@@ -337,7 +354,7 @@ const Order = () => {
             <div className="order-page__content">
                 <nav className="order-page__nav">
                     <Link to={backLink} className="order-page__back">{backLabel}</Link>
-                    {(currentUser && order.public_token) || isAdmin ? (
+                    {(currentUser && order.public_token) || canEdit ? (
                         <div className="order-page__nav-actions">
                             {currentUser && order.public_token && (
                                 <button
@@ -348,7 +365,7 @@ const Order = () => {
                                     {linkCopied ? 'Ссылка скопирована' : 'Ссылка для клиента'}
                                 </button>
                             )}
-                            {isAdmin && (
+                            {canEdit && (
                                 <Link to={`/order_editor/${order.id}`} className="order-page__edit-link">
                                     Редактировать заказ
                                 </Link>
@@ -453,6 +470,18 @@ const Order = () => {
                         </div>
                     </div>
                 </div>
+
+                {requisites.length > 0 && (
+                    <section className="order-page__requisites" aria-label="Реквизиты заказа">
+                        <h3>Реквизиты</h3>
+                        {requisites.map(([label, value]) => (
+                            <div className="client-row" key={label}>
+                                <span className="label">{label}</span>
+                                <span className="value">{value}</span>
+                            </div>
+                        ))}
+                    </section>
+                )}
 
                 <section className="order-page__positions">
                     <div className="order-page__positions-header">
@@ -819,7 +848,7 @@ const Order = () => {
                     <div className="summary-text">
                         {isRequest ? totalLabel : 'Итого к оплате'}: <strong>{totalText}</strong>
                     </div>
-                    {isAdmin && (
+                    {canEdit && (
                         <Link to={`/order_editor/${order.id}`} className="order-page__edit-btn">
                             Открыть в редакторе
                         </Link>

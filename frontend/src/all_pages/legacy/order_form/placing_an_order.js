@@ -513,6 +513,7 @@ const PlacingAnOrder = () => {
                             <div className="placing_an_order__summary-value">{calculateTotal().toLocaleString()} сом</div>
                         </div>
                     </div>
+                    <p className="placing_an_order__hero-note">Это заказ сотрудника, не заявка с сайта. Реквизиты договора заполняются позже в редакторе.</p>
                 </header>
 
                 {lastSaved && (

@@ -9,6 +9,7 @@ import { resolveImageUrl } from '../../../config/api';
 import PreviewImage from '../../../components/ui/PreviewImage';
 import { evaluateReady, preloadFormulaEngine } from '../../../utils/formulaEval';
 import { CustomContext } from '../../../Context';
+import { can } from '../../../utils/roles';
 import DraftBanner from '../../../components/ui/DraftBanner';
 import {
     appendClientRequestPosition,
@@ -112,7 +113,7 @@ const Catalog = () => {
         selectProduct(product);
         setModalVisible(true);
         setCopiedResults(false);
-        const saved = currentUser?.role === 'admin' ? 0 : (readClientRequest()?.positions?.length || 0);
+        const saved = can(currentUser?.role, 'editOrders') ? 0 : (readClientRequest()?.positions?.length || 0);
         setDraftCount(saved);
     }, [selectProduct, currentUser]);
 
@@ -264,7 +265,7 @@ const Catalog = () => {
                 <div className="catalog-ambient__grain" />
             </div>
 
-            {currentUser?.role === 'admin' && <DraftBanner />}
+            {can(currentUser?.role, 'editOrders') && <DraftBanner />}
 
             <header className="catalog-hero" aria-labelledby="catalog-hero-title">
                 <p className="catalog-hero__badge">Коллекция мебели</p>
@@ -486,7 +487,7 @@ const Catalog = () => {
                                         </div>
                                     )}
 
-                                    {currentUser?.role !== 'admin' && (
+                                    {!can(currentUser?.role, 'editOrders') && (
                                         <div className="catalog-request-actions">
                                             <button type="button" className="catalog-calc-btn catalog-calc-btn--ghost" onClick={addToRequest}>
                                                 Добавить в заявку
@@ -534,7 +535,7 @@ const Catalog = () => {
                                             })}
                                         </div>
                                         <div className="catalog-results__order">
-                                            {currentUser?.role === 'admin' ? (
+                                            {can(currentUser?.role, 'editOrders') ? (
                                                 <button type="button" className="catalog-calc-btn" onClick={addCalculatedToDraft}>
                                                     Добавить в текущий заказ
                                                 </button>
@@ -543,12 +544,12 @@ const Catalog = () => {
                                                     Добавить расчёт в заявку
                                                 </button>
                                             )}
-                                            {draftCount > 0 && currentUser?.role === 'admin' && (
+                                            {draftCount > 0 && can(currentUser?.role, 'editOrders') && (
                                                 <Link to="/placing_an_order" className="catalog-results__draft-link">
                                                     В черновике {draftCount} поз. — открыть оформление
                                                 </Link>
                                             )}
-                                            {draftCount > 0 && currentUser?.role !== 'admin' && (
+                                            {draftCount > 0 && !can(currentUser?.role, 'editOrders') && (
                                                 <Link to="/zayavka" className="catalog-results__draft-link">
                                                     В заявке {draftCount} поз. — открыть и отправить
                                                 </Link>

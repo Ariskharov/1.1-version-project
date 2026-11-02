@@ -2,6 +2,7 @@ const pool = require('../database/pg');
 const { notifyAnnouncement } = require('../services/pushService');
 const { shouldNotifyAnnouncement } = require('../services/pushMessages');
 const { isPublicToken, newPublicToken } = require('../utils/publicToken');
+const { isKnownRole } = require('../utils/roles');
 
 const parseId = (value) => {
     const id = Number(value);
@@ -13,6 +14,13 @@ const publicRow = (collection, row) => {
     if (!row || collection !== 'users') return row;
     const { password, ...safe } = row;
     return safe;
+};
+
+const rejectUnknownUserRole = (collection, body, res) => {
+    if (collection !== 'users' || !body || !Object.prototype.hasOwnProperty.call(body, 'role')) return false;
+    if (isKnownRole(body.role)) return false;
+    res.status(400).json({ error: 'Неизвестная роль' });
+    return true;
 };
 
 const withAnnouncementPush = async (row, shouldNotify) => {
@@ -79,6 +87,7 @@ const createCollectionItem = async (req, res) => {
         if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
             req.body = {};
         }
+        if (rejectUnknownUserRole(collection, req.body, res)) return;
         client = await pool.connect();
         const availableColumns = await getTableColumns(collection);
         await client.query('BEGIN');
@@ -148,6 +157,7 @@ const updateCollectionItem = async (req, res) => {
         if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
             req.body = {};
         }
+        if (rejectUnknownUserRole(collection, req.body, res)) return;
         const availableColumns = await getTableColumns(collection);
 
         let notifyAfter = false;

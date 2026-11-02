@@ -422,6 +422,7 @@ function FurnitureEditor() {
             </div>
           )}
         </div>
+        <p className="editor-hero__note">Карточка открывает изделие для правки. В формулах пишут имя переменной, подпись видит человек в каталоге.</p>
       </header>
 
       <div className="editor-toolbar">
@@ -686,7 +687,7 @@ function FurnitureEditor() {
                   Детали
                   <span className="form-section-count">{selected.details?.length || 0}</span>
                 </div>
-                <p className="form-section-desc">Формулы расчёта материалов</p>
+                <p className="form-section-desc">Формулы расчёта материалов. Можно писать имена переменных, например shirina или coll.</p>
                 {selected.details?.map((d, idx) => (
                   <div key={idx} className="detail-card">
                     <div className="detail-header">

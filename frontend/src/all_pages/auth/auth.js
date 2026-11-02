@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { CustomContext } from '../../Context';
+import { canOpen, homeFor as homeForRole } from '../../utils/roles';
 import { useCatalogTheme } from '../../context/CatalogThemeContext';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import './auth.scss';
@@ -41,15 +42,13 @@ const SingIn = () => {
     const location = useLocation();
     const redirectTo = location.state?.from;
 
-    const homeFor = (user) => {
-        if (user?.role === 'admin') return '/edit_mebel';
-        if (user?.role === 'scanner') return '/scan';
-        return '/cabinet';
-    };
+    const homeFor = (user) => homeForRole(user?.role);
 
     useEffect(() => {
         if (!currentUser) return;
-        const target = redirectTo && redirectTo !== '/signin' ? redirectTo : homeFor(currentUser);
+        const target = redirectTo && canOpen(currentUser.role, redirectTo)
+            ? redirectTo
+            : homeFor(currentUser);
         navigate(target, { replace: true });
     }, [currentUser, navigate, redirectTo]);
 

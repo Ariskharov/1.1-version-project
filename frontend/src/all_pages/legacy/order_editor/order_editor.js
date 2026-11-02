@@ -587,6 +587,7 @@ const OrderEditor = () => {
                 <div>
                     {order.name_compony && <p className="order_editor__company">{order.name_compony}</p>}
                     <h1>Редактор заказа <span className="order-id">#{id}</span></h1>
+                    <p className="order_editor__guide">Слева позиции, в центре размеры и цена, справа клиент и договор. Кнопки статуса меняют этап. Позицию берут из каталога или добавляют произвольную.</p>
                     <div className="order_editor__status-block">
                         <div className="status-pills">
                             {PRESET_STATUSES.map(s => (
@@ -842,6 +843,7 @@ const OrderEditor = () => {
                                         {showDetails ? 'Скрыть' : 'Показать'}
                                     </button>
                                 </div>
+                                <p className="order_editor__hint">Размеры считаются по формулам изделия. Пусто — в карточке мебели нет формул или не заданы размеры.</p>
                                 {showDetails && (
                                     asArray(selectedProduct.calculatedDetails).length > 0 ? (
                                         <div className="order_editor__details-table-wrap">
@@ -915,6 +917,7 @@ const OrderEditor = () => {
 
                     <section className="order_editor__contract">
                         <h4>Данные для договора</h4>
+                        <p className="order_editor__hint">Эти поля попадают в договор. Название организации подставляет реквизиты из прошлых заказов.</p>
                         <label className="order_editor__field order_editor__field--full">
                             <span>Организация покупателя</span>
                             <OrganizationSuggest

@@ -19,6 +19,7 @@ import PhotoUploadSlot from '../../components/ui/PhotoUploadSlot';
 import { uploadPhoto } from '../../utils/uploadService';
 
 import { resolveImageUrl } from '../../config/api';
+import { ROLE_ORDER, ROLES, can, isKnownRole } from '../../utils/roles';
 
 const EMPTY_ANN_FORM = {
     title: '',
@@ -138,12 +139,6 @@ const PERIOD_PRESETS = [
   { key: 'custom', label: 'Произвольный' },
 ];
 
-const ROLE_LABELS = {
-    user: 'Сотрудник',
-    manager: 'Менеджер',
-    admin: 'Администратор',
-};
-
 const Admin = () => {
     const { resolvedTheme } = useCatalogTheme();
     const {
@@ -223,15 +218,17 @@ const Admin = () => {
             .finally(() => setAnnLoading(false));
     }, [showToast]);
 
+    const canAdmin = can(currentUser?.role, 'adminPanel');
+
     useEffect(() => {
-        if (currentUser?.role !== 'admin') {
+        if (!canAdmin) {
             setAnnLoading(false);
             return;
         }
         if (!dataLoaded) return;
         setAnnouncements(Array.isArray(liveAnnouncements) ? liveAnnouncements : []);
         setAnnLoading(false);
-    }, [currentUser?.role, dataLoaded, liveAnnouncements]);
+    }, [canAdmin, dataLoaded, liveAnnouncements]);
 
     const resetAnnForm = () => {
         setAnnForm(EMPTY_ANN_FORM);
@@ -534,13 +531,13 @@ const Admin = () => {
     const adminClassName = (extra = '') =>
         ['admin', `admin--theme-${resolvedTheme}`, extra].filter(Boolean).join(' ');
 
-    if (!currentUser || currentUser.role !== 'admin') {
+    if (!currentUser || !canAdmin) {
         return (
             <div className={adminClassName('admin--denied')}>
                 <div className="admin-access-denied">
                     <span className="admin-access-denied__icon" aria-hidden="true">⛔</span>
                     <h2>Доступ запрещён</h2>
-                    <p>Эта страница доступна только администраторам</p>
+                    <p>Эта страница доступна администратору и IT-специалисту</p>
                 </div>
             </div>
         );
@@ -585,6 +582,14 @@ const Admin = () => {
     // Главная функция сохранения
     const onSubmitUser = async (data) => {
         if (isSavingUser) return;
+        if (!isKnownRole(data.role)) {
+            showToast('error', 'Выберите роль из списка');
+            return;
+        }
+        if (!selectedUser && !String(data.password || '').trim()) {
+            showToast('error', 'Для нового сотрудника нужен пароль');
+            return;
+        }
         setIsSavingUser(true);
 
         try {
@@ -1364,6 +1369,7 @@ const Admin = () => {
                                     </span>
                                     <div className="user-item__info">
                                         <strong>{user.fullName}</strong>
+                                        <small className="user-item__role">{ROLES[user.role]?.label || user.role || 'Сотрудник'}</small>
                                         <small>{user.position || '—'} • {user.phone || '—'}</small>
                                         <span className="user-item__meta">
                                             {stats.count} смен · {stats.hours} ч
@@ -1412,7 +1418,7 @@ const Admin = () => {
                 <div className="modal" onClick={() => !isSavingUser && setIsUserModalOpen(false)} role="presentation">
                     <div
                         ref={userModalRef}
-                        className="modal__content"
+                        className="modal__content modal__content--large"
                         onClick={(e) => e.stopPropagation()}
                         role="dialog"
                         aria-modal="true"
@@ -1445,15 +1451,28 @@ const Admin = () => {
                             />
                             <input {...register('fullName', { required: true })} placeholder="ФИО *" aria-label="ФИО" />
                             <input {...register('login', { required: true })} placeholder="Логин *" aria-label="Логин" />
-                            <input {...register('password')} type="password" placeholder="Пароль" aria-label="Пароль" />
+                            <input
+                                {...register('password')}
+                                type="password"
+                                placeholder={selectedUser ? 'Новый пароль, если нужно сменить' : 'Пароль'}
+                                aria-label="Пароль"
+                            />
                             <input {...register('phone')} placeholder="Телефон" aria-label="Телефон" />
                             <input {...register('position')} placeholder="Должность" aria-label="Должность" />
                             <input {...register('badgeId')} placeholder="ID Бейджика" aria-label="ID бейджа" />
-                            <select {...register('role')} aria-label="Роль">
-                                <option value="user">Сотрудник</option>
-                                <option value="manager">Менеджер</option>
-                                <option value="admin">Администратор</option>
-                            </select>
+                            <fieldset className="role-picker">
+                                <legend>Роль</legend>
+                                <p className="role-picker__lead">От роли зависит, какие страницы откроются сотруднику.</p>
+                                {ROLE_ORDER.map((key) => (
+                                    <label key={key} className={`role-picker__card${watch('role') === key ? ' is-on' : ''}`}>
+                                        <input type="radio" value={key} {...register('role', { required: true })} />
+                                        <span>
+                                            <strong>{ROLES[key].label}</strong>
+                                            <small>{ROLES[key].description}</small>
+                                        </span>
+                                    </label>
+                                ))}
+                            </fieldset>
                             <textarea {...register('description')} placeholder="Описание" rows={3} aria-label="Описание" />
 
                             <div className="modal__actions">
@@ -1500,7 +1519,7 @@ const Admin = () => {
                                 <p><strong>Логин</strong><span>{selectedUser.login}</span></p>
                                 <p><strong>Телефон</strong><span>{selectedUser.phone || '—'}</span></p>
                                 <p><strong>Должность</strong><span>{selectedUser.position || '—'}</span></p>
-                                <p><strong>Роль</strong><span>{ROLE_LABELS[selectedUser.role] || selectedUser.role}</span></p>
+                                <p><strong>Роль</strong><span>{ROLES[selectedUser.role]?.label || selectedUser.role}</span></p>
                                 <p><strong>ID бейджа</strong><span>{selectedUser.badgeId || '—'}</span></p>
                             </div>
                             {selectedUser.description && (

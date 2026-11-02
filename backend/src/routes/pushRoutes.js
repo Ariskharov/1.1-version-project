@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { authenticate } = require('../middleware/auth');
+const { can } = require('../utils/roles');
 const {
     getPublicKey,
     saveSubscription,
@@ -66,7 +67,7 @@ router.post('/push/unsubscribe', async (req, res) => {
 /** Тестовая отправка только для администратора */
 router.post('/push/test', authenticate, async (req, res) => {
     try {
-        if (String(req.userRole || '').toLowerCase() !== 'admin') {
+        if (!can(req.userRole, 'adminPanel')) {
             return res.status(403).json({ error: 'Access denied' });
         }
         const { notifyAnnouncement } = require('../services/pushService');

@@ -7,6 +7,7 @@ import { CustomContext } from '../../Context';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import { resolveImageUrl } from '../../config/api';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
+import { ROLES, bottomNav, staffNav } from '../../utils/roles';
 
 const QRCodeSVG = React.lazy(() => import('qrcode.react').then((mod) => ({
     default: mod.QRCodeSVG || (mod.default && mod.default.QRCodeSVG) || mod.default,
@@ -79,6 +80,10 @@ const Header = () => {
     const isActive = (path) => location.pathname === path;
     const isCatalogActive = location.pathname === '/' || location.pathname === '/catalog';
     const toTop = () => window.scrollTo({ top: 0, behavior: 'auto' });
+    const staffLinks = currentUser ? staffNav(currentUser.role) : [];
+    const roleLabel = ROLES[currentUser?.role]?.label || '';
+    const quickLinks = bottomNav(currentUser?.role);
+    const linkActive = (to) => (to === '/' ? isCatalogActive : isActive(to));
 
     const toggleMobileMenu = () => setMenuOpen((prev) => !prev);
 
@@ -187,13 +192,16 @@ const Header = () => {
 
                         {currentUser ? (
                             <>
-                            <div className="header__top__right__user" aria-label={`Пользователь: ${currentUser.fullName}`}>
+                            <div className="header__top__right__user" aria-label={`Пользователь: ${currentUser.fullName}${roleLabel ? `, ${roleLabel}` : ''}`}>
                                 {resolveImageUrl(currentUser.avatar) ? (
                                     <img src={resolveImageUrl(currentUser.avatar)} alt="" className="header__avatar" />
                                 ) : (
                                     <div className="header__avatar-initials">{getInitials(currentUser.fullName)}</div>
                                 )}
-                                <span className="header__top__right__user__username">{currentUser.fullName}</span>
+                                <span className="header__user-text">
+                                    <span className="header__top__right__user__username">{currentUser.fullName}</span>
+                                    {roleLabel && <span className="header__role">{roleLabel}</span>}
+                                </span>
                             </div>
 
                             <button type="button" onClick={handleLogout} className="header__top__right__logout-btn">
@@ -229,71 +237,17 @@ const Header = () => {
                             Заявка
                         </Link>
 
-                        {currentUser && currentUser.role !== 'admin' && (
-                            <>
-                                <Link
-                                    to="/cabinet"
-                                    onClick={toTop}
-                                    className={navLinkClass(isActive('/cabinet'))}
-                                    aria-current={isActive('/cabinet') ? 'page' : undefined}
-                                >
-                                    Личный кабинет
-                                </Link>
-                                <Link
-                                    to="/view_orders"
-                                    onClick={toTop}
-                                    className={navLinkClass(isActive('/view_orders'))}
-                                    aria-current={isActive('/view_orders') ? 'page' : undefined}
-                                >
-                                    Просмотр заказов
-                                </Link>
-                            </>
-                        )}
-
-                        {currentUser?.role === 'admin' && (
-                            <>
-                                <Link
-                                    to="/admin"
-                                    onClick={toTop}
-                                    className={navLinkClass(isActive('/admin'))}
-                                    aria-current={isActive('/admin') ? 'page' : undefined}
-                                >
-                                    Панель администратора
-                                </Link>
-                                <Link
-                                    to="/edit_mebel"
-                                    onClick={toTop}
-                                    className={navLinkClass(isActive('/edit_mebel'))}
-                                    aria-current={isActive('/edit_mebel') ? 'page' : undefined}
-                                >
-                                    Редактор мебели
-                                </Link>
-                                <Link
-                                    to="/placing_an_order"
-                                    onClick={toTop}
-                                    className={navLinkClass(isActive('/placing_an_order'))}
-                                    aria-current={isActive('/placing_an_order') ? 'page' : undefined}
-                                >
-                                    Оформление заказа
-                                </Link>
-                                <Link
-                                    to="/view_orders"
-                                    onClick={toTop}
-                                    className={navLinkClass(isActive('/view_orders'))}
-                                    aria-current={isActive('/view_orders') ? 'page' : undefined}
-                                >
-                                    Просмотр заказов
-                                </Link>
-                                <Link
-                                    to="/cabinet"
-                                    onClick={toTop}
-                                    className={navLinkClass(isActive('/cabinet'))}
-                                    aria-current={isActive('/cabinet') ? 'page' : undefined}
-                                >
-                                    Личный кабинет
-                                </Link>
-                            </>
-                        )}
+                        {staffLinks.map((item) => (
+                            <Link
+                                key={item.to}
+                                to={item.to}
+                                onClick={toTop}
+                                className={navLinkClass(linkActive(item.to))}
+                                aria-current={linkActive(item.to) ? 'page' : undefined}
+                            >
+                                {item.label}
+                            </Link>
+                        ))}
 
 
                     </nav>
@@ -387,71 +341,17 @@ const Header = () => {
                                 Заявка
                             </Link>
 
-                            {currentUser && currentUser.role !== 'admin' && (
-                                <>
-                                    <Link
-                                        to="/cabinet"
-                                        onClick={() => { toTop(); closeMobileMenu(); }}
-                                        className={`header__mobile-link ${isActive('/cabinet') ? 'active' : ''}`}
-                                        aria-current={isActive('/cabinet') ? 'page' : undefined}
-                                    >
-                                        Личный кабинет
-                                    </Link>
-                                    <Link
-                                        to="/view_orders"
-                                        onClick={() => { toTop(); closeMobileMenu(); }}
-                                        className={`header__mobile-link ${isActive('/view_orders') ? 'active' : ''}`}
-                                        aria-current={isActive('/view_orders') ? 'page' : undefined}
-                                    >
-                                        Просмотр заказов
-                                    </Link>
-                                </>
-                            )}
-
-                            {currentUser?.role === 'admin' && (
-                                <>
-                                    <Link
-                                        to="/admin"
-                                        onClick={() => { toTop(); closeMobileMenu(); }}
-                                        className={`header__mobile-link ${isActive('/admin') ? 'active' : ''}`}
-                                        aria-current={isActive('/admin') ? 'page' : undefined}
-                                    >
-                                        Панель администратора
-                                    </Link>
-                                    <Link
-                                        to="/edit_mebel"
-                                        onClick={() => { toTop(); closeMobileMenu(); }}
-                                        className={`header__mobile-link ${isActive('/edit_mebel') ? 'active' : ''}`}
-                                        aria-current={isActive('/edit_mebel') ? 'page' : undefined}
-                                    >
-                                        Редактор мебели
-                                    </Link>
-                                    <Link
-                                        to="/placing_an_order"
-                                        onClick={() => { toTop(); closeMobileMenu(); }}
-                                        className={`header__mobile-link ${isActive('/placing_an_order') ? 'active' : ''}`}
-                                        aria-current={isActive('/placing_an_order') ? 'page' : undefined}
-                                    >
-                                        Оформить заказ
-                                    </Link>
-                                    <Link
-                                        to="/view_orders"
-                                        onClick={() => { toTop(); closeMobileMenu(); }}
-                                        className={`header__mobile-link ${isActive('/view_orders') ? 'active' : ''}`}
-                                        aria-current={isActive('/view_orders') ? 'page' : undefined}
-                                    >
-                                        Просмотр заказов
-                                    </Link>
-                                    <Link
-                                        to="/cabinet"
-                                        onClick={() => { toTop(); closeMobileMenu(); }}
-                                        className={`header__mobile-link ${isActive('/cabinet') ? 'active' : ''}`}
-                                        aria-current={isActive('/cabinet') ? 'page' : undefined}
-                                    >
-                                        Личный кабинет
-                                    </Link>
-                                </>
-                            )}
+                            {staffLinks.map((item) => (
+                                <Link
+                                    key={item.to}
+                                    to={item.to}
+                                    onClick={() => { toTop(); closeMobileMenu(); }}
+                                    className={`header__mobile-link ${linkActive(item.to) ? 'active' : ''}`}
+                                    aria-current={linkActive(item.to) ? 'page' : undefined}
+                                >
+                                    {item.label}
+                                </Link>
+                            ))}
                         </nav>
 
                         {currentUser && (
@@ -462,7 +362,10 @@ const Header = () => {
                                     ) : (
                                         <div className="header__mobile-avatar-initials">{getInitials(currentUser.fullName)}</div>
                                     )}
-                                    <span className="header__mobile-username">{currentUser.fullName}</span>
+                                    <span className="header__mobile-username">
+                                        {currentUser.fullName}
+                                        {roleLabel && <span className="header__role">{roleLabel}</span>}
+                                    </span>
                                 </div>
 
                                 <button type="button" onClick={handleLogout} className="header__mobile-logout">
@@ -497,23 +400,21 @@ const Header = () => {
                     aria-hidden={menuOpen || undefined}
                     {...(menuOpen ? { inert: true } : {})}
                 >
-                    {!currentUser ? (
-                        <>
-                            <Link to="/" className={isCatalogActive ? 'is-active' : ''} aria-current={isCatalogActive ? 'page' : undefined} onClick={toTop}>Каталог</Link>
-                            <Link to="/zayavka" className={isActive('/zayavka') ? 'is-active' : ''} aria-current={isActive('/zayavka') ? 'page' : undefined} onClick={toTop}>Заявка</Link>
-                        </>
-                    ) : currentUser.role === 'admin' ? (
-                        <>
-                            <Link to="/view_orders" className={isActive('/view_orders') ? 'is-active' : ''} aria-current={isActive('/view_orders') ? 'page' : undefined} onClick={toTop}>Заказы</Link>
-                            <Link to="/placing_an_order" className={isActive('/placing_an_order') ? 'is-active' : ''} aria-current={isActive('/placing_an_order') ? 'page' : undefined} aria-label="Новый заказ" onClick={toTop}>Новый</Link>
-                            <Link to="/" className={isCatalogActive ? 'is-active' : ''} aria-current={isCatalogActive ? 'page' : undefined} onClick={toTop}>Каталог</Link>
-                        </>
-                    ) : (
-                        <>
-                            <Link to="/cabinet" className={isActive('/cabinet') ? 'is-active' : ''} aria-current={isActive('/cabinet') ? 'page' : undefined} onClick={toTop}>Кабинет</Link>
-                            <Link to="/view_orders" className={isActive('/view_orders') ? 'is-active' : ''} aria-current={isActive('/view_orders') ? 'page' : undefined} onClick={toTop}>Заказы</Link>
-                        </>
-                    )}
+                    {quickLinks.map((item) => {
+                        const active = linkActive(item.to);
+                        return (
+                            <Link
+                                key={item.to}
+                                to={item.to}
+                                className={active ? 'is-active' : ''}
+                                aria-current={active ? 'page' : undefined}
+                                aria-label={item.to === '/placing_an_order' ? 'Новый заказ' : undefined}
+                                onClick={toTop}
+                            >
+                                {item.label}
+                            </Link>
+                        );
+                    })}
                 </nav>
             )}
             {qrOpen && (

@@ -274,7 +274,8 @@ $ord-radius: 18px;
   }
 
   &__client-card,
-  &__meta-card {
+  &__meta-card,
+  &__requisites {
     background: var(--ord-surface-glass);
     border: 1px solid var(--ord-border);
     border-radius: $ord-radius;
@@ -284,7 +285,12 @@ $ord-radius: 18px;
     min-width: 0;
   }
 
-  &__client-card {
+  &__requisites {
+    margin-bottom: 22px;
+  }
+
+  &__client-card,
+  &__requisites {
     h3 {
       margin: 0 0 12px;
       font-size: 10px;

@@ -156,6 +156,10 @@ const ClientRequest = () => {
     const [facadeColor, setFacadeColor] = useState('');
     const [calcReady, setCalcReady] = useState(false);
     const [deleteArmed, setDeleteArmed] = useState(false);
+    const [moreContacts, setMoreContacts] = useState(() => {
+        const draft = readClientRequest();
+        return Boolean(draft?.name_compony || draft?.email || draft?.address);
+    });
     const trapRef = useRef(null);
     const nameRef = useRef(null);
     const phoneRef = useRef(null);
@@ -393,8 +397,19 @@ const ClientRequest = () => {
         [form.positions]
     );
 
-    const contactsReady = form.name_client.trim().length >= 2 && form.phone.replace(/\D/g, '').length >= 6;
+    const nameReady = form.name_client.trim().length >= 2;
+    const phoneReady = form.phone.replace(/\D/g, '').length >= 6;
+    const contactsReady = nameReady && phoneReady;
     const itemsReady = form.positions.length > 0 || form.order_note.trim().length >= 5;
+    const progressHint = !contactsReady
+        ? (!nameReady && !phoneReady
+            ? 'Осталось имя и телефон'
+            : !nameReady
+                ? 'Осталось имя'
+                : 'Осталось указать телефон')
+        : !itemsReady
+            ? 'Добавьте изделие или напишите, что нужно'
+            : 'Можно отправлять';
     const catalogLoading = !dataLoaded && catalog.length === 0;
     const catalogFailed = dataLoaded && catalog.length === 0 && !!catalogLoadError;
     const catalogEmpty = dataLoaded && catalog.length === 0 && !catalogLoadError;
@@ -490,6 +505,25 @@ const ClientRequest = () => {
         return true;
     };
 
+    const setQuantity = (id, value) => {
+        const quantity = clampQty(value);
+        setForm((prev) => ({
+            ...prev,
+            positions: prev.positions.map((item) => {
+                if (item.id !== id) return item;
+                const price = Number(item.price) || 0;
+                const userInputs = { ...(item.userInputs || {}) };
+                if (!item.isCustom) userInputs.coll = quantity;
+                return {
+                    ...item,
+                    quantity,
+                    userInputs,
+                    totalPrice: price * quantity,
+                };
+            }),
+        }));
+    };
+
     const copyText = async (text, key) => {
         try {
             await navigator.clipboard.writeText(text);
@@ -521,9 +555,12 @@ const ClientRequest = () => {
         }
         setError(firstMessage);
         if (firstMessage) {
+            if (next.email) setMoreContacts(true);
             const target = next.name_client ? nameRef : next.phone ? phoneRef : next.email ? emailRef : noteRef;
-            target.current?.focus();
-            target.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.setTimeout(() => {
+                target.current?.focus();
+                target.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 0);
             return;
         }
 
@@ -633,28 +670,46 @@ const ClientRequest = () => {
                         <p className="client-request__badge">Без регистрации</p>
                         <h1>Заявка на заказ</h1>
                         <p>
-                            Напишите, как с вами связаться. Мебель выбирается из каталога: там же указываются размеры и цвета.
-                            Своё изделие можно описать без цены — её посчитает сотрудник и перезвонит.
-                            {canShare ? ' Эту страницу можно отправить клиенту.' : ''}
+                            Имя, телефон и что нужно сделать. Цену и срок сотрудник подтвердит звонком.
                         </p>
                         <div className="client-request__steps" aria-label="Шаги заявки">
-                            <button type="button" className={contactsReady ? 'is-done' : ''} onClick={() => scrollTo(nameRef)}>
-                                <b>1</b> Контакты
+                            <button
+                                type="button"
+                                className={contactsReady ? 'is-done' : 'is-now'}
+                                aria-current={!contactsReady ? 'step' : undefined}
+                                onClick={() => scrollTo(nameRef)}
+                            >
+                                <b>{contactsReady ? '✓' : '1'}</b> Контакты
                             </button>
-                            <button type="button" className={itemsReady ? 'is-done' : ''} onClick={() => scrollTo(listRef)}>
-                                <b>2</b> Изделия
+                            <button
+                                type="button"
+                                className={itemsReady ? 'is-done' : contactsReady ? 'is-now' : ''}
+                                aria-current={contactsReady && !itemsReady ? 'step' : undefined}
+                                onClick={() => scrollTo(listRef)}
+                            >
+                                <b>{itemsReady ? '✓' : '2'}</b> Изделия
                             </button>
-                            <button type="button" className={contactsReady && itemsReady ? 'is-done' : ''} onClick={() => scrollTo(noteRef)}>
+                            <button
+                                type="button"
+                                className={contactsReady && itemsReady ? 'is-now' : ''}
+                                aria-current={contactsReady && itemsReady ? 'step' : undefined}
+                                onClick={() => scrollTo(noteRef)}
+                            >
                                 <b>3</b> Отправка
                             </button>
                         </div>
+                        <p className="client-request__progress">{progressHint}</p>
+                        <p className="client-request__draft-note">Черновик останется на этом устройстве.</p>
                         {canShare && (
-                            <div className="client-request__share">
-                                <input readOnly value={pageLink} aria-label="Ссылка на страницу заявки" />
-                                <button type="button" onClick={() => copyText(pageLink, 'page')}>
-                                    {copied === 'page' ? 'Скопировано' : 'Скопировать ссылку'}
-                                </button>
-                            </div>
+                            <details className="client-request__staff-share">
+                                <summary>Ссылка для клиента</summary>
+                                <div className="client-request__share">
+                                    <input readOnly value={pageLink} aria-label="Ссылка на страницу заявки" />
+                                    <button type="button" onClick={() => copyText(pageLink, 'page')}>
+                                        {copied === 'page' ? 'Скопировано' : 'Скопировать ссылку'}
+                                    </button>
+                                </div>
+                            </details>
                         )}
                     </header>
 
@@ -671,15 +726,22 @@ const ClientRequest = () => {
                         />
 
                         <section className="client-request__card" aria-labelledby="request-contacts-title">
-                            <h2 id="request-contacts-title">Контакты</h2>
+                            <div className="client-request__section-head">
+                                <h2 id="request-contacts-title">Как с вами связаться</h2>
+                                <span className="client-request__required-note">имя и телефон</span>
+                            </div>
                             <div className="client-request__grid">
                                 <label className={`client-request__field${fieldErrors.name_client ? ' is-invalid' : ''}`}>
-                                    <span className="client-request__label">Имя *</span>
+                                    <span className="client-request__label">
+                                        Имя
+                                        {nameReady && <span className="client-request__ok">готово</span>}
+                                    </span>
                                     <input
                                         ref={nameRef}
                                         value={form.name_client}
                                         onChange={(event) => setField('name_client', event.target.value)}
                                         autoComplete="name"
+                                        placeholder="Как к вам обращаться"
                                         maxLength={200}
                                         aria-invalid={fieldErrors.name_client ? 'true' : undefined}
                                         required
@@ -687,7 +749,10 @@ const ClientRequest = () => {
                                     {fieldErrors.name_client && <span className="client-request__hint">{fieldErrors.name_client}</span>}
                                 </label>
                                 <label className={`client-request__field${fieldErrors.phone ? ' is-invalid' : ''}`}>
-                                    <span className="client-request__label">Телефон *</span>
+                                    <span className="client-request__label">
+                                        Телефон
+                                        {phoneReady && <span className="client-request__ok">готово</span>}
+                                    </span>
                                     <input
                                         ref={phoneRef}
                                         value={form.phone}
@@ -702,45 +767,64 @@ const ClientRequest = () => {
                                     />
                                     {fieldErrors.phone && <span className="client-request__hint">{fieldErrors.phone}</span>}
                                 </label>
-                                <label className="client-request__field">
-                                    <span className="client-request__label">Организация</span>
-                                    <input
-                                        value={form.name_compony}
-                                        onChange={(event) => setField('name_compony', event.target.value)}
-                                        autoComplete="organization"
-                                        maxLength={200}
-                                    />
-                                </label>
-                                <label className={`client-request__field${fieldErrors.email ? ' is-invalid' : ''}`}>
-                                    <span className="client-request__label">Почта</span>
-                                    <input
-                                        ref={emailRef}
-                                        value={form.email}
-                                        onChange={(event) => setField('email', event.target.value)}
-                                        type="email"
-                                        autoComplete="email"
-                                        maxLength={120}
-                                        aria-invalid={fieldErrors.email ? 'true' : undefined}
-                                    />
-                                    {fieldErrors.email && <span className="client-request__hint">{fieldErrors.email}</span>}
-                                </label>
-                                <label className="client-request__field client-request__field--wide">
-                                    <span className="client-request__label">Адрес</span>
-                                    <input
-                                        value={form.address}
-                                        onChange={(event) => setField('address', event.target.value)}
-                                        autoComplete="street-address"
-                                        maxLength={300}
-                                    />
-                                </label>
+                            </div>
+                            <button
+                                type="button"
+                                className="client-request__more"
+                                aria-expanded={moreContacts}
+                                onClick={() => setMoreContacts((open) => !open)}
+                            >
+                                {moreContacts ? 'Скрыть организацию и адрес' : 'Добавить организацию, почту или адрес'}
+                            </button>
+                            <div className="client-request__extra" hidden={!moreContacts}>
+                                <div className="client-request__grid">
+                                    <label className="client-request__field">
+                                        <span className="client-request__label">Организация</span>
+                                        <input
+                                            value={form.name_compony}
+                                            onChange={(event) => setField('name_compony', event.target.value)}
+                                            autoComplete="organization"
+                                            placeholder="Если заказ от компании"
+                                            maxLength={200}
+                                        />
+                                    </label>
+                                    <label className={`client-request__field${fieldErrors.email ? ' is-invalid' : ''}`}>
+                                        <span className="client-request__label">Почта</span>
+                                        <input
+                                            ref={emailRef}
+                                            value={form.email}
+                                            onChange={(event) => setField('email', event.target.value)}
+                                            type="email"
+                                            autoComplete="email"
+                                            placeholder="Необязательно"
+                                            maxLength={120}
+                                            aria-invalid={fieldErrors.email ? 'true' : undefined}
+                                        />
+                                        {fieldErrors.email && <span className="client-request__hint">{fieldErrors.email}</span>}
+                                    </label>
+                                    <label className="client-request__field client-request__field--wide">
+                                        <span className="client-request__label">Адрес</span>
+                                        <input
+                                            value={form.address}
+                                            onChange={(event) => setField('address', event.target.value)}
+                                            autoComplete="street-address"
+                                            placeholder="Куда привезти или куда приехать на замер"
+                                            maxLength={300}
+                                        />
+                                    </label>
+                                </div>
                             </div>
                         </section>
 
                         <section className="client-request__card" ref={listRef} aria-labelledby="request-items-title">
                             <div className="client-request__section-head">
-                                <h2 id="request-items-title">Изделия</h2>
-                                <Link to="/catalog">Смотреть каталог</Link>
+                                <h2 id="request-items-title">Что заказать</h2>
+                                <Link to="/catalog">Открыть каталог</Link>
                             </div>
+
+                            {catalogLoading && <p className="client-request__note">Каталог открывается…</p>}
+                            {catalogFailed && <p className="client-request__note">{catalogLoadError}</p>}
+                            {catalogEmpty && <p className="client-request__note">Каталог сейчас пуст. Опишите изделие своими словами.</p>}
 
                             <div className="client-request__add-wrap">
                                 <button
@@ -749,23 +833,20 @@ const ClientRequest = () => {
                                     onClick={() => openModal('catalog')}
                                     disabled={catalogLoading || catalogEmpty || catalogFailed}
                                 >
-                                    ＋ Добавить из каталога
+                                    Выбрать из каталога
                                 </button>
                                 <button
                                     type="button"
                                     className="client-request__add-button client-request__add-button--custom"
                                     onClick={() => openModal('custom')}
                                 >
-                                    ＋ Добавить своё изделие
+                                    Описать своё
                                 </button>
                             </div>
-                            {catalogLoading && <p className="client-request__note">Каталог открывается…</p>}
-                            {catalogFailed && <p className="client-request__note">{catalogLoadError}</p>}
-                            {catalogEmpty && <p className="client-request__note">Каталог сейчас пуст. Опишите изделие своими словами.</p>}
 
                             {form.positions.length === 0 ? (
                                 <p className="client-request__empty client-request__empty--box">
-                                    Пока нет изделий. Можно описать заказ в комментарии.
+                                    Список пуст. Выберите мебель выше или напишите задачу в пожеланиях ниже.
                                 </p>
                             ) : (
                                 <ul className="client-request__list">
@@ -783,17 +864,44 @@ const ClientRequest = () => {
                                                     {item.description ? <small className="client-request__line-details">{item.description}</small> : null}
                                                     {colors ? <small className="client-request__line-details">{colors}</small> : null}
                                                     {details ? <small className="client-request__line-details">{details}</small> : null}
-                                                    <span className={line > 0 ? 'client-request__line-price' : 'client-request__line-later'}>
-                                                        {item.quantity} шт
-                                                        {' · '}
-                                                        {line > 0 ? money(line) : 'цену назовёт сотрудник'}
-                                                    </span>
+                                                    <div className="client-request__line-foot">
+                                                        <div className="client-request__stepper">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setQuantity(item.id, item.quantity - 1)}
+                                                                disabled={item.quantity <= 1}
+                                                                aria-label={`Уменьшить количество: ${item.title}`}
+                                                            >
+                                                                −
+                                                            </button>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                max="999"
+                                                                inputMode="numeric"
+                                                                aria-label={`Количество: ${item.title}`}
+                                                                value={item.quantity}
+                                                                onChange={(event) => setQuantity(item.id, event.target.value)}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setQuantity(item.id, item.quantity + 1)}
+                                                                disabled={item.quantity >= 999}
+                                                                aria-label={`Увеличить количество: ${item.title}`}
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+                                                        <span className={line > 0 ? 'client-request__line-price' : 'client-request__line-later'}>
+                                                            {line > 0 ? money(line) : 'цену назовёт сотрудник'}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                                 <div className="client-request__line-actions">
                                                     <button type="button" onClick={() => openModal(item.isCustom ? 'custom' : 'catalog', item)}>
                                                         Изменить
                                                     </button>
-                                                    <button type="button" onClick={() => removePosition(item.id)} aria-label={`Удалить ${item.title}`}>
+                                                    <button type="button" className="is-remove" onClick={() => removePosition(item.id)} aria-label={`Удалить ${item.title}`}>
                                                         Удалить
                                                     </button>
                                                 </div>
@@ -805,15 +913,15 @@ const ClientRequest = () => {
                         </section>
 
                         <section className="client-request__card" aria-labelledby="request-note-title">
-                            <h2 id="request-note-title">Комментарий</h2>
+                            <h2 id="request-note-title">Пожелания</h2>
                             <label className={`client-request__field${fieldErrors.order_note ? ' is-invalid' : ''}`}>
-                                <span className="client-request__label">К заказу</span>
+                                <span className="client-request__label">Срок, доставка, помещение</span>
                                 <textarea
                                     ref={noteRef}
                                     value={form.order_note}
                                     onChange={(event) => setField('order_note', event.target.value)}
                                     rows={4}
-                                    placeholder="Срок, доставка, особенности помещения"
+                                    placeholder="Например: нужна доставка в Токмок, замер на следующей неделе"
                                     maxLength={2000}
                                     aria-invalid={fieldErrors.order_note ? 'true' : undefined}
                                 />
@@ -823,16 +931,19 @@ const ClientRequest = () => {
 
                         <div className="client-request__submit">
                             <p className="client-request__estimate">
-                                {form.positions.length
-                                    ? `${form.positions.length} ${piecesLabel(form.positions.length)} в заявке`
-                                    : 'Можно отправить текстом, если список изделий пуст'}
-                                {estimate > 0 ? `. Ориентир по каталогу: ${money(estimate)}. Итог подтвердит сотрудник` : ''}
+                                {progressHint}
+                                {form.positions.length ? ` · ${form.positions.length} ${piecesLabel(form.positions.length)}` : ''}
+                                {estimate > 0 ? ` · ориентир ${money(estimate)}. Итог подтвердит сотрудник` : ''}
                             </p>
                             <p className="visually-hidden" aria-live="polite">
                                 {form.positions.length ? `В заявке ${form.positions.length} ${piecesLabel(form.positions.length)}` : 'Список изделий пуст'}
                             </p>
                             {error && <p className="client-request__error" role="alert">{error}</p>}
-                            <button type="submit" className="client-request__primary" disabled={saving}>
+                            <button
+                                type="submit"
+                                className={`client-request__primary${contactsReady && itemsReady ? ' is-ready' : ''}`}
+                                disabled={saving}
+                            >
                                 {saving ? 'Отправляем...' : 'Отправить заявку'}
                             </button>
                         </div>
@@ -1031,11 +1142,14 @@ const ClientRequest = () => {
                                                         </label>
                                                     </div>
                                                     {previewDetails.length > 0 && (
-                                                        <p className="pao-modal__preview">
+                                                        <ul className="client-request__preview">
                                                             {previewDetails.slice(0, 4).map((detail) => (
-                                                                [detail.label, detail.size].filter(Boolean).join(': ')
-                                                            )).filter(Boolean).join(' · ')}
-                                                        </p>
+                                                                <li key={detail.key || detail.label}>
+                                                                    <span>{detail.label}</span>
+                                                                    <b>{detail.size}</b>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
                                                     )}
                                                 </div>
                                             ) : (

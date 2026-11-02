@@ -135,6 +135,15 @@ $ed-ease: cubic-bezier(0.22, 1, 0.36, 1);
     background-clip: text;
   }
 
+  &__note {
+    flex: 1 0 100%;
+    margin: 4px 0 0;
+    max-width: 40rem;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ed-muted);
+  }
+
   &__stats {
     display: flex;
     align-items: center;

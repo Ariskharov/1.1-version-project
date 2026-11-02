@@ -121,6 +121,15 @@ $pao-radius: 18px;
     background-clip: text;
   }
 
+  &__hero-note {
+    flex: 1 0 100%;
+    margin: 6px 0 0;
+    max-width: 40rem;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--pao-muted);
+  }
+
   &__autosave {
     margin: 0 0 14px;
     font-size: 12px;

@@ -2260,3 +2260,12 @@ $oed-radius: 18px;
     padding-bottom: 150px;
   }
 }
+
+.order_editor__guide,
+.order_editor__hint {
+  margin: 0 0 12px;
+  max-width: 46rem;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--oed-muted);
+}

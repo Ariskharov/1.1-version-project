@@ -11,6 +11,9 @@ const orderRequestRoutes = require('./src/routes/orderRequest');
 const syncRoutes = require('./src/routes/sync');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const pushRoutes = require('./src/routes/pushRoutes');
+const serverLogRoutes = require('./src/routes/serverLogRoutes');
+const { shouldRecord, logText } = require('./src/utils/roles');
+const { record } = require('./src/services/serverLog');
 const { ensureTable: ensurePushTable, ensureConfigured: ensurePushConfigured } = require('./src/services/pushService');
 const { ensureAppSchema } = require('./src/database/schema');
 
@@ -61,6 +64,17 @@ app.use((req, res, next) => {
         console.log(
             `[PERFORMANCE] ${req.method} ${req.originalUrl} - Status: ${statusColor}${res.statusCode}${resetColor} - Time: ${timeColor}${timeInMs} ms${resetColor}`
         );
+        if (!shouldRecord(req.method, req.path, res.statusCode)) return;
+        const code = res.statusCode;
+        record({
+            level: code >= 500 ? 'error' : code >= 400 ? 'warn' : 'event',
+            event: code >= 400 ? 'error' : 'change',
+            message: logText(req.method, req.path, code),
+            method: req.method,
+            path: req.path,
+            status: code,
+            actor: req.userId ? `${req.userRole || ''}:${req.userId}` : '',
+        });
     });
     
     next();
@@ -84,6 +98,7 @@ app.use('/', pushRoutes);
 // Публичная заявка и живая синхронизация должны стоять раньше /:collection
 app.use('/', syncRoutes);
 app.use('/', orderRequestRoutes);
+app.use('/', serverLogRoutes);
 
 // Auth and collection routes
 app.use('/', authRoutes);

@@ -8,6 +8,7 @@ import { LoadingPage } from './components/ui/LoadingSpinner';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AdminRoute from './components/routing/AdminRoute';
 import NotificationHost from './components/NotificationHost';
+import { can, homeFor } from './utils/roles';
 
 // Ленивый импорт всех страниц для оптимизации сборки и ускорения загрузки
 const SingIn = React.lazy(() => import("./all_pages/auth/auth"));
@@ -20,6 +21,9 @@ const ClientRequest = React.lazy(() => import("./all_pages/request/request"));
 const ViewOrders = React.lazy(() => import("./all_pages/legacy/view_orders/view_orders"));
 const PersonalCabinet = React.lazy(() => import("./all_pages/cabinet/cabinet"));
 const Scan = React.lazy(() => import("./all_pages/scan/scan"));
+const Attendance = React.lazy(() => import("./all_pages/staff/attendance"));
+const HrAnnouncements = React.lazy(() => import("./all_pages/staff/announcements"));
+const ServerLogs = React.lazy(() => import("./all_pages/staff/logs"));
 
 const PageFallback = () => <LoadingPage message="Загрузка страницы..." />;
 
@@ -32,6 +36,9 @@ const pageNameFromPath = (pathname) => {
     if (pathname === '/admin') return 'Панель администратора';
     if (pathname === '/edit_mebel') return 'Редактор мебели';
     if (pathname === '/placing_an_order') return 'Оформление заказа';
+    if (pathname === '/attendance') return 'Приход и уход';
+    if (pathname === '/announcements') return 'Объявления';
+    if (pathname === '/logs') return 'Журнал сервера';
     if (pathname === '/zayavka') return 'Заявка на заказ';
     if (pathname.startsWith('/order_editor/')) return 'Редактор заказа';
     if (pathname.startsWith('/order/')) return 'Просмотр заказа';
@@ -154,16 +161,17 @@ function App() {
                     <Route path="/" element={<Navigate to="/scan" replace />} />
                 )}
 
-                {/* Страница сканирования доступна только scanner и admin */}
-                <Route 
-                    path="/scan" 
+                <Route
+                    path="/scan"
                     element={
-                        (currentUser?.role === 'admin' || currentUser?.role === 'scanner') ? (
+                        can(currentUser?.role, 'scan') ? (
                             <Scan />
                         ) : (
-                            currentUser ? <Navigate to="/" replace /> : <Navigate to="/signin" replace />
+                            currentUser
+                                ? <Navigate to={homeFor(currentUser.role)} replace />
+                                : <Navigate to="/signin" replace />
                         )
-                    } 
+                    }
                 />
 
                 <Route path="/" element={<Layout />}>
@@ -191,11 +199,10 @@ function App() {
                         )}
                     />
 
-                    {/* === Только администратор === */}
                     <Route
                         path="edit_mebel"
                         element={(
-                            <AdminRoute>
+                            <AdminRoute cap="editFurniture">
                                 <EditMebel />
                             </AdminRoute>
                         )}
@@ -203,7 +210,7 @@ function App() {
                     <Route
                         path="admin"
                         element={(
-                            <AdminRoute>
+                            <AdminRoute cap="adminPanel">
                                 <Admin />
                             </AdminRoute>
                         )}
@@ -211,7 +218,7 @@ function App() {
                     <Route
                         path="placing_an_order"
                         element={(
-                            <AdminRoute>
+                            <AdminRoute cap="editOrders">
                                 <PlacingAnOrder />
                             </AdminRoute>
                         )}
@@ -219,8 +226,32 @@ function App() {
                     <Route
                         path="order_editor/:id"
                         element={(
-                            <AdminRoute>
+                            <AdminRoute cap="editOrders">
                                 <OrderEditor />
+                            </AdminRoute>
+                        )}
+                    />
+                    <Route
+                        path="attendance"
+                        element={(
+                            <AdminRoute cap="attendance">
+                                <Attendance />
+                            </AdminRoute>
+                        )}
+                    />
+                    <Route
+                        path="announcements"
+                        element={(
+                            <AdminRoute cap="announcements">
+                                <HrAnnouncements />
+                            </AdminRoute>
+                        )}
+                    />
+                    <Route
+                        path="logs"
+                        element={(
+                            <AdminRoute cap="logs">
+                                <ServerLogs />
                             </AdminRoute>
                         )}
                     />

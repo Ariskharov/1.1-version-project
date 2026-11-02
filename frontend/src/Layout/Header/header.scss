@@ -151,6 +151,19 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
           white-space: nowrap;
         }
       }
+
+      .header__user-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .header__role {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.2;
+        color: var(--hdr-gold);
+      }
     }
   }
 
@@ -166,6 +179,7 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
     height: calc(100% - 64px);
     background: var(--hdr-side-bg);
     border-right: 1px solid var(--hdr-border-soft);
+    overflow-y: auto;
     backdrop-filter: blur(14px) saturate(1.05);
     box-shadow: var(--hdr-side-shadow);
     transition: background 0.4s $hdr-ease;
@@ -479,9 +493,18 @@ $hdr-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .header__mobile-username {
+    display: flex;
+    flex-direction: column;
     font-weight: 600;
     font-size: 16px;
     color: var(--hdr-text);
+  }
+
+  .header__mobile-username .header__role {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--hdr-gold);
   }
 
   .header__mobile-logout {

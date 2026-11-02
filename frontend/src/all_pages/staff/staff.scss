@@ -1,0 +1,242 @@
+.staff {
+  --st-text: #f5f0e8;
+  --st-muted: #9a9188;
+  --st-gold: #d4af78;
+  --st-surface: rgba(22, 20, 18, 0.88);
+  --st-border: rgba(212, 175, 120, 0.16);
+  --st-input: #1a1714;
+  --st-danger: #e07a72;
+  position: relative;
+  z-index: 1;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 8px 16px 40px;
+  color: var(--st-text);
+}
+
+.staff--theme-light {
+  --st-text: #1a1612;
+  --st-muted: #6b5d4f;
+  --st-gold: #9a7628;
+  --st-surface: rgba(255, 252, 247, 0.94);
+  --st-border: rgba(154, 118, 40, 0.22);
+  --st-input: #fffdf9;
+  --st-danger: #a33b34;
+}
+
+.staff__hero {
+  margin-bottom: 16px;
+}
+
+.staff__badge {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-gold);
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+}
+
+.staff__hero h1 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 600;
+}
+
+.staff__note {
+  max-width: 46rem;
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--st-muted);
+}
+
+.staff__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.staff__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.staff__btn {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--st-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--st-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.staff__btn.is-on,
+.staff__btn--primary {
+  background: var(--st-gold);
+  border-color: transparent;
+  color: #1a1612;
+  font-weight: 600;
+}
+
+.staff__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.staff__card,
+.staff__table-wrap,
+.staff__form {
+  background: var(--st-surface);
+  border: 1px solid var(--st-border);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.staff__table-wrap {
+  overflow-x: auto;
+}
+
+.staff__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.staff__table th,
+.staff__table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--st-border);
+  white-space: nowrap;
+}
+
+.staff__table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--st-muted);
+}
+
+.staff__empty,
+.staff__error {
+  margin: 0;
+  color: var(--st-muted);
+}
+
+.staff__error {
+  color: var(--st-danger);
+  margin-bottom: 10px;
+}
+
+.staff__form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.staff__field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--st-muted);
+}
+
+.staff__field input,
+.staff__field select,
+.staff__field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--st-border);
+  border-radius: 12px;
+  background: var(--st-input);
+  color: var(--st-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.staff__field textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.staff__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.staff__list {
+  display: grid;
+  gap: 10px;
+}
+
+.staff__item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--st-border);
+  border-radius: 14px;
+  background: var(--st-surface);
+}
+
+.staff__item.is-off {
+  opacity: 0.72;
+}
+
+.staff__item p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.staff__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--st-muted);
+  font-size: 12px;
+}
+
+.staff__chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--st-border);
+}
+
+.staff__chip--error {
+  color: var(--st-danger);
+}
+
+.staff__chip--warn {
+  color: var(--st-gold);
+}
+
+.staff__log-path {
+  color: var(--st-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 650px) {
+  .staff {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .staff__btn,
+  .staff__field input,
+  .staff__field select,
+  .staff__field textarea {
+    font-size: 16px;
+  }
+}

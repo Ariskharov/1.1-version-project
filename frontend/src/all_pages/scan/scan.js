@@ -6,6 +6,7 @@ import { CustomContext } from '../../Context';
 import './scan.scss';
 
 import { API_BASE } from '../../config/api';
+import { can } from '../../utils/roles';
 
 const Scan = () => {
     const navigate = useNavigate();
@@ -162,8 +163,10 @@ const Scan = () => {
         handleCheckin(badgeInput);
     };
 
+    const backToPanel = can(currentUser?.role, 'adminPanel');
+
     const handleGoBack = () => {
-        if (currentUser?.role === 'admin') {
+        if (backToPanel) {
             navigate('/admin');
         } else {
             logout();
@@ -186,7 +189,7 @@ const Scan = () => {
             {/* Header controls for kiosk */}
             <div className="kiosk-scan__nav">
                 <button onClick={handleGoBack} className="btn-back">
-                    {currentUser?.role === 'admin' ? '← Назад в панель' : 'Выйти из режима сканера'}
+                    {backToPanel ? '← Назад в панель' : 'Выйти из режима сканера'}
                 </button>
                 <div className="kiosk-scan__operator">
                     Оператор: <strong>{currentUser?.fullName || 'Система'}</strong>

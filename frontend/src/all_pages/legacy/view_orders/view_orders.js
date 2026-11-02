@@ -5,6 +5,7 @@ import { useCatalogTheme } from '../../../context/CatalogThemeContext';
 import { CustomContext } from '../../../Context';
 import DraftBanner from '../../../components/ui/DraftBanner';
 import { ORDER_STATUSES, isTodayOrder, readProductOrder, repeatOrderPayload } from '../../../utils/orderConvenience';
+import { can } from '../../../utils/roles';
 
 import { API_BASE, authHeaders } from '../../../config/api';
 
@@ -52,7 +53,7 @@ const ViewOrders = () => {
     const { resolvedTheme } = useCatalogTheme();
     const { currentUser, showToast, orders, setOrders, dataLoaded } = useContext(CustomContext);
     const navigate = useNavigate();
-    const isAdmin = currentUser?.role === 'admin';
+    const canEdit = can(currentUser?.role, 'editOrders');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('Все');
     const [workFilter, setWorkFilter] = useState('all');
@@ -226,7 +227,7 @@ const ViewOrders = () => {
 
     return (
         <div className={`view-orders-container view-orders--theme-${resolvedTheme}`}>
-            {isAdmin && <DraftBanner />}
+            {canEdit && <DraftBanner />}
             {/* Header */}
             <div className="orders-header">
                 <div>
@@ -380,7 +381,7 @@ const ViewOrders = () => {
                             <div key={order.id} className="order-card-new">
                                 <div className="card-top">
                                     <span className="order-id">Заказ #{order.id}</span>
-                                    {isAdmin ? (
+                                    {canEdit ? (
                                         <select
                                             className="status-inline"
                                             value={order.status || 'Оформлен'}
@@ -467,13 +468,13 @@ const ViewOrders = () => {
                                             <EyeIcon />
                                             <span>Детали</span>
                                         </Link>
-                                        {isAdmin && (
+                                        {canEdit && (
                                             <Link to={`/order_editor/${order.id}`} className="action-btn action-btn--edit" title="Редактировать">
                                                 <EditIcon />
                                                 <span>Изменить</span>
                                             </Link>
                                         )}
-                                        {isAdmin && (
+                                        {canEdit && (
                                             <button
                                                 type="button"
                                                 className="action-btn action-btn--repeat"
@@ -551,7 +552,7 @@ const ViewOrders = () => {
                                             </span>
                                         </td>
                                         <td>
-                                            {isAdmin ? (
+                                            {canEdit ? (
                                                 <select
                                                     className="status-inline"
                                                     value={order.status || 'Оформлен'}
@@ -582,12 +583,12 @@ const ViewOrders = () => {
                                                 <Link to={`/order/${order.id}`} className="table-action-btn view" title="Просмотр">
                                                     <EyeIcon />
                                                 </Link>
-                                                {isAdmin && (
+                                                {canEdit && (
                                                     <Link to={`/order_editor/${order.id}`} className="table-action-btn edit" title="Редактировать">
                                                         <EditIcon />
                                                     </Link>
                                                 )}
-                                                {isAdmin && (
+                                                {canEdit && (
                                                     <button
                                                         type="button"
                                                         className="table-action-btn edit"
