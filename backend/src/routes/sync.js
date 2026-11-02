@@ -4,8 +4,8 @@ const pool = require('../database/pg');
 
 const router = express.Router();
 
-const PUBLIC_TABLES = ['product', 'announcements'];
-const PRIVATE_TABLES = ['order', 'users', 'workSessions'];
+const PUBLIC_TABLES = ['product'];
+const PRIVATE_TABLES = ['announcements', 'order', 'users', 'workSessions'];
 
 // true — вход есть, false — гость, null — токен прислали, но он протух.
 const accessOf = (req) => {

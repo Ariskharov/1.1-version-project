@@ -151,6 +151,7 @@ export const Context = ({ children }) => {
         setUsers([]);
         setWorkSessions([]);
         setOrders([]);
+        setAnnouncements([]);
         stampsRef.current = {};
         try {
             localStorage.removeItem('currentUser');
@@ -239,8 +240,8 @@ export const Context = ({ children }) => {
         syncingRef.current = true;
         const token = readToken();
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const publicNames = ['product', 'announcements'];
-        const privateNames = ['order', 'users', 'workSessions'];
+        const publicNames = ['product'];
+        const privateNames = ['announcements', 'order', 'users', 'workSessions'];
         try {
             // Пока /sync не отвечает, списки качаем сразу. Через 15 секунд пробуем штампы снова.
             if (Date.now() < syncRetryAtRef.current) {
@@ -261,15 +262,18 @@ export const Context = ({ children }) => {
                 syncRetryAtRef.current = 0;
                 syncFailLoggedRef.current = false;
                 if (!token) {
+                    setIfChanged(setAnnouncements, []);
                     setIfChanged(setOrders, []);
                     setIfChanged(setUsers, []);
                     setIfChanged(setWorkSessions, []);
+                    delete stampsRef.current.announcements;
                     delete stampsRef.current.order;
                     delete stampsRef.current.users;
                     delete stampsRef.current.workSessions;
                 }
 
                 const jobs = Object.entries(stamps).map(async ([name, stamp]) => {
+                    if (!token && name !== 'product') return;
                     if (stampsRef.current[name] === stamp) return;
                     try {
                         await pullCollection(name, headers);
@@ -388,6 +392,7 @@ export const Context = ({ children }) => {
         setUsers([]);
         setWorkSessions([]);
         setOrders([]);
+        setAnnouncements([]);
         stampsRef.current = {};
         localStorage.removeItem('currentUser');
         localStorage.removeItem('token');

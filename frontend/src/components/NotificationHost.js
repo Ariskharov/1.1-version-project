@@ -11,7 +11,7 @@ import {
 
 // Слушает push на любой странице и показывает тост, даже если системный баннер спрятан.
 export default function NotificationHost() {
-    const { showToast, announcements, dataLoaded } = useContext(CustomContext);
+    const { showToast, announcements, dataLoaded, currentUser } = useContext(CustomContext);
     const navigate = useNavigate();
     const readyRef = useRef(false);
 
@@ -35,7 +35,10 @@ export default function NotificationHost() {
     }, [showToast, navigate]);
 
     useEffect(() => {
-        if (!dataLoaded) return;
+        if (!dataLoaded || !currentUser) {
+            readyRef.current = false;
+            return;
+        }
         const active = filterActiveAnnouncements(announcements);
         if (!readyRef.current) {
             markAnnouncementsSeen(active);
@@ -46,7 +49,7 @@ export default function NotificationHost() {
         if (!notes.length) return;
         const text = notes.map((note) => note.text).join(' · ').slice(0, 240);
         if (text) showToast('info', text);
-    }, [announcements, dataLoaded, showToast]);
+    }, [announcements, dataLoaded, currentUser, showToast]);
 
     return null;
 }

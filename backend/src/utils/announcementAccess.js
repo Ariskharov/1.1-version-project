@@ -1,4 +1,4 @@
-const { can } = require('./roles');
+const { can, isKnownRole } = require('./roles');
 
 // Совпадает с кабинетом: выключенное и просроченное сотруднику не показываем.
 const isAnnouncementActiveRow = (row, now = new Date()) => {
@@ -10,8 +10,9 @@ const isAnnouncementActiveRow = (row, now = new Date()) => {
     return !Number.isNaN(end.getTime()) && end > now;
 };
 
-const canSeeAnnouncement = (row, role, now = new Date()) => (
-    can(role, 'announcements') || isAnnouncementActiveRow(row, now)
-);
+const canSeeAnnouncement = (row, role, now = new Date()) => {
+    if (!isKnownRole(role)) return false;
+    return can(role, 'announcements') || isAnnouncementActiveRow(row, now);
+};
 
 module.exports = { isAnnouncementActiveRow, canSeeAnnouncement };
