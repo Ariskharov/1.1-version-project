@@ -282,11 +282,15 @@ function FurnitureEditor() {
 
         try {
             const fileName = selected.img.replace(/^\/utilse\//, '');
-            await fetch(UPLOAD_URL, {
+            const response = await fetch(UPLOAD_URL, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ fileName }),
             });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'Не удалось удалить фото');
+            }
 
             const updatedProduct = { ...selected, img: '' };
             setSelected(updatedProduct);

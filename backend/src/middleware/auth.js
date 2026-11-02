@@ -28,6 +28,14 @@ const authenticate = async (req, res, next) => {
     }
 };
 
+// Без токена пропускаем как гостя. Битый токен — та же 401, что и у обычного входа.
+const authenticateOptional = (req, res, next) => {
+    const header = req.headers.authorization || req.headers.Authorization;
+    const token = typeof header === 'string' ? header.split(' ')[1] : '';
+    if (!token) return next();
+    return authenticate(req, res, next);
+};
+
 const requireRole = (...roles) => (req, res, next) => {
     const role = String(req.userRole || '').toLowerCase();
     const allowed = roles.map((item) => String(item).toLowerCase());
@@ -37,4 +45,4 @@ const requireRole = (...roles) => (req, res, next) => {
     return next();
 };
 
-module.exports = { authenticate, requireRole };
+module.exports = { authenticate, authenticateOptional, requireRole };

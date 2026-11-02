@@ -1,8 +1,8 @@
 import { API_BASE, authHeaders } from '../config/api';
 
 export const ANNOUNCEMENT_TYPES = {
-    urgent: { key: 'urgent', label: 'Срочная', hint: 'Показывается баннером сверху в кабинете' },
-    persistent: { key: 'persistent', label: 'Долгосрочная', hint: 'Блок «Актуально» в кабинете' },
+    urgent: { key: 'urgent', label: 'Срочная', hint: 'В кабинете идёт первой, с пометкой «Срочно»' },
+    persistent: { key: 'persistent', label: 'Долгосрочная', hint: 'В кабинете идёт после срочных, с пометкой «Актуально»' },
 };
 
 /** Активна ли новость с учётом флага и даты окончания */

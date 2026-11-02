@@ -31,7 +31,7 @@ test('мастер оформляет заказы и мебель без пан
     assert.equal(canWriteCollection('master', 'announcements'), false);
 });
 
-test('кадры правят объявления и не трогают заказы и сотрудников', () => {
+test('кадры создают и правят объявления, заказы и сотрудников не трогают', () => {
     assert.equal(can('hr', 'announcements'), true);
     assert.equal(can('hr', 'editOrders'), false);
     assert.equal(can('hr', 'adminPanel'), false);

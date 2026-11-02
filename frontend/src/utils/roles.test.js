@@ -32,7 +32,9 @@ test('бухгалтер смотрит заказы и время, мастер
     expect(homeFor('master')).toBe('/view_orders');
 });
 
-test('кадры правят объявления, IT открывает журнал', () => {
+test('кадры создают объявления, IT открывает журнал', () => {
+    expect(ROLES.hr.description).toContain('правит');
+    expect(ROLES.hr.description).toContain('удаляет');
     expect(can('hr', 'announcements')).toBe(true);
     expect(can('hr', 'adminPanel')).toBe(false);
     expect(canWriteCollection('hr', 'users')).toBe(false);

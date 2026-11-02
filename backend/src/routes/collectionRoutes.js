@@ -7,7 +7,7 @@ const {
     deleteCollectionItem
 } = require('../controllers/collectionController');
 const pool = require('../database/pg');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authenticateOptional } = require('../middleware/auth');
 const { canWriteCollection } = require('../utils/roles');
 
 const router = express.Router();
@@ -27,6 +27,8 @@ const validateCollection = (req, res, next) => {
 const publicRead = new Set(['product', 'announcements']);
 
 const guardRead = (req, res, next) => {
+    // Объявления читают все, но выключенные отдаём только отделу кадров, админу и IT.
+    if (req.params.collection === 'announcements') return authenticateOptional(req, res, next);
     if (publicRead.has(req.params.collection)) return next();
     return authenticate(req, res, next);
 };

@@ -54,3 +54,5 @@ CREATE TABLE IF NOT EXISTS request_hits (
 
 CREATE INDEX IF NOT EXISTS request_hits_ip_created_idx
   ON request_hits (ip, created_at);
+
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS image TEXT;

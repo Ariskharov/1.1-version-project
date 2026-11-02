@@ -8,7 +8,13 @@ const AdminRoute = ({ children, cap = 'adminPanel' }) => {
     const { currentUser } = useContext(CustomContext);
     const location = useLocation();
 
-    if (!currentUser) {
+    let token = '';
+    try {
+        token = localStorage.getItem('token') || '';
+    } catch {
+        token = '';
+    }
+    if (!currentUser || !token) {
         return <Navigate to="/signin" state={{ from: location.pathname }} replace />;
     }
 

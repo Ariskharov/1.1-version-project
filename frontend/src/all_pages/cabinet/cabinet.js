@@ -101,6 +101,29 @@ const getUserHoursInRange = (sessions, userId, from, to) => {
 
 // ==================== ПРЕСЕТЫ ПЕРИОДОВ ====================
 
+const CabinetNewsCard = ({ item, kind }) => {
+  const image = resolveImageUrl(item.image || item.img || '');
+  const title = String(item.title || '').trim();
+  const until = item.expiresAt || item.expiresat;
+  return (
+    <article className={`cabinet-news__card cabinet-news__card--${kind}`}>
+      <div className="cabinet-news__meta">
+        <span className={`cabinet-news__badge cabinet-news__badge--${kind}`}>
+          {kind === 'urgent' ? 'Срочно' : 'Актуально'}
+        </span>
+        {until ? <span className="cabinet-news__until">до {formatExpiryLabel(until)}</span> : <span className="cabinet-news__until">Без срока</span>}
+      </div>
+      {title ? <h3 className="cabinet-news__title">{title}</h3> : null}
+      {image ? (
+        <a className="cabinet-news__photo" href={image} target="_blank" rel="noopener noreferrer">
+          <img src={image} alt={title ? `Фото: ${title}` : 'Фото объявления'} />
+        </a>
+      ) : null}
+      <p className="cabinet-news__text">{item.message}</p>
+    </article>
+  );
+};
+
 const PERIOD_PRESETS = [
   { key: 'today', label: 'Сегодня' },
   { key: 'week', label: 'Эта неделя' },
@@ -563,6 +586,10 @@ const PersonalCabinet = () => {
   const cabinetLinks = staffNav(currentUser.role).filter((item) => item.to !== '/cabinet');
 
   const periodLabel = getPeriodLabel(activePreset, dateRange);
+  const cabinetNews = [
+    ...urgentNews.map((item) => ({ item, kind: 'urgent' })),
+    ...bulletinNews.map((item) => ({ item, kind: 'persistent' })),
+  ];
 
   // ==================== РЕНДЕР ====================
   return (
@@ -658,28 +685,11 @@ const PersonalCabinet = () => {
         </div>
       )}
 
-      {urgentNews.length > 0 && (
-        <section
-          className="cabinet-urgent-news"
-          aria-live="polite"
-          aria-label="Срочные объявления"
-        >
-          {urgentNews.map((a) => (
-            <article key={a.id} className="cabinet-urgent-news__item">
-              <div className="cabinet-urgent-news__badge" aria-hidden="true">Срочно</div>
-              <div className="cabinet-urgent-news__content">
-                {(a.image || a.img) && (
-                  <img src={resolveImageUrl(a.image || a.img)} alt="" className="cabinet-urgent-news__img" />
-                )}
-                {a.title ? <strong className="cabinet-urgent-news__title">{a.title}</strong> : null}
-                <p className="cabinet-urgent-news__text">{a.message}</p>
-                {(a.expiresAt || a.expiresat) && (
-                  <small className="cabinet-urgent-news__until">
-                    До {formatExpiryLabel(a.expiresAt || a.expiresat)}
-                  </small>
-                )}
-              </div>
-            </article>
+      {cabinetNews.length > 0 && (
+        <section className="cabinet-news" aria-labelledby="cabinet-news-title">
+          <h2 id="cabinet-news-title" className="cabinet-news__heading">Объявления</h2>
+          {cabinetNews.map(({ item, kind }) => (
+            <CabinetNewsCard key={`${kind}-${item.id}`} item={item} kind={kind} />
           ))}
         </section>
       )}
@@ -723,35 +733,6 @@ const PersonalCabinet = () => {
           </div>
         </div>
       </div>
-
-      {bulletinNews.length > 0 && (
-        <section
-          className="cabinet-bulletin"
-          aria-labelledby="cabinet-bulletin-title"
-        >
-          <h2 id="cabinet-bulletin-title" className="cabinet-bulletin__title">
-            📢 Новости и объявления
-          </h2>
-          <ul className="cabinet-bulletin__list">
-            {bulletinNews.map((a) => (
-              <li key={a.id} className="cabinet-bulletin__item">
-                {(a.image || a.img) && (
-                  <img src={resolveImageUrl(a.image || a.img)} alt="" className="cabinet-bulletin__img" />
-                )}
-                <div className="cabinet-bulletin__content">
-                  {a.title ? <strong>{a.title}: </strong> : null}
-                  <span>{a.message}</span>
-                  {(a.expiresAt || a.expiresat) && (
-                    <small className="cabinet-bulletin__until">
-                      до {formatExpiryLabel(a.expiresAt || a.expiresat)}
-                    </small>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {/* ===== ИНСАЙТЫ (новый блок) ===== */}
       <div className="cabinet-insights">

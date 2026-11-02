@@ -3,6 +3,7 @@ const { notifyAnnouncement } = require('../services/pushService');
 const { shouldNotifyAnnouncement } = require('../services/pushMessages');
 const { isPublicToken, newPublicToken } = require('../utils/publicToken');
 const { isKnownRole } = require('../utils/roles');
+const { canSeeAnnouncement } = require('../utils/announcementAccess');
 
 const parseId = (value) => {
     const id = Number(value);
@@ -54,8 +55,12 @@ const getCollection = async (req, res) => {
     try {
         const collection = req.params.collection;
         const result = await pool.query(`SELECT * FROM "${collection}" ORDER BY id ASC`);
+        let rows = result.rows.map((row) => publicRow(collection, row));
+        if (collection === 'announcements') {
+            rows = rows.filter((row) => canSeeAnnouncement(row, req.userRole));
+        }
         res.set('Cache-Control', 'no-store');
-        res.json(result.rows.map((row) => publicRow(collection, row)));
+        res.json(rows);
     } catch (err) {
         console.error('getCollection error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -72,8 +77,12 @@ const getCollectionItem = async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({});
         }
+        const row = publicRow(collection, result.rows[0]);
+        if (collection === 'announcements' && !canSeeAnnouncement(row, req.userRole)) {
+            return res.status(404).json({});
+        }
         res.set('Cache-Control', 'no-store');
-        res.json(publicRow(collection, result.rows[0]));
+        res.json(row);
     } catch (err) {
         console.error('getCollectionItem error:', err);
         res.status(500).json({ error: 'Server error' });

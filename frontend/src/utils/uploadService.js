@@ -1,4 +1,4 @@
-import { API_BASE } from '../config/api';
+import { API_BASE, authHeaders } from '../config/api';
 
 /**
  * Загружает фотографию на бэкенд (POST /upload).
@@ -44,7 +44,7 @@ export const deletePhoto = async (filePath) => {
 
     const res = await fetch(`${API_BASE}/upload`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ fileName }),
     });
 
